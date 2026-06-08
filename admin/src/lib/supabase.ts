@@ -1,4 +1,4 @@
-﻿import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 // arabamabak - Yeni Supabase projesi (v2)
