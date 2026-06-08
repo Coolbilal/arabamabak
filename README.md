@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+# arabamabak.com
+açık arttırma sitesi
+=======
 # arabamabak - Türk Araba Mezat Sitesi
 
 Türkiye'nin en kapsamlı açık arttırma + ücretsiz ilan platformu.
@@ -205,3 +209,4 @@ VITE_SUPABASE_ANON_KEY=eyJhbGc...
 - Admin: https://6fupnkotimse.space.minimax.io
 EOF
 echo "README yazıldı"
+>>>>>>> 751e60d0c0c8a54be93e2d5832e0a1ecfab72fad
