@@ -727,6 +727,7 @@ export interface SiteSettings {
   auction_default_duration_minutes: number;
   auction_listing_fee: number;
   auction_seat_capacity: number;
+  premium_auction_fee: number;
   auction_seat_hold_fee: number;
   auction_seller_auto_approval_hours: number;
   contact_email: string | null;

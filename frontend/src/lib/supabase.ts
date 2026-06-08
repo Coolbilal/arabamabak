@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from './types';
 
 // arabamabak - Yeni Supabase projesi (v2)
 export const SUPABASE_URL = 'https://xfcxrbnnesliflwwejwh.supabase.co';
