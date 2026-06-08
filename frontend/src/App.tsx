@@ -1,5 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
+<<<<<<< HEAD
 import { ThemeProvider } from './components/ThemeProvider';
+=======
+>>>>>>> 751e60d0c0c8a54be93e2d5832e0a1ecfab72fad
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import AuctionsPage from './pages/AuctionsPage';
@@ -19,9 +22,14 @@ import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
   return (
+<<<<<<< HEAD
     <ThemeProvider>
       <Routes>
         <Route element={<Layout />}>
+=======
+    <Routes>
+      <Route element={<Layout />}>
+>>>>>>> 751e60d0c0c8a54be93e2d5832e0a1ecfab72fad
         <Route index element={<HomePage />} />
         <Route path="/kategori/:cat" element={<CategoryPage />} />
         <Route path="/ilan/:id" element={<VehicleDetailPage />} />
@@ -38,8 +46,13 @@ export default function App() {
         <Route path="/muzayedeler" element={<AuctionsPage />} />
         <Route path="/arac-deger" element={<ValuationPage />} />
         <Route path="*" element={<NotFoundPage />} />
+<<<<<<< HEAD
         </Route>
       </Routes>
     </ThemeProvider>
+=======
+      </Route>
+    </Routes>
+>>>>>>> 751e60d0c0c8a54be93e2d5832e0a1ecfab72fad
   );
 }
