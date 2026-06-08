@@ -1,8 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
-<<<<<<< HEAD
+﻿import { Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeProvider';
-=======
->>>>>>> 751e60d0c0c8a54be93e2d5832e0a1ecfab72fad
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import AuctionsPage from './pages/AuctionsPage';
@@ -22,37 +19,27 @@ import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
   return (
-<<<<<<< HEAD
     <ThemeProvider>
       <Routes>
         <Route element={<Layout />}>
-=======
-    <Routes>
-      <Route element={<Layout />}>
->>>>>>> 751e60d0c0c8a54be93e2d5832e0a1ecfab72fad
-        <Route index element={<HomePage />} />
-        <Route path="/kategori/:cat" element={<CategoryPage />} />
-        <Route path="/ilan/:id" element={<VehicleDetailPage />} />
-        <Route path="/giris" element={<LoginPage />} />
-        <Route path="/kayit" element={<RegisterPage />} />
-        <Route path="/profil" element={<ProfilePage />} />
-        <Route path="/profil/cuzdan" element={<WalletPage />} />
-        <Route path="/profil/ilanlarim" element={<MyListingsPage />} />
-        <Route path="/profil/mesajlar" element={<MessagesPage />} />
-        <Route path="/profil/favoriler" element={<FavoritesPage />} />
-        <Route path="/profil/ekspertiz" element={<ExpertisePage />} />
-        <Route path="/ilan-ver" element={<CreateListingPage />} />
-        <Route path="/ekspertiz" element={<ExpertisePage />} />
-        <Route path="/muzayedeler" element={<AuctionsPage />} />
-        <Route path="/arac-deger" element={<ValuationPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-<<<<<<< HEAD
+          <Route index element={<HomePage />} />
+          <Route path="/kategori/:cat" element={<CategoryPage />} />
+          <Route path="/ilan/:id" element={<VehicleDetailPage />} />
+          <Route path="/giris" element={<LoginPage />} />
+          <Route path="/kayit" element={<RegisterPage />} />
+          <Route path="/profil" element={<ProfilePage />} />
+          <Route path="/profil/cuzdan" element={<WalletPage />} />
+          <Route path="/profil/ilanlarim" element={<MyListingsPage />} />
+          <Route path="/profil/mesajlar" element={<MessagesPage />} />
+          <Route path="/profil/favoriler" element={<FavoritesPage />} />
+          <Route path="/profil/ekspertiz" element={<ExpertisePage />} />
+          <Route path="/ilan-ver" element={<CreateListingPage />} />
+          <Route path="/ekspertiz" element={<ExpertisePage />} />
+          <Route path="/muzayedeler" element={<AuctionsPage />} />
+          <Route path="/arac-deger" element={<ValuationPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </ThemeProvider>
-=======
-      </Route>
-    </Routes>
->>>>>>> 751e60d0c0c8a54be93e2d5832e0a1ecfab72fad
   );
 }
