@@ -30,7 +30,7 @@ const schema = z.object({
     .transform((s) => s.replace(/\s/g, ''))
     .refine((s) => /^\d{11}$/.test(s), 'TC kimlik no 11 hane olmalı'),
   contract_accepted: z.literal(true, {
-    errorMap: () => ({ message: 'Kurumsal hesap sözleşmesini onaylamalısınız' }),
+    message: 'Kurumsal hesap sözleşmesini onaylamalısınız',
   }),
 }).refine((d) => d.password === d.password_confirm, {
   path: ['password_confirm'],
