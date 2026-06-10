@@ -4,12 +4,12 @@
 
 import {
   createContext,
-  ReactNode,
   useCallback,
   useContext,
   useEffect,
   useState,
 } from 'react';
+import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { SiteTheme } from '../lib/types';
 
@@ -83,7 +83,7 @@ function applyThemeToDocument(theme: SiteTheme): void {
   root.style.setProperty('--shadow-lg', theme.shadow_lg);
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }): JSX.Element {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<SiteTheme | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -139,7 +139,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
   );
 }
 
-export function useTheme(): ThemeContextValue {
+export function useTheme() {
   const ctx = useContext(ThemeContext);
   if (!ctx) {
     throw new Error('useTheme must be used within ThemeProvider');
