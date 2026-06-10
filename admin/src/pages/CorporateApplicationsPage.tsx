@@ -24,6 +24,7 @@ interface AppRow {
   tax_office_name: string;
   tax_id_number: string;
   tc_id_number: string;
+  password_temp: string | null;
   status: CorporateApplicationStatus;
   rejection_reason: string | null;
   created_at: string;
