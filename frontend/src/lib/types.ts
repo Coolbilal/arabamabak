@@ -1095,3 +1095,36 @@ export const SEAT_HOLD_STATUS_LABELS: Record<SeatHoldStatus, string> = {
   released: 'Çözüldü',
   won: 'Kazandı',
 };
+
+
+// =====================================================
+// KURUMSAL HESAP (BAYİ) TİPLERİ
+// =====================================================
+export type BusinessType = 'individual_company' | 'limited_company';
+export type CorporateApplicationStatus = 'pending' | 'approved' | 'rejected';
+
+export interface CorporateApplication {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  city_id: string;
+  district_id: string;
+  neighborhood: string;
+  business_type: BusinessType;
+  tax_office_city_id: string;
+  tax_office_district_id: string;
+  tax_office_name: string;
+  tax_id_number: string;
+  tc_id_number: string;
+  status: CorporateApplicationStatus;
+  rejection_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  deleted_by: string | null;
+}

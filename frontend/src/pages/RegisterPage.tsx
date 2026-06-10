@@ -8,6 +8,8 @@ import { cn } from '../lib/utils';
 import { useCities } from '../lib/useLocationData';
 import {
   AlertCircle,
+  ArrowRight,
+  Building2,
   Car,
   CheckCircle2,
   Eye,
@@ -249,6 +251,23 @@ export default function RegisterPage() {
                 Giriş yap
               </Link>
             </p>
+
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-center gap-2 text-amber-800">
+                <Building2 className="h-4 w-4" />
+                <span className="text-sm font-semibold">Bayi veya galerici misiniz?</span>
+              </div>
+              <p className="mt-1 text-xs text-amber-700">
+                Kurumsal hesap için başvuru yapın, admin onayı sonrası hesabınız aktif olsun.
+              </p>
+              <Link
+                to="/bayi-basvurusu"
+                className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-amber-900 hover:text-amber-700"
+              >
+                Kurumsal Hesap Başvurusu Yap
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
 
             <p className="text-center text-[11px] text-slate-400">
               Kayıt olarak <span className="underline">Kullanıcı Sözleşmesi</span> ve{' '}

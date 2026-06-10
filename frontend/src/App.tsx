@@ -16,6 +16,7 @@ import FavoritesPage from './pages/FavoritesPage';
 import ExpertisePage from './pages/ExpertisePage';
 import MyListingsPage from './pages/MyListingsPage';
 import NotFoundPage from './pages/NotFoundPage';
+import CorporateRegisterPage from './pages/CorporateRegisterPage';
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/ilan/:id" element={<VehicleDetailPage />} />
         <Route path="/giris" element={<LoginPage />} />
         <Route path="/kayit" element={<RegisterPage />} />
+        <Route path="/bayi-basvurusu" element={<CorporateRegisterPage />} />
         <Route path="/profil" element={<ProfilePage />} />
         <Route path="/profil/cuzdan" element={<WalletPage />} />
         <Route path="/profil/ilanlarim" element={<MyListingsPage />} />

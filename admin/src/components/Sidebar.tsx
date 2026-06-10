@@ -4,7 +4,7 @@ import { cn } from '../lib/utils';
 import {
   LayoutDashboard, ListChecks, ClipboardCheck, Settings,
   CreditCard, Shield, Store, Users, Wallet, Calendar, ChevronLeft, ChevronRight, LogOut, Car,
-  Inbox, Clock, Play, CheckCircle2,
+  Inbox, Clock, Play, CheckCircle2, Palette, Megaphone, Image, Building2,
 } from 'lucide-react';
 
 interface Item {
@@ -27,8 +27,12 @@ const ITEMS: Item[] = [
   { to: '/slots', label: 'Açık Arttırma Slotları', icon: <Calendar className="h-5 w-5" />, area: 'auctions' },
   { to: '/users', label: 'Kullanıcılar', icon: <Users className="h-5 w-5" />, area: 'users' },
   { to: '/dealerships', label: 'Bayilikler', icon: <Store className="h-5 w-5" />, area: 'dealerships' },
+  { to: '/corporate-applications', label: 'Kurumsal Başvurular', icon: <Building2 className="h-5 w-5" />, area: 'corporate_applications' },
   { to: '/transactions', label: 'İşlem Geçmişi', icon: <Wallet className="h-5 w-5" />, area: 'transactions' },
   { to: '/settings', label: 'Site Ayarları', icon: <Settings className="h-5 w-5" />, area: 'site_settings' },
+  { to: '/site/tema', label: 'Tema', icon: <Palette className="h-5 w-5" />, area: 'site_settings' },
+  { to: '/site/reklamlar', label: 'Reklamlar', icon: <Megaphone className="h-5 w-5" />, area: 'site_settings' },
+  { to: '/site/logolar', label: 'Logolar', icon: <Image className="h-5 w-5" />, area: 'site_settings' },
   { to: '/payment-methods', label: 'Ödeme Yöntemleri', icon: <CreditCard className="h-5 w-5" />, area: 'site_settings' },
   { to: '/authorization', label: 'Yetkilendirme', icon: <Shield className="h-5 w-5" />, area: 'authorization' },
 ];
