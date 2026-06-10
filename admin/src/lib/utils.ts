@@ -23,3 +23,16 @@ export function timeSince(iso: string) {
   if (sec < 86400) return `${Math.floor(sec/3600)} sa önce`;
   return `${Math.floor(sec/86400)} gün önce`;
 }
+
+
+export function formatDateTime(d: string | Date | null | undefined): string {
+  if (!d) return '-';
+  const date = typeof d === 'string' ? new Date(d) : d;
+  return new Intl.DateTimeFormat('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}

@@ -18,7 +18,8 @@ type FreeRow = Vehicle & {
 
 const STATUS_LABELS: Record<ListingStatus, string> = {
   draft: 'Taslak', pending: 'Onay Bekliyor', active: 'Yayında',
-  sold: 'Satıldı', expired: 'Süresi Doldu', rejected: 'Reddedildi', cancelled: 'İptal',
+  sold: 'Satıldı',
+  sold_pending_confirmation: 'Onay Bekliyor (Satıcı)', expired: 'Süresi Doldu', rejected: 'Reddedildi', cancelled: 'İptal',
 };
 const STATUS_CLASS: Record<ListingStatus, string> = {
   draft: 'bg-slate-100 text-slate-700',

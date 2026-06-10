@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { useAuth } from '../contexts/AuthContext';
-import { cn, formatDate, formatDateTime } from '../lib/utils';
+import { cn, formatDate } from '../lib/utils';
 import {
   AlertCircle, Building2, CheckCircle2, ChevronRight, Eye, Loader2,
   Search, X, XCircle,
 } from 'lucide-react';
-import type { CorporateApplication, BusinessType, CorporateApplicationStatus } from '../lib/types';
+import type { BusinessType, CorporateApplicationStatus } from '../lib/types';
 
 interface AppRow {
   id: string;
@@ -330,7 +330,7 @@ export default function CorporateApplicationsPage() {
               <div>
                 <h2 className="text-xl font-extrabold text-slate-900">Başvuru Detayı</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {formatDateTime(selected.created_at)} • {selected.email}
+                  {formatDate(selected.created_at)} • {selected.email}
                 </p>
               </div>
               <button onClick={() => setSelected(null)} className="text-slate-400 hover:text-slate-600">
@@ -377,7 +377,7 @@ export default function CorporateApplicationsPage() {
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
                   <CheckCircle2 className="inline h-4 w-4 mr-1" />
                   Bu başvuru onaylandı
-                  {selected.reviewed_at && ` (${formatDateTime(selected.reviewed_at)})`}.
+                  {selected.reviewed_at && ` (${formatDate(selected.reviewed_at)})`}.
                 </div>
               )}
             </div>

@@ -1,10 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
-import AdManagementPage from './pages/AdManagementPage';
 import LoginPage from './pages/LoginPage';
-import LogoManagementPage from './pages/LogoManagementPage';
-import ThemeSettingsPage from './pages/ThemeSettingsPage';
 import DashboardPage from './pages/DashboardPage';
 import AuctionApplicationsPage from './pages/AuctionApplicationsPage';
 import IncomingAuctionsPage from './pages/IncomingAuctionsPage';

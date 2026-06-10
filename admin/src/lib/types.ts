@@ -726,6 +726,8 @@ export interface SiteSettings {
   auction_anti_snipe_seconds: number;
   auction_default_duration_minutes: number;
   auction_listing_fee: number;
+  premium_auction_fee: number;
+  auction_countdown_refresh_ms: number;
   auction_seat_capacity: number;
   auction_seat_hold_fee: number;
   auction_seller_auto_approval_hours: number;
@@ -1117,6 +1119,7 @@ export interface CorporateApplication {
   tax_office_name: string;
   tax_id_number: string;
   tc_id_number: string;
+  password_temp: string | null;
   status: CorporateApplicationStatus;
   rejection_reason: string | null;
   reviewed_by: string | null;
