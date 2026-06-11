@@ -37,7 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', uid)
       .eq('is_active', true)
       .maybeSingle();
+    console.log('[Auth] loadAdmin result:', { data, error });
     if (!error && data) {
+      console.log('[Auth] is_super_admin:', data.is_super_admin, 'permissions count:', (data.admin_permissions || []).length);
       setAdmin({
         id: data.id,
         user_id: data.user_id,
