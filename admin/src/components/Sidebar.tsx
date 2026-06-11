@@ -57,7 +57,10 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
 
       <nav className="flex-1 overflow-y-auto py-4 space-y-0.5">
         {ITEMS.map((it) => {
-          if (it.area && !hasPermission(it.area, 'view') && !admin?.is_super_admin) return null;
+          // Süper admin her şeyi görsün
+          if (it.area && !admin?.is_super_admin) {
+            if (!hasPermission(it.area, 'view')) return null;
+          }
           return (
             <NavLink
               key={it.to}
