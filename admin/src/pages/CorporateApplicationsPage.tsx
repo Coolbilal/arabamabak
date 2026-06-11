@@ -97,7 +97,7 @@ export default function CorporateApplicationsPage() {
       // 1) Supabase Auth'ta user oluştur
       const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
         email: row.email,
-        password: row.password_temp,
+        password: row.password_temp ?? '',
         email_confirm: true,
         user_metadata: {
           full_name: `${row.first_name} ${row.last_name}`,
