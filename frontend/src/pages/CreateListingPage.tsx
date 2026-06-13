@@ -261,7 +261,7 @@ export default function CreateListingPage() {
     }
     if (s === 7) {
       if (!form.price || Number(form.price) <= 0) return 'Geçerli bir fiyat girin';
-      if (form.listing_type === 'auction' && !paymentMethod) return 'Ödeme yöntemi seçin';
+      if ((form.listing_type === 'auction' || form.listing_type === 'premium_auction') && !paymentMethod) return 'Ödeme yöntemi seçin';
     }
     return null;
   }
@@ -324,11 +324,11 @@ export default function CreateListingPage() {
   });
 
   async function handleFinalSubmit() {
-    if (form.listing_type === 'auction' && paymentMethod === 'card') {
+    if ((form.listing_type === 'auction' || form.listing_type === 'premium_auction') && paymentMethod === 'card') {
       setShow3DS(true);
       return;
     }
-    if (form.listing_type === 'auction' && paymentMethod === 'bank') {
+    if ((form.listing_type === 'auction' || form.listing_type === 'premium_auction') && paymentMethod === 'bank') {
       setShowBank(true);
       return;
     }
@@ -445,8 +445,12 @@ export default function CreateListingPage() {
 
       {show3DS && (
         <ThreeDSecureModal
-          amount={Number(form.price) * (settings?.premium_auction_fee || 100) / 100}
-          description="Açık arttırma yayın ücreti"
+          amount={form.listing_type === 'premium_auction'
+            ? Number(form.price) * (settings?.premium_auction_fee || 100) * 2 / 100
+            : Number(form.price) * (settings?.premium_auction_fee || 100) / 100}
+          description={form.listing_type === 'premium_auction'
+            ? 'Premium ilan ücreti (açık arttırma + reklam boost)'
+            : 'Açık arttırma yayın ücreti'}
           onCancel={() => setShow3DS(false)}
           onSuccess={() => { setShow3DS(false); createListing.mutate(); }}
           onFailure={() => setShow3DS(false)}
@@ -454,8 +458,12 @@ export default function CreateListingPage() {
       )}
       {showBank && (
         <BankTransferModal
-          amount={Number(form.price) * (settings?.premium_auction_fee || 100) / 100}
-          description="Açık arttırma yayın ücreti"
+          amount={form.listing_type === 'premium_auction'
+            ? Number(form.price) * (settings?.premium_auction_fee || 100) * 2 / 100
+            : Number(form.price) * (settings?.premium_auction_fee || 100) / 100}
+          description={form.listing_type === 'premium_auction'
+            ? 'Premium ilan ücreti (açık arttırma + reklam boost)'
+            : 'Açık arttırma yayın ücreti'}
           bankConfig={{
             bank_name: 'arabamabak A.Ş.',
             account_holder: 'arabamabak Ltd. Şti.',
@@ -946,7 +954,7 @@ function StepLocation({ form, setField, cities, districts }: any) {
 }
 
 function StepPublish({ form, setField, paymentMethod, setPaymentMethod, settings }: any) {
-  const isAuction = form.listing_type === 'auction';
+  const isAuction = form.listing_type === 'auction' || form.listing_type === 'premium_auction';
   const auctionFee = settings?.premium_auction_fee || 100;
   const walletBalance = settings?.wallet_min_balance || 0;
 
@@ -955,7 +963,7 @@ function StepPublish({ form, setField, paymentMethod, setPaymentMethod, settings
       <h2 className="text-xl font-extrabold text-slate-900 mb-1">Yayın Tipi & Ödeme</h2>
       <p className="text-sm text-slate-500 mb-5">Ücretsiz ilan veya açık arttırma seçin</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         <button
           type="button"
           onClick={() => setField('listing_type', 'free')}
@@ -975,7 +983,18 @@ function StepPublish({ form, setField, paymentMethod, setPaymentMethod, settings
         >
           <Gavel className={cn('h-6 w-6 mb-2', form.listing_type === 'auction' ? 'text-amber-600' : 'text-slate-500')} />
           <div className="font-bold">Açık Arttırma</div>
-          <div className="text-xs text-slate-500 mt-1">Premium yayın + canlı açık arttırma. {auctionFee} TL ücret.</div>
+          <div className="text-xs text-slate-500 mt-1">Canlı açık arttırma. {auctionFee} TL ücret.</div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setField('listing_type', 'premium_auction')}
+          className={cn('p-5 rounded-xl border-2 text-left',
+            form.listing_type === 'premium_auction' ? 'border-purple-500 bg-purple-50' : 'border-slate-200 bg-white')}
+        >
+          <Sparkles className={cn('h-6 w-6 mb-2', form.listing_type === 'premium_auction' ? 'text-purple-600' : 'text-slate-500')} />
+          <div className="font-bold flex items-center gap-1">Premium İlan <span className="badge bg-purple-100 text-purple-700 text-xs">YENİ</span></div>
+          <div className="text-xs text-slate-500 mt-1">Açık arttırma + reklam alanlarında boost. {auctionFee * 2} TL ücret.</div>
         </button>
       </div>
 
@@ -1019,7 +1038,7 @@ function StepPublish({ form, setField, paymentMethod, setPaymentMethod, settings
         </div>
       )}
 
-      {!isAuction && (
+      {!isAuction && form.listing_type !== 'premium_auction' && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
           <CheckCircle2 className="inline h-4 w-4 mr-1" /> Ücretsiz ilan için ödeme gerekmez. İlanı oluşturmak için "İlanı Oluştur" butonuna tıklayın.
         </div>
