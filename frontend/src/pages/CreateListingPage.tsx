@@ -45,6 +45,7 @@ type ListingForm = {
   price: string;
   listing_type: ListingType;
   images: string[];
+  attributes: Record<string, unknown>;
 };
 
 const VEHICLE_TYPE_ICONS: Record<VehicleType, React.ReactNode> = {
@@ -116,6 +117,7 @@ const initialForm: ListingForm = {
   price: '',
   listing_type: 'free',
   images: [],
+  attributes: {},
 };
 
 export default function CreateListingPage() {
@@ -292,6 +294,8 @@ export default function CreateListingPage() {
           status: 'pending',
           published_at: new Date().toISOString(),
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          vehicle_type: form.vehicle_type || null,
+          attributes: form.attributes && Object.keys(form.attributes).length > 0 ? form.attributes : null,
         })
         .select('id, listing_no')
         .single();
@@ -591,42 +595,203 @@ function StepEngine({ form, setField, engines }: any) {
 }
 
 function StepSpecs({ form, setField }: any) {
+  const vt = form.vehicle_type as VehicleType;
+  const isMotor = vt === 'motorsiklet' || vt === 'atv' || vt === 'utv';
+  const isDeniz = vt === 'deniz';
+  const isHava = vt === 'hava';
+  const isKaravan = vt === 'karavan';
+  const isTicari = vt === 'ticari' || vt === 'minivan_panelvan';
+  const isElektrikli = vt === 'elektrikli';
+  const isOtomobil = vt === 'otomobil' || vt === 'suv_pickup' || isElektrikli;
+  const isKiralik = vt === 'kiralik';
+  const isHasarli = vt === 'hasarli';
+  const isKlasik = vt === 'klasik';
+  const isEngelli = vt === 'engelli';
+
+  function setAttr(key: string, value: unknown) {
+    setField('attributes', { ...form.attributes, [key]: value });
+  }
+  function getAttr(key: string): any {
+    return form.attributes?.[key];
+  }
+
   return (
     <div>
       <h2 className="text-xl font-extrabold text-slate-900 mb-1">Teknik Bilgiler</h2>
-      <p className="text-sm text-slate-500 mb-5">Yıl, KM, yakıt, vites, kasa</p>
+      <p className="text-sm text-slate-500 mb-5">
+        {vt ? `${VEHICLE_TYPE_LABELS[vt]} için özel bilgiler` : 'Araç teknik bilgileri'}
+      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="text-xs font-semibold uppercase text-slate-500">Yıl *</label>
           <input type="number" min={1950} max={2026} className="input mt-1" value={form.year} onChange={e => setField('year', e.target.value)} placeholder="2018" />
         </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">KM *</label>
-          <input type="number" min={0} className="input mt-1" value={form.km} onChange={e => setField('km', e.target.value)} placeholder="125000" />
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Renk</label>
-          <input type="text" className="input mt-1" value={form.color} onChange={e => setField('color', e.target.value)} placeholder="Beyaz" />
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Yakıt *</label>
-          <select className="input mt-1" value={form.fuel} onChange={e => setField('fuel', e.target.value as FuelType)}>
-            {Object.entries(FUEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Vites *</label>
-          <select className="input mt-1" value={form.transmission} onChange={e => setField('transmission', e.target.value as TransmissionType)}>
-            {Object.entries(TRANSMISSION_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Kasa *</label>
-          <select className="input mt-1" value={form.body} onChange={e => setField('body', e.target.value as BodyType)}>
-            {Object.entries(BODY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </div>
+
+        {/* KM - kara araçları için */}
+        {!isDeniz && !isHava && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">
+              {isMotor || isTicari ? 'KM' : 'KM *'}
+            </label>
+            <input type="number" min={0} className="input mt-1" value={form.km} onChange={e => setField('km', e.target.value)} placeholder="125000" />
+          </div>
+        )}
+
+        {/* Hava araçları için uçuş saati */}
+        {isHava && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Toplam Uçuş Saati *</label>
+            <input type="number" min={0} className="input mt-1" value={getAttr('flight_hours') || ''} onChange={e => setAttr('flight_hours', e.target.value)} placeholder="1500" />
+          </div>
+        )}
+
+        {/* Deniz aracı boy */}
+        {isDeniz && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Boy (metre) *</label>
+            <input type="number" step="0.1" min={0} className="input mt-1" value={getAttr('length_m') || ''} onChange={e => setAttr('length_m', e.target.value)} placeholder="8.5" />
+          </div>
+        )}
+
+        {/* Renk - otomobil/motosiklet için */}
+        {(isOtomobil || isMotor || isTicari) && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Renk</label>
+            <input type="text" className="input mt-1" value={form.color} onChange={e => setField('color', e.target.value)} placeholder="Beyaz" />
+          </div>
+        )}
+
+        {/* Yakıt - otomobil/motosiklet/ticari için (elektrikli hariç) */}
+        {(isOtomobil || isMotor || isTicari) && !isElektrikli && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Yakıt *</label>
+            <select className="input mt-1" value={form.fuel} onChange={e => setField('fuel', e.target.value as FuelType)}>
+              {Object.entries(FUEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Vites - otomobil/motosiklet/ticari için */}
+        {(isOtomobil || isMotor || isTicari) && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Vites *</label>
+            <select className="input mt-1" value={form.transmission} onChange={e => setField('transmission', e.target.value as TransmissionType)}>
+              {Object.entries(TRANSMISSION_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Kasa - sadece otomobil/SUV için */}
+        {isOtomobil && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Kasa *</label>
+            <select className="input mt-1" value={form.body} onChange={e => setField('body', e.target.value as BodyType)}>
+              {Object.entries(BODY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Yolcu Kapasitesi - deniz, karavan, ticari */}
+        {(isDeniz || isKaravan || isTicari || vt === 'minivan_panelvan') && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Yolcu Kapasitesi *</label>
+            <input type="number" min={0} className="input mt-1" value={getAttr('passenger_capacity') || ''} onChange={e => setAttr('passenger_capacity', e.target.value)} placeholder={isDeniz ? '8' : '5'} />
+          </div>
+        )}
+
+        {/* Yük Kapasitesi - ticari */}
+        {isTicari && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Yük Kapasitesi (kg)</label>
+            <input type="number" min={0} className="input mt-1" value={getAttr('cargo_capacity_kg') || ''} onChange={e => setAttr('cargo_capacity_kg', e.target.value)} placeholder="1500" />
+          </div>
+        )}
+
+        {/* Yatak Sayısı - karavan */}
+        {isKaravan && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Yatak Sayısı *</label>
+            <input type="number" min={0} className="input mt-1" value={getAttr('bed_count') || ''} onChange={e => setAttr('bed_count', e.target.value)} placeholder="4" />
+          </div>
+        )}
+
+        {/* Karavan özel - banyo, klima */}
+        {isKaravan && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Banyo/WC</label>
+            <select className="input mt-1" value={getAttr('has_bathroom') || ''} onChange={e => setAttr('has_bathroom', e.target.value)}>
+              <option value="">Seçiniz</option>
+              <option value="yes">Var</option>
+              <option value="no">Yok</option>
+            </select>
+          </div>
+        )}
+
+        {/* Kiralık - günlük fiyat */}
+        {isKiralik && (
+          <>
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-500">Günlük Fiyat (TL)</label>
+              <input type="number" min={0} className="input mt-1" value={getAttr('daily_price') || ''} onChange={e => setAttr('daily_price', e.target.value)} placeholder="500" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-500">Min. Kiralama (gün)</label>
+              <input type="number" min={1} className="input mt-1" value={getAttr('min_rental_days') || ''} onChange={e => setAttr('min_rental_days', e.target.value)} placeholder="3" />
+            </div>
+          </>
+        )}
+
+        {/* Hava - motor markası */}
+        {isHava && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Motor Markası</label>
+            <input type="text" className="input mt-1" value={getAttr('engine_brand') || ''} onChange={e => setAttr('engine_brand', e.target.value)} placeholder="Lycoming, Continental..." />
+          </div>
+        )}
+
+        {/* Hava - kuyruk no */}
+        {isHava && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Kuyruk Numarası</label>
+            <input type="text" className="input mt-1" value={getAttr('tail_number') || ''} onChange={e => setAttr('tail_number', e.target.value)} placeholder="TC-ABC" />
+          </div>
+        )}
+
+        {/* Klasik - restorasyon durumu */}
+        {isKlasik && (
+          <div className="sm:col-span-2">
+            <label className="text-xs font-semibold uppercase text-slate-500">Restorasyon Durumu *</label>
+            <select className="input mt-1" value={getAttr('restoration_status') || ''} onChange={e => setAttr('restoration_status', e.target.value)}>
+              <option value="">Seçiniz</option>
+              <option value="original">Orijinal, hiç dokunulmamış</option>
+              <option value="restored">Restorasyonlu</option>
+              <option value="partial">Kısmen restore edilmiş</option>
+              <option value="project">Proje (restore edilecek)</option>
+            </select>
+          </div>
+        )}
+
+        {/* Engelli - engel türü */}
+        {isEngelli && (
+          <div className="sm:col-span-2">
+            <label className="text-xs font-semibold uppercase text-slate-500">Engel Türü *</label>
+            <select className="input mt-1" value={getAttr('disability_type') || ''} onChange={e => setAttr('disability_type', e.target.value)}>
+              <option value="">Seçiniz</option>
+              <option value="movement">Hareket engeli</option>
+              <option value="vision">Görme engeli</option>
+              <option value="hearing">İşitme engeli</option>
+              <option value="orthopedic">Ortopedik engel</option>
+            </select>
+          </div>
+        )}
+
+        {/* Hasarlı - zorunlu hasar detayı */}
+        {isHasarli && (
+          <div className="sm:col-span-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            Hasarlı araç ilanı veriyorsunuz. Lütfen "Hasar & Açıklama" adımında detay verin (parça durumu, onarım bilgisi).
+          </div>
+        )}
       </div>
     </div>
   );

@@ -33,18 +33,26 @@ export function useCities() {
 }
 
 /**
- * Fetches all districts for a given city (city_id).
- * When cityId is null/undefined, returns empty list.
+ * Fetches all districts for a given city (by city name).
+ * When cityName is null/undefined, returns empty list.
  */
-export function useDistricts(cityId: string | null | undefined) {
+export function useDistricts(cityName: string | null | undefined) {
   return useQuery({
-    queryKey: ['districts', cityId],
-    enabled: !!cityId,
+    queryKey: ['districts-by-name', cityName],
+    enabled: !!cityName,
     queryFn: async () => {
+      // Önce ilin ID'sini bul
+      const { data: city } = await supabase
+        .from('cities')
+        .select('id')
+        .eq('name', cityName!)
+        .maybeSingle();
+      if (!city) return [];
+      // Sonra ilçeleri getir
       const { data, error } = await supabase
         .from('districts')
         .select('id, city_id, name')
-        .eq('city_id', cityId!)
+        .eq('city_id', city.id)
         .order('name', { ascending: true });
       if (error) throw error;
       return (data ?? []) as unknown as District[];

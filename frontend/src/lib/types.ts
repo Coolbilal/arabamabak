@@ -959,6 +959,7 @@ export interface Vehicle {
   last_bump_at: string | null;
   listing_no: string | null;
   vehicle_type: VehicleType | null;
+  attributes: Record<string, unknown> | null;
   listing_origin: string | null;
   listing_type: ListingType;
   min_price: number | null;
