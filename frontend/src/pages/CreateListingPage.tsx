@@ -692,8 +692,8 @@ function StepSpecs({ form, setField }: any) {
           </div>
         )}
 
-        {/* Yolcu Kapasitesi - deniz, karavan, ticari */}
-        {(isDeniz || isKaravan || isTicari || vt === 'minivan_panelvan') && (
+        {/* Yolcu Kapasitesi - deniz, karavan, ticari (minivan_panelvan dahil) */}
+        {(isDeniz || isKaravan || isTicari) && (
           <div>
             <label className="text-xs font-semibold uppercase text-slate-500">Yolcu Kapasitesi *</label>
             <input type="number" min={0} className="input mt-1" value={getAttr('passenger_capacity') || ''} onChange={e => setAttr('passenger_capacity', e.target.value)} placeholder={isDeniz ? '8' : '5'} />
