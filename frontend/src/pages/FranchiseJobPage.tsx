@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Building2, MapPin, Calendar, Upload, Loader2, AlertCircle, FileText, CheckCircle2, Download } from 'lucide-react';
-import type { ExpertiseRequest, ExpertiseResult } from '../lib/types';
+import { ArrowLeft, Loader2, AlertCircle, FileText, CheckCircle2, Download } from 'lucide-react';
+import type { ExpertiseRequestV2 as ExpertiseRequest, ExpertiseResult } from '../lib/types';
 
 const CHECKLIST_ITEMS = [
   'Kaporta/Boya Kontrolü', 'Motor/Mekanik', 'Fren Sistemi', 'Lastik/Jant',

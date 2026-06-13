@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Building2, Loader2, LogOut, Calendar, ChevronRight, CheckCircle2, Clock, Inbox, Wallet, Eye, MapPin } from 'lucide-react';
-import type { ExpertiseRequest } from '../lib/types';
+import { Building2, Loader2, LogOut, Calendar, CheckCircle2, Clock, Inbox, Wallet, Eye, MapPin } from 'lucide-react';
+import type { ExpertiseRequestV2 as ExpertiseRequest } from '../lib/types';
 
 export default function FranchiseDashboardPage() {
   const { user, signOut } = useAuth();

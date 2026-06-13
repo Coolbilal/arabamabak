@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Car, MapPin, Phone, Calendar, Upload, Loader2, CheckCircle2, AlertCircle, Camera, FileText } from 'lucide-react';
-import type { ExpertiseRequest, ExpertiseResult } from '../lib/types';
+import { ArrowLeft, Upload, Loader2, CheckCircle2, AlertCircle, Camera, FileText } from 'lucide-react';
+import type { ExpertiseRequestV2 as ExpertiseRequest, ExpertiseResult } from '../lib/types';
 
 const STAGES = [
   { key: 'valet_accepted_at', label: 'İş Kabul Edildi' },

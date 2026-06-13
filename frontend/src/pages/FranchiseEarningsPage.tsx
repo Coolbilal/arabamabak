@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Wallet, Loader2, CheckCircle2, Clock, Download, Building2, Calendar } from 'lucide-react';
+import { ArrowLeft, Wallet, Loader2, CheckCircle2, Clock, Download, Calendar } from 'lucide-react';
 import { formatDateTime } from '../lib/utils';
 
 export default function FranchiseEarningsPage() {

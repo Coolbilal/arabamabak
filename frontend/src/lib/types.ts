@@ -82,7 +82,13 @@ export type ExpertiseStatus =
   | 'cancelled'
   | 'completed'
   | 'in_progress'
-  | 'pending';
+  | 'pending'
+  | 'valet_accepted'
+  | 'picked_up'
+  | 'at_dealership'
+  | 'dealership_accepted'
+  | 'report_uploaded'
+  | 'fully_completed';
 
 // fuel_type
 export type FuelType =
@@ -1166,15 +1172,15 @@ export interface ExpertiseDealershipApplicationForm {
   contractAccepted: boolean;
 }
 
-export interface ExpertiseRequest {
+export interface ExpertiseRequestV2 {
   id: string;
   user_id: string;
   vehicle_id: string | null;
   plate: string;
-  city: string | null;
+  city: string;
   expertise_type: string;
   request_type: ExpertiseRequestType | null;
-  status: string;
+  status: ExpertiseStatus;
   valet_id: string | null;
   dealership_id: string | null;
   created_at: string;

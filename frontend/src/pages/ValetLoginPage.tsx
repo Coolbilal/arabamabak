@@ -4,7 +4,6 @@ import { Car, Mail, Loader2, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide
 import { supabase } from '../lib/supabase';
 
 export default function ValetLoginPage() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);

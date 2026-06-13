@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Car, Loader2, LogOut, MapPin, Calendar, ChevronRight, CheckCircle2, Clock, Inbox, Wallet, Eye } from 'lucide-react';
-import type { ExpertiseRequest } from '../lib/types';
+import type { ExpertiseRequestV2 as ExpertiseRequest } from '../lib/types';
 
 export default function ValetDashboardPage() {
   const { user, signOut } = useAuth();
@@ -65,20 +65,6 @@ export default function ValetDashboardPage() {
     }
   }
 
-  async function handleAccept(req: ExpertiseRequest) {
-    if (!user) return;
-    if (!confirm('Bu işi kabul ediyor musunuz?')) return;
-    const { error } = await supabase
-      .from('expertise_requests')
-      .update({
-        valet_id: req.valet_id || (await getValetId()),
-        valet_accepted_at: new Date().toISOString(),
-        status: 'valet_accepted',
-      })
-      .eq('id', req.id);
-    if (error) { alert('Hata: ' + error.message); return; }
-    loadJobs();
-  }
 
   async function getValetId() {
     const { data } = await supabase.from('expert_valets').select('id').eq('user_id', user?.id).maybeSingle();

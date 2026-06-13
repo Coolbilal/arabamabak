@@ -24,7 +24,6 @@ const valetSchema = z.object({
 type ValetFormData = z.infer<typeof valetSchema>;
 
 export default function ValetApplicationPage() {
-  const navigate = useNavigate();
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
   const [districts, setDistricts] = useState<{ id: string; name: string }[]>([]);
   const [loadingCities, setLoadingCities] = useState(true);
