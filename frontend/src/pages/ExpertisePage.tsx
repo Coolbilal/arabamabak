@@ -1,414 +1,448 @@
-import { useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClipboardCheck, ExternalLink, FileText, Loader, MapPin, Send } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useMemo, useState, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  ClipboardCheck, Search, Filter, X, Loader2, AlertCircle,
+  UserPlus, RefreshCw, Upload, FileText, CheckCircle2, ChevronDown,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { cn, formatDateOnly, formatPrice } from '../lib/utils';
-import { useCities } from '../lib/useLocationData';
-import type { ExpertiseRequest, ExpertiseStatus, SiteSettings, VehicleBrand, VehicleModel } from '../lib/types';
+import { useAuth, type AdminUser } from '../contexts/AuthContext';
+import { formatDate, cn } from '../lib/utils';
+import type { ExpertiseRequest, ExpertiseStatus } from '../lib/types';
 
-const EXPERTISE_STATUS_LABELS: Record<ExpertiseStatus, string> = {
-  pending: 'Beklemede',
-  assigned: 'Atandı',
-  in_progress: 'Devam Ediyor',
-  completed: 'Tamamlandı',
-  cancelled: 'İptal',
-  valet_accepted: 'Vale Kabul Etti',
-  picked_up: 'Araç Alındı',
-  at_dealership: 'Bayiye Teslim',
-  dealership_accepted: 'Bayi Kabul Etti',
-  report_uploaded: 'Rapor Yüklendi',
-  fully_completed: 'Ekspertiz Tamamlandı',
+type ExpRow = ExpertiseRequest & {
+  user?: { full_name: string | null; email: string | null } | null;
+  brand?: { name: string } | null;
+  model?: { name: string } | null;
 };
 
-const STATUS_STYLES: Record<ExpertiseStatus, string> = {
-  pending: 'bg-amber-100 text-amber-800',
-  assigned: 'bg-blue-100 text-blue-800',
-  in_progress: 'bg-indigo-100 text-indigo-800',
-  completed: 'bg-emerald-100 text-emerald-800',
-  cancelled: 'bg-slate-100 text-slate-700',
-  valet_accepted: 'bg-amber-100 text-amber-800',
-  picked_up: 'bg-blue-100 text-blue-800',
-  at_dealership: 'bg-indigo-100 text-indigo-800',
-  dealership_accepted: 'bg-violet-100 text-violet-800',
-  report_uploaded: 'bg-cyan-100 text-cyan-800',
-  fully_completed: 'bg-emerald-100 text-emerald-800',
+const STATUS_LABELS: Record<ExpertiseStatus, string> = {
+  pending: 'Beklemede', assigned: 'Atandı', in_progress: 'Devam Ediyor',
+  completed: 'Tamamlandı', cancelled: 'İptal',
 };
-
-const schema = z.object({
-  brand_id: z.string().uuid('Geçerli bir marka seçin'),
-  model_id: z.string().optional().or(z.literal('')),
-  year: z.number().int().min(1950).max(new Date().getFullYear() + 1),
-  km: z.number().int().min(0).max(5_000_000),
-  plate: z.string().min(2, 'Plaka girin').max(20),
-  city: z.string().min(2, 'Şehir seçin'),
-  address: z.string().min(5, 'Adres girin').max(300),
-});
-
-type FormValues = z.infer<typeof schema>;
+const STATUS_CLASS: Record<ExpertiseStatus, string> = {
+  pending: 'bg-amber-100 text-amber-700',
+  assigned: 'bg-sky-100 text-sky-700',
+  in_progress: 'bg-indigo-100 text-indigo-700',
+  completed: 'bg-emerald-100 text-emerald-700',
+  cancelled: 'bg-slate-200 text-slate-600',
+};
 
 export default function ExpertisePage() {
-  const { user, profile, refreshProfile } = useAuth();
-  if (!user) return <Navigate to="/giris" replace />;
-
+  const { hasPermission } = useAuth();
   const qc = useQueryClient();
-  const cities = useCities();
 
-  const settingsQuery = useQuery({
-    queryKey: ['site-settings'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('site_settings')
-        .select('*')
-        .eq('id', 1)
-        .maybeSingle();
-      if (error) throw error;
-      return (data ?? null) as unknown as SiteSettings | null;
-    },
-  });
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [adminFilter, setAdminFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const [actionMsg, setActionMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
-  const brandsQuery = useQuery({
-    queryKey: ['vehicle-brands'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vehicle_brands')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
-      if (error) throw error;
-      return (data ?? []) as unknown as VehicleBrand[];
-    },
-  });
+  const [assignRow, setAssignRow] = useState<ExpRow | null>(null);
+  const [reportRow, setReportRow] = useState<ExpRow | null>(null);
 
-  const modelsQuery = useQuery({
-    queryKey: ['vehicle-models'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vehicle_models')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
-      if (error) throw error;
-      return (data ?? []) as unknown as VehicleModel[];
-    },
-  });
+  const canEdit = hasPermission('expertise', 'edit');
 
-  const requestsQuery = useQuery({
-    queryKey: ['expertise-requests', user.id],
+  // ---- Expertise list ----
+  const listQ = useQuery({
+    queryKey: ['expertise', statusFilter, adminFilter, search],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('expertise_requests')
-        .select('*')
-        .eq('user_id', user.id)
+        .select('*, profiles:user_id(full_name,email), brand:vehicle_brands!expertise_requests_brand_id_fkey(name), model:vehicle_models(name)')
         .order('created_at', { ascending: false });
+      if (statusFilter !== 'all') q = q.eq('status', statusFilter as ExpertiseStatus);
+      if (adminFilter !== 'all') q = q.eq('assigned_admin_id', adminFilter);
+      const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as unknown as ExpertiseRequest[];
+      return (data ?? []) as unknown as ExpRow[];
     },
   });
 
-  const {
-    register, handleSubmit, watch, reset, formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      brand_id: '',
-      model_id: '',
-      year: new Date().getFullYear() - 5,
-      km: 0,
-      plate: '',
-      city: '',
-      address: '',
+  // ---- Admin users (atama) ----
+  const adminsQ = useQuery({
+    queryKey: ['admin-users-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('id,user_id,username,full_name,is_active,is_super_admin')
+        .eq('is_active', true)
+        .order('full_name', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as AdminUser[];
     },
   });
 
-  const brandId = watch('brand_id');
+  // Map admin id -> full_name (atanan uzman kolonu için)
+  const adminMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    (adminsQ.data ?? []).forEach((a) => {
+      m[a.id] = a.full_name || a.username;
+    });
+    return m;
+  }, [adminsQ.data]);
 
-  const brands = brandsQuery.data ?? [];
-  const allModels = modelsQuery.data ?? [];
-  const filteredModels = brandId ? allModels.filter((m) => m.brand_id === brandId) : [];
+  const filtered = useMemo(() => {
+    const rows = (listQ.data ?? []) as ExpRow[];
+    if (!search) return rows;
+    const s = search.toLowerCase();
+    return rows.filter((r) =>
+      (r.user?.full_name || '').toLowerCase().includes(s) ||
+      (r.user?.email || '').toLowerCase().includes(s) ||
+      (r.brand?.name || '').toLowerCase().includes(s) ||
+      (r.model?.name || '').toLowerCase().includes(s) ||
+      (r.plate || '').toLowerCase().includes(s)
+    );
+  }, [listQ.data, search]);
 
-  // Marka değiştiğinde modeli sıfırla
-  useEffect(() => {
-    reset({ ...watch(), model_id: '' });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brandId]);
-
-  const submit = useMutation({
-    mutationFn: async (vals: FormValues) => {
-      if (!user) throw new Error('Giriş yapmalısınız');
-      const settings = settingsQuery.data;
-      const fee = settings?.expertise_fee ?? 0;
-
-      // 1) Bakiye kontrolü (fee > 0 ise)
-      if (fee > 0) {
-        const balance = profile?.wallet_balance ?? 0;
-        if (balance < fee) throw new Error('Yetersiz bakiye. Lütfen cüzdanınızı yükleyin.');
-        // Ödeme transaction'ı
-        const { error: payErr } = await supabase
-          .from('transactions')
-          .insert({
-            user_id: user.id,
-            type: 'expertise_payment',
-            amount: fee,
-            status: 'completed',
-            payment_method: 'wallet',
-            description: 'Ekspertiz talebi ücreti',
-            completed_at: new Date().toISOString(),
-          });
-        if (payErr) throw payErr;
-        // Bakiyeyi düş
-        const { error: balErr } = await supabase
-          .from('profiles')
-          .update({ wallet_balance: balance - fee })
-          .eq('id', user.id);
-        if (balErr) throw balErr;
-      }
-
-      // 2) Talep oluştur
-      const { error: reqErr } = await supabase
+  // ---- Mutations ----
+  const assignM = useMutation({
+    mutationFn: async ({ id, adminId }: { id: string; adminId: string }) => {
+      const { error } = await supabase
         .from('expertise_requests')
-        .insert({
-          user_id: user.id,
-          brand_id: vals.brand_id,
-          model_id: vals.model_id || null,
-          year: vals.year,
-          km: vals.km,
-          plate: vals.plate.toUpperCase(),
-          city: vals.city,
-          address: vals.address,
-          status: 'pending',
-          fee,
-        });
-      if (reqErr) throw reqErr;
+        .update({ assigned_admin_id: adminId, status: 'assigned' })
+        .eq('id', id);
+      if (error) throw error;
     },
-    onSuccess: async () => {
-      await refreshProfile();
-      qc.invalidateQueries({ queryKey: ['expertise-requests', user.id] });
-      qc.invalidateQueries({ queryKey: ['wallet-tx', user.id] });
-      reset({
-        brand_id: '', model_id: '', year: new Date().getFullYear() - 5,
-        km: 0, plate: '', city: '', address: '',
-      });
-      alert('Ekspertiz talebiniz oluşturuldu. Uzman ekibimiz en kısa sürede sizinle iletişime geçecek.');
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['expertise'] });
+      setActionMsg({ kind: 'ok', text: 'Uzman atandı.' });
+      setAssignRow(null);
+      setTimeout(() => setActionMsg(null), 3000);
     },
-    onError: (err: Error) => alert(err.message || 'Talep oluşturulamadı'),
+    onError: (e: any) => setActionMsg({ kind: 'err', text: e?.message || 'Atama başarısız.' }),
   });
 
-  const requests = requestsQuery.data ?? [];
-  const fee = settingsQuery.data?.expertise_fee ?? 0;
-  const brandMap: Record<string, string> = Object.fromEntries(brands.map((b) => [b.id, b.name]));
-  const modelMap: Record<string, string> = Object.fromEntries(allModels.map((m) => [m.id, m.name]));
+  const statusM = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: ExpertiseStatus }) => {
+      const payload: any = { status };
+      if (status === 'completed') payload.completed_at = new Date().toISOString();
+      const { error } = await supabase
+        .from('expertise_requests').update(payload).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['expertise'] });
+      setActionMsg({ kind: 'ok', text: `Durum güncellendi: ${STATUS_LABELS[vars.status]}` });
+      setTimeout(() => setActionMsg(null), 3000);
+    },
+    onError: (e: any) => setActionMsg({ kind: 'err', text: e?.message || 'Güncellenemedi.' }),
+  });
+
+  const reportM = useMutation({
+    mutationFn: async ({ id, file }: { id: string; file: File }) => {
+      const path = `expertise-reports/${id}/report-${Date.now()}.pdf`;
+      const { error: upErr } = await supabase.storage
+        .from('expertise-reports')
+        .upload(path, file, { contentType: file.type || 'application/pdf', upsert: true });
+      if (upErr) throw upErr;
+      const { error: dbErr } = await supabase
+        .from('expertise_requests')
+        .update({ report_url: path, status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', id);
+      if (dbErr) throw dbErr;
+      return path;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['expertise'] });
+      setActionMsg({ kind: 'ok', text: 'Rapor yüklendi ve talep tamamlandı.' });
+      setReportRow(null);
+      setTimeout(() => setActionMsg(null), 3000);
+    },
+    onError: (e: any) => setActionMsg({ kind: 'err', text: e?.message || 'Yükleme başarısız.' }),
+  });
+
+  function clearFilters() {
+    setStatusFilter('all');
+    setAdminFilter('all');
+    setSearch('');
+  }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 flex items-center gap-3">
-        <ClipboardCheck className="h-7 w-7 text-brand-600" />
-        <h1 className="text-2xl font-extrabold text-slate-900">Ekspertiz Hizmeti</h1>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <form
-            onSubmit={handleSubmit((v) => submit.mutate(v))}
-            className="card space-y-4 p-6"
-          >
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">Yeni Ekspertiz Talebi</h2>
-              <p className="mt-1 text-xs text-slate-500">
-                Aracınız için uzman ekspertiz raporu talep edin. Ücret: <b>{formatPrice(fee)}</b>
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Marka *</label>
-                <select
-                  className={cn('input', errors.brand_id && 'border-red-400')}
-                  {...register('brand_id')}
-                >
-                  <option value="">Seçiniz</option>
-                  {brands.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                {errors.brand_id && <p className="mt-1 text-xs text-red-600">{errors.brand_id.message}</p>}
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Model</label>
-                <select
-                  className="input disabled:bg-slate-50"
-                  disabled={!brandId}
-                  {...register('model_id')}
-                >
-                  <option value="">{brandId ? 'Tümü' : 'Önce marka seçin'}</option>
-                  {filteredModels.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Yıl *</label>
-                <input
-                  type="number"
-                  className={cn('input', errors.year && 'border-red-400')}
-                  {...register('year', { valueAsNumber: true })}
-                />
-                {errors.year && <p className="mt-1 text-xs text-red-600">{errors.year.message}</p>}
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">KM *</label>
-                <input
-                  type="number"
-                  className={cn('input', errors.km && 'border-red-400')}
-                  {...register('km', { valueAsNumber: true })}
-                />
-                {errors.km && <p className="mt-1 text-xs text-red-600">{errors.km.message}</p>}
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Plaka *</label>
-                <input
-                  className={cn('input font-mono uppercase', errors.plate && 'border-red-400')}
-                  placeholder="34 ABC 1234"
-                  {...register('plate')}
-                />
-                {errors.plate && <p className="mt-1 text-xs text-red-600">{errors.plate.message}</p>}
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Şehir *</label>
-                <select
-                  className={cn('input', errors.city && 'border-red-400')}
-                  {...register('city')}
-                >
-                  <option value="">Seçiniz</option>
-                  {cities.data?.map((c) => (
-                    <option key={c.id} value={c.name}>{c.plate_code.toString().padStart(2, '0')} - {c.name}</option>
-                  ))}
-                </select>
-                {errors.city && <p className="mt-1 text-xs text-red-600">{errors.city.message}</p>}
-              </div>
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Adres *</label>
-                <textarea
-                  className={cn('input min-h-[80px] resize-y', errors.address && 'border-red-400')}
-                  placeholder="Ekspertiz yapılacak adres..."
-                  {...register('address')}
-                />
-                {errors.address && <p className="mt-1 text-xs text-red-600">{errors.address.message}</p>}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-              <div className="text-xs text-slate-500">
-                Bakiye: <b className="text-slate-800">{formatPrice(profile?.wallet_balance ?? 0)}</b>
-              </div>
-              <button type="submit" disabled={submit.isPending} className="btn-primary">
-                {submit.isPending ? <Loader className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                Talep Oluştur
-              </button>
-            </div>
-          </form>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <ClipboardCheck className="h-6 w-6 text-sky-600" /> Ekspertiz Talepleri
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Talepleri incele, uzmana ata, durum güncelle, ekspertiz raporu yükle.
+          </p>
         </div>
-
-        <aside className="space-y-4">
-          <div className="card p-5">
-            <h3 className="text-sm font-bold text-slate-900">Ekspertiz Nedir?</h3>
-            <ul className="mt-3 space-y-2 text-xs text-slate-600">
-              <li className="flex gap-2"><span>•</span> 200+ noktada detaylı kontrol</li>
-              <li className="flex gap-2"><span>•</span> Motor, şanzıman, kaporta analizi</li>
-              <li className="flex gap-2"><span>•</span> Hasar geçmişi sorgusu</li>
-              <li className="flex gap-2"><span>•</span> Resmi rapor ve değerleme</li>
-            </ul>
-          </div>
-          <div className="card p-5">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-              <MapPin className="h-4 w-4 text-brand-600" /> Süreç
-            </h3>
-            <ol className="mt-3 space-y-2 text-xs text-slate-600">
-              <li><b>1.</b> Talep oluştur</li>
-              <li><b>2.</b> Uzman atanır</li>
-              <li><b>3.</b> Adres & tarih planlanır</li>
-              <li><b>4.</b> Yerinde ekspertiz</li>
-              <li><b>5.</b> Rapor yüklenir</li>
-            </ol>
-          </div>
-        </aside>
+        <button onClick={() => listQ.refetch()} className="btn-secondary">
+          <RefreshCw className="h-4 w-4" /> Yenile
+        </button>
       </div>
 
-      <div className="mt-8">
-        <h2 className="mb-3 text-lg font-bold text-slate-900">Taleplerim</h2>
-        <div className="card overflow-hidden">
-          {requestsQuery.isLoading ? (
-            <div className="flex items-center justify-center gap-2 p-10 text-slate-500">
-              <Loader className="h-5 w-5 animate-spin" /> Yükleniyor...
-            </div>
-          ) : requests.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 p-10 text-center text-slate-500">
-              <FileText className="h-10 w-10 text-slate-300" />
-              <p>Henüz ekspertiz talebiniz yok.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Tarih</th>
-                    <th className="px-4 py-3 text-left">Araç</th>
-                    <th className="px-4 py-3 text-left">Şehir</th>
-                    <th className="px-4 py-3 text-left">Durum</th>
-                    <th className="px-4 py-3 text-right">Rapor</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {requests.map((r) => {
-                    const vehicleLabel =
-                      (r.brand_id ? brandMap[r.brand_id] : '') +
-                      (r.model_id ? ' ' + (modelMap[r.model_id] ?? '') : '') +
-                      (r.year ? ` (${r.year})` : '') +
-                      (r.plate ? ` • ${r.plate}` : '');
-                    return (
-                      <tr key={r.id} className="hover:bg-slate-50">
-                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">
-                          {formatDateOnly(r.created_at)}
-                        </td>
-                        <td className="px-4 py-3 text-slate-800">
-                          <div className="font-medium">{vehicleLabel || '—'}</div>
-                          {r.scheduled_date && (
-                            <div className="text-xs text-slate-500">
-                              Randevu: {formatDateOnly(r.scheduled_date)}
-                            </div>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">{r.city}</td>
-                        <td className="px-4 py-3">
-                          <span className={cn('badge', STATUS_STYLES[r.status])}>
-                            {EXPERTISE_STATUS_LABELS[r.status] ?? r.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {r.report_url ? (
-                            <a
-                              href={r.report_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-brand-600 transition hover:bg-brand-50"
+      {actionMsg && (
+        <div className={cn(
+          'flex items-center gap-2 rounded-lg p-3 text-sm',
+          actionMsg.kind === 'ok' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200',
+        )}>
+          {actionMsg.kind === 'ok' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          {actionMsg.text}
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="card p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="h-4 w-4 text-slate-500" />
+          <span className="text-sm font-semibold text-slate-700">Filtreler</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="relative">
+            <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text" placeholder="Kullanıcı, plaka veya araç ara..."
+              value={search} onChange={(e) => setSearch(e.target.value)} className="input pl-9"
+            />
+          </div>
+          <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">Tüm Durumlar</option>
+            {Object.entries(STATUS_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+          <select className="input" value={adminFilter} onChange={(e) => setAdminFilter(e.target.value)}>
+            <option value="all">Tüm Uzmanlar</option>
+            {(adminsQ.data ?? []).map((a) => (
+              <option key={a.id} value={a.id}>{a.full_name || a.username}{a.is_super_admin ? ' (Süper)' : ''}</option>
+            ))}
+          </select>
+        </div>
+        {(statusFilter !== 'all' || adminFilter !== 'all' || search) && (
+          <button onClick={clearFilters} className="mt-3 text-xs text-sky-600 hover:underline inline-flex items-center gap-1">
+            <X className="h-3 w-3" /> Filtreleri temizle
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="card overflow-hidden">
+        {listQ.isLoading ? (
+          <div className="p-10 text-center text-slate-400 text-sm">
+            <Loader2 className="inline h-5 w-5 animate-spin mr-2" /> Yükleniyor…
+          </div>
+        ) : listQ.isError ? (
+          <div className="p-6 flex items-center gap-2 text-sm text-red-600">
+            <AlertCircle className="h-4 w-4" /> Talepler yüklenemedi.
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-10 text-center text-slate-400 text-sm">Talep bulunamadı.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">Kullanıcı</th>
+                  <th className="text-left px-4 py-3 font-medium">Araç</th>
+                  <th className="text-left px-4 py-3 font-medium">Şehir</th>
+                  <th className="text-left px-4 py-3 font-medium">Durum</th>
+                  <th className="text-left px-4 py-3 font-medium">Atanan Uzman</th>
+                  <th className="text-left px-4 py-3 font-medium">Tarih</th>
+                  <th className="text-right px-4 py-3 font-medium">İşlem</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((row) => {
+                  const vehicleLabel = row.brand?.name
+                    ? `${row.brand.name} ${row.model?.name || ''} ${row.year || ''}`.trim()
+                    : row.plate || '—';
+                  return (
+                    <tr key={row.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-800">{row.user?.full_name || '—'}</div>
+                        <div className="text-xs text-slate-400">{row.user?.email}</div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{vehicleLabel}</td>
+                      <td className="px-4 py-3 text-slate-600">{row.city}</td>
+                      <td className="px-4 py-3">
+                        {canEdit ? (
+                          <div className="relative inline-block">
+                            <select
+                              value={row.status}
+                              onChange={(e) => statusM.mutate({ id: row.id, status: e.target.value as ExpertiseStatus })}
+                              className={cn(
+                                'appearance-none rounded-full pl-3 pr-7 py-0.5 text-xs font-semibold cursor-pointer',
+                                STATUS_CLASS[row.status],
+                              )}
                             >
-                              <ExternalLink className="h-3.5 w-3.5" /> Raporu Görüntüle
+                              {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                                <option key={k} value={k}>{v}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="h-3 w-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
+                        ) : (
+                          <span className={cn('inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold', STATUS_CLASS[row.status])}>
+                            {STATUS_LABELS[row.status]}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {row.assigned_admin_id
+                          ? (adminMap[row.assigned_admin_id] || '—')
+                          : <span className="text-xs text-slate-400 italic">atanmamış</span>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{formatDate(row.created_at)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setAssignRow(row)}
+                            disabled={!canEdit}
+                            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <UserPlus className="h-3.5 w-3.5" /> Ata
+                          </button>
+                          <button
+                            onClick={() => setReportRow(row)}
+                            disabled={!canEdit}
+                            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Upload className="h-3.5 w-3.5" /> Rapor
+                          </button>
+                          {row.report_url && (
+                            <a
+                              href={`${(supabase as any).storage?.from?.('expertise-reports')?.getPublicUrl?.(row.report_url)?.data?.publicUrl || '#'}`}
+                              target="_blank" rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                            >
+                              <FileText className="h-3.5 w-3.5" /> Aç
                             </a>
-                          ) : (
-                            <span className="text-xs text-slate-400">—</span>
                           )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Assign Modal */}
+      {assignRow && (
+        <AssignModal
+          row={assignRow}
+          admins={(adminsQ.data ?? []) as AdminUser[]}
+          busy={assignM.isPending}
+          onClose={() => setAssignRow(null)}
+          onAssign={(adminId) => assignM.mutate({ id: assignRow.id, adminId })}
+        />
+      )}
+
+      {/* Report Upload Modal */}
+      {reportRow && (
+        <ReportModal
+          row={reportRow}
+          busy={reportM.isPending}
+          onClose={() => setReportRow(null)}
+          onUpload={(file) => reportM.mutate({ id: reportRow.id, file })}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------- Assign Modal ----------------
+function AssignModal({
+  row, admins, busy, onClose, onAssign,
+}: {
+  row: ExpRow;
+  admins: AdminUser[];
+  busy: boolean;
+  onClose: () => void;
+  onAssign: (adminId: string) => void;
+}) {
+  const [picked, setPicked] = useState<string>(row.assigned_admin_id || '');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-sky-600" /> Uzman Ata
+          </h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-sm text-slate-600">
+            <strong>{row.user?.full_name || 'Kullanıcı'}</strong> talebine atanacak uzmanı seçin.
+          </p>
+          <select className="input" value={picked} onChange={(e) => setPicked(e.target.value)}>
+            <option value="">— Seçiniz —</option>
+            {admins.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.full_name || a.username}{a.is_super_admin ? ' (Süper Admin)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="px-5 py-4 border-t border-slate-200 flex justify-end gap-2">
+          <button onClick={onClose} className="btn-secondary">Vazgeç</button>
+          <button
+            onClick={() => picked && onAssign(picked)}
+            disabled={!picked || busy}
+            className="btn-primary"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Ata'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Report Upload Modal ----------------
+function ReportModal({
+  row, busy, onClose, onUpload,
+}: {
+  row: ExpRow;
+  busy: boolean;
+  onClose: () => void;
+  onUpload: (file: File) => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const ref = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+            <Upload className="h-5 w-5 text-emerald-600" /> Rapor Yükle
+          </h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-slate-600">
+            <strong>{row.user?.full_name || 'Kullanıcı'}</strong> için ekspertiz raporu yükleyin.
+            Yükleme sonrası talep otomatik olarak <em>tamamlandı</em> durumuna geçer.
+          </p>
+          <input
+            ref={ref}
+            type="file"
+            accept="application/pdf,image/jpeg,image/png"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-sky-700"
+          />
+          {file && (
+            <div className="text-xs text-slate-500 flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              <span className="truncate">{file.name}</span>
+              <span className="text-slate-400">({(file.size / 1024).toFixed(1)} KB)</span>
             </div>
           )}
+        </div>
+        <div className="px-5 py-4 border-t border-slate-200 flex justify-end gap-2">
+          <button onClick={onClose} className="btn-secondary">Vazgeç</button>
+          <button
+            onClick={() => file && onUpload(file)}
+            disabled={!file || busy}
+            className="btn-primary"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Yükle'}
+          </button>
         </div>
       </div>
     </div>
