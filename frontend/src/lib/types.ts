@@ -41,6 +41,42 @@ export type AuctionStatus =
   | 'scheduled'
   | 'sold_pending_confirmation';
 
+// vehicle_type (ana kategori)
+export type VehicleType =
+  | 'otomobil'
+  | 'suv_pickup'
+  | 'elektrikli'
+  | 'motorsiklet'
+  | 'minivan_panelvan'
+  | 'ticari'
+  | 'kiralik'
+  | 'deniz'
+  | 'hasarli'
+  | 'karavan'
+  | 'klasik'
+  | 'hava'
+  | 'atv'
+  | 'utv'
+  | 'engelli';
+
+export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = {
+  otomobil: 'Otomobil',
+  suv_pickup: 'Arazi, SUV & Pickup',
+  elektrikli: 'Elektrikli Araçlar',
+  motorsiklet: 'Motosiklet',
+  minivan_panelvan: 'Minivan & Panelvan',
+  ticari: 'Ticari Araçlar',
+  kiralik: 'Kiralık Araçlar',
+  deniz: 'Deniz Araçları',
+  hasarli: 'Hasarlı Araçlar',
+  karavan: 'Karavan',
+  klasik: 'Klasik Araçlar',
+  hava: 'Hava Araçları',
+  atv: 'ATV',
+  utv: 'UTV',
+  engelli: 'Engelli Plakalı Araçlar',
+};
+
 // body_type
 export type BodyType =
   | 'cabrio'
@@ -921,6 +957,8 @@ export interface Vehicle {
   is_promoted_to_auction: boolean;
   km: number;
   last_bump_at: string | null;
+  listing_no: string | null;
+  vehicle_type: VehicleType | null;
   listing_origin: string | null;
   listing_type: ListingType;
   min_price: number | null;

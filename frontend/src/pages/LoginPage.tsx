@@ -145,10 +145,6 @@ export default function LoginPage() {
             </p>
           </form>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600 space-y-1.5">
-            <p className="font-semibold text-slate-700">Demo Hesaplar</p>
-            <p>Ücretsiz hızlı deneme için kayıt sayfasından yeni bir hesap oluşturun.</p>
-          </div>
         </div>
       </div>
 
