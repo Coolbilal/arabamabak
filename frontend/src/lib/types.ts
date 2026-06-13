@@ -1250,5 +1250,5 @@ export interface PaymentRecord {
   paid_at: string | null;
   receipt_url: string | null;
 }
-// trigger// trigger2
 
+// trigger// trigger2
