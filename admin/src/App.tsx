@@ -19,6 +19,11 @@ import PaymentMethodsPage from './pages/PaymentMethodsPage';
 import PendingListingsPage from './pages/PendingListingsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import CorporateApplicationsPage from './pages/CorporateApplicationsPage';
+import ExpertValetApplicationsPage from './pages/ExpertValetApplicationsPage';
+import ExpertiseDealershipApplicationsPage from './pages/ExpertiseDealershipApplicationsPage';
+import PaymentsPage from './pages/PaymentsPage';
+import ExpertValetsPage from './pages/ExpertValetsPage';
+import ExpertiseDealershipsPage from './pages/ExpertiseDealershipsPage';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { admin, loading } = useAuth();
@@ -46,6 +51,11 @@ export default function App() {
         <Route path="authorization" element={<AuthorizationPage />} />
         <Route path="dealerships" element={<DealershipsPage />} />
         <Route path="corporate-applications" element={<CorporateApplicationsPage />} />
+        <Route path="expert-valet-applications" element={<ExpertValetApplicationsPage />} />
+        <Route path="expertise-dealership-applications" element={<ExpertiseDealershipApplicationsPage />} />
+        <Route path="payments" element={<PaymentsPage />} />
+        <Route path="expert-valets" element={<ExpertValetsPage />} />
+        <Route path="expertise-dealerships" element={<ExpertiseDealershipsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="slots" element={<SlotsPage />} />

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { SiteSettings } from '../lib/types';
-import { Building2, Phone, Mail, ShieldCheck, FileText, TrendingUp } from 'lucide-react';
+import { Building2, Phone, Mail, ShieldCheck, FileText, TrendingUp, Car } from 'lucide-react';
 
 export default function Footer() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -43,6 +43,16 @@ export default function Footer() {
             <li>
               <Link to="/bayi-basvurusu" className="hover:text-white flex items-center gap-1.5">
                 <Building2 className="h-3.5 w-3.5" /> Kurumsal Hesap Başvurusu
+              </Link>
+            </li>
+            <li>
+              <Link to="/vale-basvuru" className="hover:text-white flex items-center gap-1.5">
+                <Car className="h-3.5 w-3.5" /> Eksper Vale Olmak İstiyorum
+              </Link>
+            </li>
+            <li>
+              <Link to="/ekspertiz-bayisi-basvuru" className="hover:text-white flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" /> Ekspertiz Bayisi Olmak İstiyorum
               </Link>
             </li>
           </ul>

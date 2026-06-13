@@ -1130,3 +1130,107 @@ export interface CorporateApplication {
   deleted_at: string | null;
   deleted_by: string | null;
 }
+
+
+// =====================================================
+// EKSPER VALE + EKSPERTİZ BAYİSİ SİSTEMİ
+// =====================================================
+
+export type ExpertiseRequestType = 'self_transport' | 'valet_transport';
+export type ValetDocumentStatus = 'pending' | 'approved' | 'rejected';
+export type PaymentRecipientType = 'valet' | 'franchise';
+export type PaymentStatus = 'pending' | 'paid';
+export type ExpertiseResultStatus = 'in_progress' | 'valet_completed' | 'dealership_completed' | 'fully_completed';
+
+export interface ExpertValetApplication {
+  id: string;
+  first_name: string;
+  last_name: string;
+  tc_id_number: string;
+  email: string;
+  phone: string;
+  city_id: string | null;
+  district_id: string | null;
+  neighborhood: string | null;
+  license_number: string;
+  license_class: string;
+  vehicle_info: string | null;
+  contract_accepted_at: string;
+  password_temp: string | null;
+  status: CorporateApplicationStatus;
+  rejection_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  deleted_by: string | null;
+}
+
+export interface ExpertiseDealershipApplication {
+  id: string;
+  company_name: string;
+  tax_id_number: string;
+  tax_office_name: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  address: string;
+  city_id: string | null;
+  district_id: string | null;
+  service_areas: string[];
+  logo_url: string | null;
+  description: string | null;
+  contract_accepted_at: string;
+  password_temp: string | null;
+  status: CorporateApplicationStatus;
+  rejection_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  deleted_by: string | null;
+}
+
+export interface ExpertiseResult {
+  id: string;
+  expertise_request_id: string;
+  valet_notes: string | null;
+  valet_observations: Record<string, unknown> | null;
+  valet_photo_urls: string[];
+  valet_uploaded_at: string | null;
+  valet_uploaded_by: string | null;
+  dealership_checklist: Record<string, unknown> | null;
+  dealership_report_url: string | null;
+  dealership_notes: string | null;
+  dealership_uploaded_at: string | null;
+  dealership_uploaded_by: string | null;
+  status: ExpertiseResultStatus;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface PaymentRecord {
+  id: string;
+  recipient_type: PaymentRecipientType;
+  recipient_id: string;
+  expertise_request_id: string | null;
+  amount: number;
+  iban: string | null;
+  period_year: number;
+  period_month: number;
+  status: PaymentStatus;
+  paid_at: string | null;
+  paid_by: string | null;
+  receipt_url: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  deleted_by: string | null;
+}

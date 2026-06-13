@@ -5,7 +5,9 @@ import {
   LayoutDashboard, ListChecks, ClipboardCheck, Settings,
   CreditCard, Shield, Store, Users, Wallet, Calendar, ChevronLeft, ChevronRight, LogOut, Car,
   Inbox, Clock, Play, CheckCircle2, Palette, Megaphone, Image, Building2,
+  CarFront, Banknote, ChevronDown, Briefcase,
 } from 'lucide-react';
+import { useState } from 'react';
 
 interface Item {
   to: string;
@@ -13,6 +15,14 @@ interface Item {
   icon: React.ReactNode;
   area?: string;
   end?: boolean;
+}
+
+interface Group {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  area?: string;
+  items: Item[];
 }
 
 const ITEMS: Item[] = [
@@ -29,6 +39,7 @@ const ITEMS: Item[] = [
   { to: '/dealerships', label: 'Bayilikler', icon: <Store className="h-5 w-5" />, area: 'dealerships' },
   { to: '/corporate-applications', label: 'Kurumsal Başvurular', icon: <Building2 className="h-5 w-5" />, area: 'corporate_applications' },
   { to: '/transactions', label: 'İşlem Geçmişi', icon: <Wallet className="h-5 w-5" />, area: 'transactions' },
+  { to: '/payments', label: '💰 Hakediş ve Ödemeler', icon: <Banknote className="h-5 w-5" />, area: 'payments' },
   { to: '/settings', label: 'Site Ayarları', icon: <Settings className="h-5 w-5" />, area: 'site_settings' },
   { to: '/site/tema', label: 'Tema', icon: <Palette className="h-5 w-5" />, area: 'site_settings' },
   { to: '/site/reklamlar', label: 'Reklamlar', icon: <Megaphone className="h-5 w-5" />, area: 'site_settings' },
@@ -37,9 +48,52 @@ const ITEMS: Item[] = [
   { to: '/authorization', label: 'Yetkilendirme', icon: <Shield className="h-5 w-5" />, area: 'authorization' },
 ];
 
+// Gruplu alt menüler (expand/collapse)
+const GROUPS: Group[] = [
+  {
+    id: 'valet',
+    label: 'Eksper Valeler',
+    icon: <CarFront className="h-5 w-5" />,
+    area: 'valet_applications',
+    items: [
+      { to: '/expert-valet-applications', label: 'Vale Başvuruları', icon: <Inbox className="h-4 w-4" />, area: 'valet_applications' },
+      { to: '/expert-valets', label: 'Aktif Valeler', icon: <Users className="h-4 w-4" />, area: 'valet_applications' },
+      { to: '/payments?type=valet', label: 'Vale Ödemeleri', icon: <Banknote className="h-4 w-4" />, area: 'payments' },
+    ],
+  },
+  {
+    id: 'franchise',
+    label: 'Ekspertiz Bayileri',
+    icon: <Briefcase className="h-5 w-5" />,
+    area: 'franchise_applications',
+    items: [
+      { to: '/expertise-dealership-applications', label: 'Bayi Başvuruları', icon: <Inbox className="h-4 w-4" />, area: 'franchise_applications' },
+      { to: '/expertise-dealerships', label: 'Aktif Bayiler', icon: <Store className="h-4 w-4" />, area: 'franchise_applications' },
+      { to: '/payments?type=franchise', label: 'Bayi Ödemeleri', icon: <Banknote className="h-4 w-4" />, area: 'payments' },
+    ],
+  },
+];
+
 export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { admin, hasPermission, signOut } = useAuth();
   const navigate = useNavigate();
+
+  // Aktif gruplar (expand/collapse)
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    valet: false,
+    franchise: false,
+  });
+
+  function toggleGroup(id: string) {
+    setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  // Permission check helper
+  function canSeeItem(it: Item): boolean {
+    if (!it.area) return true;
+    if (admin?.is_super_admin) return true;
+    return hasPermission(it.area, 'view');
+  }
 
   return (
     <aside className={cn('bg-slate-900 text-slate-100 flex flex-col transition-all', collapsed ? 'w-16' : 'w-64')}>
@@ -56,28 +110,64 @@ export default function Sidebar({ collapsed, onToggle }: { collapsed: boolean; o
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 space-y-0.5">
-        {ITEMS.map((it) => {
-          // Süper admin her şeyi görsün
-          if (it.area && !admin?.is_super_admin) {
-            if (!hasPermission(it.area, 'view')) return null;
-          }
+        {/* Standart menü öğeleri */}
+        {ITEMS.filter(canSeeItem).map((it) => (
+          <NavLink
+            key={it.to}
+            to={it.to}
+            end={it.end}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition',
+                isActive ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-slate-800',
+                collapsed && 'justify-center'
+              )
+            }
+            title={collapsed ? it.label : undefined}
+          >
+            {it.icon}
+            {!collapsed && <span>{it.label}</span>}
+          </NavLink>
+        ))}
+
+        {/* Gruplu menüler */}
+        {!collapsed && GROUPS.map((g) => {
+          if (g.area && !admin?.is_super_admin && !hasPermission(g.area, 'view')) return null;
+          const visibleItems = g.items.filter(canSeeItem);
+          if (visibleItems.length === 0) return null;
           return (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              end={it.end}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition',
-                  isActive ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-slate-800',
-                  collapsed && 'justify-center'
-                )
-              }
-              title={collapsed ? it.label : undefined}
-            >
-              {it.icon}
-              {!collapsed && <span>{it.label}</span>}
-            </NavLink>
+            <div key={g.id} className="mt-2">
+              <button
+                onClick={() => toggleGroup(g.id)}
+                className="w-full mx-2 px-3 py-2.5 flex items-center justify-between rounded-lg text-sm font-bold text-slate-200 hover:bg-slate-800 transition"
+                style={{ width: 'calc(100% - 1rem)' }}
+              >
+                <span className="flex items-center gap-3">
+                  {g.icon}
+                  <span>{g.label}</span>
+                </span>
+                {openGroups[g.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </button>
+              {openGroups[g.id] && (
+                <div className="mt-1 space-y-0.5">
+                  {visibleItems.map((it) => (
+                    <NavLink
+                      key={it.to}
+                      to={it.to}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-3 mx-2 pl-11 pr-3 py-2 rounded-lg text-sm transition',
+                          isActive ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+                        )
+                      }
+                    >
+                      {it.icon}
+                      <span>{it.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>
