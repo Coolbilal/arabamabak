@@ -171,10 +171,31 @@ export default function CreateListingPage() {
     },
   });
 
-  // Engine sizes (motor hacimleri - global liste)
+  // Engine sizes (modele özel, yoksa global)
   const engineSizes = useQuery({
-    queryKey: ['engine-sizes'],
+    queryKey: ['engine-sizes', form.model_id],
     queryFn: async () => {
+      // Önce modelin displacements array'ini al
+      const { data: modelData } = await supabase
+        .from('vehicle_models')
+        .select('displacements')
+        .eq('id', form.model_id)
+        .maybeSingle();
+
+      const modelDisplacements: string[] | null = (modelData as { displacements: string[] | null } | null)?.displacements || null;
+
+      if (modelDisplacements && modelDisplacements.length > 0) {
+        // Modele özel motorları getir
+        const { data, error } = await supabase
+          .from('engine_sizes')
+          .select('id, displacement')
+          .in('displacement', modelDisplacements)
+          .order('displacement');
+        if (error) throw error;
+        return data || [];
+      }
+
+      // Yoksa global tüm motorlar
       const { data, error } = await supabase
         .from('engine_sizes')
         .select('id, displacement')
