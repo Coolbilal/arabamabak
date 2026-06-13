@@ -15,9 +15,8 @@ import {
 } from '../lib/types';
 import {
   AlertCircle, ArrowLeft, ArrowRight, Banknote, Battery, Bike, Building2, Car, Check, CheckCircle2,
-  ChevronRight, Circle, CreditCard, Fuel, Gavel, ImagePlus, Loader2, MapPin, Settings2, ShieldCheck,
-  Sparkles, Truck, Upload, Wallet, Waves, X, XCircle, Wrench, Ship, Plane, CarFront, FileWarning,
-  History, Home as HomeIcon, Users,
+  ChevronRight, CreditCard, Fuel, Gavel, ImagePlus, Loader2, MapPin, Sparkles, Truck, Wallet, X,
+  Wrench, Ship, Plane, CarFront, FileWarning, History, Home as HomeIcon, Users,
 } from 'lucide-react';
 
 const MAX_IMAGES = 8;
@@ -152,7 +151,7 @@ export default function CreateListingPage() {
         .eq('vehicle_type', form.vehicle_type)
         .order('sort_order');
       if (error) throw error;
-      return (data || []) as VehicleBrand[];
+      return data as unknown as VehicleBrand[];
     },
   });
 
@@ -443,15 +442,24 @@ export default function CreateListingPage() {
       {show3DS && (
         <ThreeDSecureModal
           amount={Number(form.price) * (settings?.premium_auction_fee || 100) / 100}
+          description="Açık arttırma yayın ücreti"
+          onCancel={() => setShow3DS(false)}
           onSuccess={() => { setShow3DS(false); createListing.mutate(); }}
-          onClose={() => setShow3DS(false)}
+          onFailure={() => setShow3DS(false)}
         />
       )}
       {showBank && (
         <BankTransferModal
           amount={Number(form.price) * (settings?.premium_auction_fee || 100) / 100}
+          description="Açık arttırma yayın ücreti"
+          bankConfig={{
+            bank_name: 'arabamabak A.Ş.',
+            account_holder: 'arabamabak Ltd. Şti.',
+            iban: 'TR00 0000 0000 0000 0000 0000 00',
+            branch_code: '0000',
+          }}
+          onCancel={() => setShowBank(false)}
           onSuccess={() => { setShowBank(false); createListing.mutate(); }}
-          onClose={() => setShowBank(false)}
         />
       )}
     </div>
@@ -684,9 +692,9 @@ function StepImages({ form, setField }: any) {
         if (!ACCEPTED_TYPES.includes(file.type)) continue;
         const ext = file.name.split('.').pop();
         const path = `vehicles/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from(BUCKETS.vehicles).upload(path, file, { contentType: file.type });
+        const { error } = await supabase.storage.from(BUCKETS.VEHICLE_IMAGES).upload(path, file, { contentType: file.type });
         if (error) continue;
-        const { data: pub } = supabase.storage.from(BUCKETS.vehicles).getPublicUrl(path);
+        const { data: pub } = supabase.storage.from(BUCKETS.VEHICLE_IMAGES).getPublicUrl(path);
         urls.push(pub.publicUrl);
       }
       setField('images', urls);
