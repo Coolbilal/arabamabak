@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, BUCKETS } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { cn, formatPrice } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { useCities, useDistricts } from '../lib/useLocationData';
 import ThreeDSecureModal from '../components/ThreeDSecureModal';
 import BankTransferModal from '../components/BankTransferModal';
@@ -14,8 +14,8 @@ import {
   BODY_LABELS, FUEL_LABELS, TRANSMISSION_LABELS, VEHICLE_TYPE_LABELS,
 } from '../lib/types';
 import {
-  AlertCircle, ArrowLeft, ArrowRight, Banknote, Battery, Bike, Building2, Car, Check, CheckCircle2,
-  ChevronRight, CreditCard, Fuel, Gavel, ImagePlus, Loader2, MapPin, Sparkles, Truck, Wallet, X,
+  AlertCircle, ArrowLeft, ArrowRight, Banknote, Battery, Bike, Car, Check, CheckCircle2,
+  ChevronRight, CreditCard, Gavel, ImagePlus, Loader2, Sparkles, Truck, Wallet, X,
   Wrench, Ship, Plane, CarFront, FileWarning, History, Home as HomeIcon, Users,
 } from 'lucide-react';
 
