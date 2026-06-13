@@ -17,6 +17,12 @@ const EXPERTISE_STATUS_LABELS: Record<ExpertiseStatus, string> = {
   in_progress: 'Devam Ediyor',
   completed: 'Tamamlandı',
   cancelled: 'İptal',
+  valet_accepted: 'Vale Kabul Etti',
+  picked_up: 'Araç Alındı',
+  at_dealership: 'Bayiye Teslim',
+  dealership_accepted: 'Bayi Kabul Etti',
+  report_uploaded: 'Rapor Yüklendi',
+  fully_completed: 'Ekspertiz Tamamlandı',
 };
 
 const STATUS_STYLES: Record<ExpertiseStatus, string> = {
@@ -25,6 +31,12 @@ const STATUS_STYLES: Record<ExpertiseStatus, string> = {
   in_progress: 'bg-indigo-100 text-indigo-800',
   completed: 'bg-emerald-100 text-emerald-800',
   cancelled: 'bg-slate-100 text-slate-700',
+  valet_accepted: 'bg-amber-100 text-amber-800',
+  picked_up: 'bg-blue-100 text-blue-800',
+  at_dealership: 'bg-indigo-100 text-indigo-800',
+  dealership_accepted: 'bg-violet-100 text-violet-800',
+  report_uploaded: 'bg-cyan-100 text-cyan-800',
+  fully_completed: 'bg-emerald-100 text-emerald-800',
 };
 
 const schema = z.object({
