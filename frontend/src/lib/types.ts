@@ -1250,3 +1250,4 @@ export interface PaymentRecord {
   paid_at: string | null;
   receipt_url: string | null;
 }
+// trigger
