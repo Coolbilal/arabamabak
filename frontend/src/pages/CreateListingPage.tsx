@@ -176,6 +176,7 @@ export default function CreateListingPage() {
   // Engine sizes (modele özel, yoksa global)
   const engineSizes = useQuery({
     queryKey: ['engine-sizes', form.model_id],
+    enabled: !!form.model_id,
     queryFn: async () => {
       // Önce modelin displacements array'ini al
       const { data: modelData } = await supabase
