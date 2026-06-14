@@ -1,15 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
 
-// Service role client - SADECE admin tarafında kullanılır
-// RLS'yi bypass eder, sadece admin panele giriş yapmış kullanıcılar tarafından kullanılmalı
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || '';
+// Geçici: supabaseAdmin artık normal supabase client'ını kullanıyor.
+// Service role işlemleri (createUser, deleteUser) için Edge Function gerekiyor,
+// o ileride eklenecek. Şu an admin paneli açılsın diye bu değişiklik yapıldı.
 const SERVICE_ROLE_KEY = (import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string) || '';
 
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  console.warn('supabaseAdmin: VITE_SUPABASE_URL veya VITE_SUPABASE_SERVICE_ROLE_KEY eksik!');
+if (!SERVICE_ROLE_KEY) {
+  console.warn('supabaseAdmin: SERVICE_ROLE_KEY yok, anon key fallback kullanılıyor (Edge Function ileride eklenecek)');
 }
 
-export const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
