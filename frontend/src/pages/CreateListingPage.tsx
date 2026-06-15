@@ -207,12 +207,15 @@ export default function CreateListingPage() {
         listing_type: form.listing_type,
         status: 'pending',
       };
+      console.log('INSERT PAYLOAD:', payload);
       const { data, error: insertErr } = await supabase
         .from('vehicles')
         .insert(payload)
         .select()
         .single();
+      console.log('INSERT RESULT:', { data, insertErr, payload });
       if (insertErr) throw insertErr;
+      if (!data) throw new Error('İlan eklendi ama veri dönmedi');
       navigate(`/ilan/${data.id}`);
     } catch (e: any) {
       setError(e.message || 'İlan eklenirken hata oluştu');
