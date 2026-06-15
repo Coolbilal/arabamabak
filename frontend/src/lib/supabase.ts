@@ -1,14 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
 // arabamabak - Yeni Supabase projesi (v2)
-export const SUPABASE_URL = 'https://xfcxrbnnesliflwwejwh.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmY3hyYm5uZXNsaWZsd3dlandoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MzgwNjcsImV4cCI6MjA5NjQxNDA2N30.vAInU00WfzRTQbie_TQdHdm92ZooZ426jh9aXSAY9vY';
+const SUPABASE_URL = 'https://xfcxrbnnesliflwwejwh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmY3hyYm5uZXNsaWZsd3dlandoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MzgwNjcsImV4cCI6MjA5NjQxNDA2N30.vAInU00WfzRTQbie_TQdHdm92ZooZ426jh9aXSAY9vY';
 
-export const supabase = createClient<any>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export { SUPABASE_URL, SUPABASE_ANON_KEY };
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     persistSession: true,
+  },
+  global: {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+    },
   },
 });
 
