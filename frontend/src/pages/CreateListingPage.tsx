@@ -144,10 +144,10 @@ export default function CreateListingPage() {
 
   // Brands (kategoriye göre filtreli)
     const brands = useQuery({
-    queryKey: ['brands-by-type', form.vehicle_type],
-    queryFn: async () => {
-      if (!form.vehicle_type) return [];
-      const { data, error } = await supabase
+     queryKey: ['brands-by-type', form.vehicle_type],
+  queryFn: async () => {
+    if (!form.vehicle_type) return [];
+    const { data, error } = await supabase
         .from('vehicle_brands')
         .select('id, name, sort_order, is_active, vehicle_type')
         .eq('is_active', true)
@@ -160,11 +160,11 @@ export default function CreateListingPage() {
 
   // Models (markaya göre)
     const models = useQuery({
-    queryKey: ['models-by-brand', form.brand_id],
-    queryFn: async () => {
-      if (!form.brand_id) return [];
-      const { data, error } = await supabase
-        .from('vehicle_models')
+     queryKey: ['models-by-brand', form.brand_id],
+  queryFn: async () => {
+    if (!form.brand_id) return [];
+    const { data, error } = await supabase
+      .from('vehicle_models')
         .select('id, name, brand_id, sort_order')
         .eq('brand_id', form.brand_id)
         .order('sort_order');
@@ -175,10 +175,10 @@ export default function CreateListingPage() {
 
   // Engine sizes (modele özel, yoksa global)
     const engineSizes = useQuery({
-    queryKey: ['engine-sizes', form.model_id],
-    queryFn: async () => {
-      if (!form.model_id) return [];
-      // Önce modelin displacements array'ini al
+      queryKey: ['engine-sizes', form.model_id],
+  queryFn: async () => {
+    if (!form.model_id) return [];
+    // Önce modelin displacements array'ini al
       const { data: modelData } = await supabase
         .from('vehicle_models')
         .select('displacements')
