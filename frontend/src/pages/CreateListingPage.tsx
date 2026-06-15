@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Car, Bike, Upload, X, Check } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight, Car, Bike, Wrench, Upload, X, Check } from 'lucide-react';
 import { supabase, BUCKETS } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -179,7 +180,6 @@ export default function CreateListingPage() {
   }
 
   async function handleSubmit() {
-    if (!user) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -207,15 +207,12 @@ export default function CreateListingPage() {
         listing_type: form.listing_type,
         status: 'pending',
       };
-      console.log('INSERT PAYLOAD:', payload);
       const { data, error: insertErr } = await supabase
         .from('vehicles')
         .insert(payload)
         .select()
         .single();
-      console.log('INSERT RESULT:', { data, insertErr, payload });
       if (insertErr) throw insertErr;
-      if (!data) throw new Error('İlan eklendi ama veri dönmedi');
       navigate(`/ilan/${data.id}`);
     } catch (e: any) {
       setError(e.message || 'İlan eklenirken hata oluştu');
@@ -480,11 +477,9 @@ function StepCondition({ form, setField }: any) {
 
 // ==================== STEP 6: IMAGES ====================
 function StepImages({ form, setField }: any) {
-  const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!user) return;
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     setUploading(true);
