@@ -232,12 +232,12 @@ export default function CreateListingPage() {
       if (!data) throw new Error('İlan eklendi ama veri dönmedi');
 
       // BAŞARI MESAJI + YÖNLENDIRME
-      setSuccess('İlanınız başarıyla oluşturuldu! Hesabım > İlanlarım bölümünden kontrol edebilirsiniz.');
+      setSuccess('İlanınız başarıyla oluşturuldu! Profil > İlanlarım bölümünden kontrol edebilirsiniz.');
       setSubmitting(false);
 
-      // 2 saniye sonra Hesabım > İlanlarım sayfasına yönlendir
+      // 2 saniye sonra Profil > İlanlarım sayfasına yönlendir
       setTimeout(() => {
-        navigate('/hesabim/ilanlarim');
+        navigate('/profil/ilanlarim');
       }, 2000);
     } catch (e: any) {
       setError(e.message || 'İlan eklenirken hata oluştu');
@@ -745,74 +745,167 @@ function StepPublish({ form, setField, paymentMethod, setPaymentMethod, walletBa
 
 // ==================== CARD PAYMENT MODAL ====================
 function CardPaymentModal({ fee, onCancel, onSuccess }: { fee: number; onCancel: () => void; onSuccess: () => void }) {
+  const [step, setStep] = useState<'card' | '3ds' | 'processing'>('card');
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvc, setCvc] = useState('');
-  const [processing, setProcessing] = useState(false);
+  const [cardName, setCardName] = useState('');
+  const [otp, setOtp] = useState('');
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleCardSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!cardNumber || !expiry || !cvc) {
+    if (!cardNumber || !expiry || !cvc || !cardName) {
       alert('Tüm alanları doldurun');
       return;
     }
-    setProcessing(true);
-    // Simülasyon: 1.5 saniye sonra başarılı
+    setStep('3ds');
+  }
+
+  function handle3DSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (otp.length !== 6) {
+      alert('Lütfen 6 haneli SMS kodunu girin');
+      return;
+    }
+    setStep('processing');
     setTimeout(() => {
-      setProcessing(false);
       onSuccess();
-    }, 1500);
+    }, 2000);
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 max-w-md w-full">
-        <h3 className="text-lg font-bold mb-2">Kredi / Banka Kartı ile Ödeme</h3>
-        <p className="text-sm text-slate-600 mb-4">Toplam: <strong>{fee} TL</strong> (3D Secure simülasyonu)</p>
-        <div className="space-y-3 mb-4">
-          <div>
-            <label className="text-xs font-semibold uppercase text-slate-500">Kart Numarası</label>
-            <input
-              type="text"
-              maxLength={19}
-              value={cardNumber}
-              onChange={e => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim())}
-              className="input mt-1"
-              placeholder="0000 0000 0000 0000"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-semibold uppercase text-slate-500">Son Kullanma</label>
-              <input
-                type="text"
-                maxLength={5}
-                value={expiry}
-                onChange={e => setExpiry(e.target.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2'))}
-                className="input mt-1"
-                placeholder="AA/YY"
-              />
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 to-slate-700 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+        {/* 3D Secure Bank Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                <span className="text-xs font-bold">3D</span>
+              </div>
+              <div>
+                <div className="text-sm font-semibold">3D Secure ile Güvenli Ödeme</div>
+                <div className="text-xs opacity-80">Verified by Visa • MasterCard SecureCode</div>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold uppercase text-slate-500">CVC</label>
-              <input
-                type="text"
-                maxLength={4}
-                value={cvc}
-                onChange={e => setCvc(e.target.value.replace(/\D/g, ''))}
-                className="input mt-1"
-                placeholder="000"
-              />
+            <div className="text-right">
+              <div className="text-xs opacity-80">Toplam</div>
+              <div className="text-lg font-bold">{fee} TL</div>
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={onCancel} disabled={processing} className="flex-1 btn-ghost disabled:opacity-50">İptal</button>
-          <button type="submit" disabled={processing} className="flex-1 btn-primary disabled:opacity-50">
-            {processing ? 'İşleniyor...' : `${fee} TL Öde ve Yayınla`}
-          </button>
-        </div>
-      </form>
+
+        {/* Step 1: Kart Bilgileri */}
+        {step === 'card' && (
+          <form onSubmit={handleCardSubmit} className="p-6">
+            <h3 className="text-lg font-bold mb-4 text-slate-900">Kart Bilgileri</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold uppercase text-slate-500">Kart Üzerindeki İsim</label>
+                <input
+                  type="text"
+                  value={cardName}
+                  onChange={e => setCardName(e.target.value.toUpperCase())}
+                  className="input mt-1"
+                  placeholder="AD SOYAD"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase text-slate-500">Kart Numarası</label>
+                <input
+                  type="text"
+                  maxLength={19}
+                  value={cardNumber}
+                  onChange={e => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim())}
+                  className="input mt-1 font-mono"
+                  placeholder="0000 0000 0000 0000"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-semibold uppercase text-slate-500">Son Kullanma</label>
+                  <input
+                    type="text"
+                    maxLength={5}
+                    value={expiry}
+                    onChange={e => setExpiry(e.target.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2'))}
+                    className="input mt-1 font-mono"
+                    placeholder="AA/YY"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold uppercase text-slate-500">CVC</label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={cvc}
+                    onChange={e => setCvc(e.target.value.replace(/\D/g, ''))}
+                    className="input mt-1 font-mono"
+                    placeholder="000"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-slate-50 rounded-lg text-xs text-slate-500 flex items-start gap-2">
+              <div className="h-4 w-4 rounded-full bg-blue-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-bold">i</div>
+              <div>Devam ettiğinizde kartınızın bağlı olduğu bankanın güvenlik sayfasına yönlendirileceksiniz.</div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button type="button" onClick={onCancel} className="flex-1 btn-ghost">İptal</button>
+              <button type="submit" className="flex-1 btn-primary">Devam Et</button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 2: 3D Secure OTP */}
+        {step === '3ds' && (
+          <form onSubmit={handle3DSubmit} className="p-6">
+            <div className="text-center mb-4">
+              <div className="h-16 w-16 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-3">
+                <span className="text-2xl">📱</span>
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Telefonunuza Gelen Kodu Girin</h3>
+              <p className="text-sm text-slate-500 mt-1">3D Secure doğrulama için bankanıza kayıtlı telefon numarasına SMS gönderdik.</p>
+            </div>
+            <div>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                className="input mt-1 text-center text-2xl font-mono tracking-widest"
+                placeholder="• • • • • •"
+                autoFocus
+              />
+              <div className="text-xs text-slate-500 text-center mt-2">Test: 123456 girin</div>
+            </div>
+            <div className="mt-4 p-3 bg-slate-50 rounded-lg text-xs text-slate-500">
+              <div className="flex justify-between">
+                <span>Kart:</span>
+                <span className="font-mono">{cardNumber || '****'}</span>
+              </div>
+              <div className="flex justify-between mt-1">
+                <span>Tutar:</span>
+                <span className="font-bold">{fee} TL</span>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button type="button" onClick={() => setStep('card')} className="flex-1 btn-ghost">Geri</button>
+              <button type="submit" className="flex-1 btn-primary">Doğrula ve Öde</button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 3: Processing */}
+        {step === 'processing' && (
+          <div className="p-8 text-center">
+            <div className="h-16 w-16 mx-auto rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin mb-4" />
+            <h3 className="text-lg font-bold text-slate-900">Ödeme İşleniyor...</h3>
+            <p className="text-sm text-slate-500 mt-1">Lütfen bekleyin, işleminiz gerçekleştiriliyor.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
