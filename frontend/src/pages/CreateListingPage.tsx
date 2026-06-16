@@ -84,7 +84,7 @@ const VEHICLE_TYPES: { value: VehicleType; label: string; icon: any; desc: strin
 const BODY_TYPES: { value: BodyType; label: string }[] = [
   { value: 'sedan', label: 'Sedan' },
   { value: 'hatchback', label: 'Hatchback' },
-  { value: 'station_wagon', label: 'Station Wagon' },
+  { value: 'station wagon', label: 'Station Wagon' },
   { value: 'coupe', label: 'Coupe' },
   { value: 'cabrio', label: 'Cabrio' },
 ];
@@ -278,11 +278,13 @@ export default function CreateListingPage() {
       <ProgressBar step={step} />
 
       {success && (
-        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 flex items-start gap-2">
-          <Check className="h-5 w-5 flex-shrink-0 mt-0.5" />
-          <div>
-            <div className="font-bold">Başarılı!</div>
-            <div className="text-sm">{success}</div>
+        <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl text-green-900 flex items-start gap-4 shadow-lg">
+          <div className="h-12 w-12 rounded-full bg-green-500 text-white flex items-center justify-center flex-shrink-0">
+            <Check className="h-7 w-7" />
+          </div>
+          <div className="flex-1">
+            <div className="text-3xl font-extrabold text-green-900 mb-1">Başarılı!</div>
+            <div className="text-base text-green-800">{success}</div>
           </div>
         </div>
       )}
