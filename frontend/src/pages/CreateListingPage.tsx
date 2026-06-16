@@ -15,7 +15,7 @@ import {
 
 // ==================== TYPES ====================
 type VehicleType = 'otomobil' | 'suv_pickup' | 'elektrikli' | 'minivan_panelvan' | 'ticari' | 'motorsiklet_utv_atv';
-type BodyType = 'sedan' | 'hatchback' | 'station_wagon' | 'coupe' | 'cabrio';
+type BodyType = 'sedan' | 'hatchback' | 'station wagon' | 'coupe' | 'cabrio';
 type FuelType = 'benzin' | 'dizel' | 'lpg' | 'elektrik' | 'hibrit';
 type TransmissionType = 'manuel' | 'otomatik' | 'yarı_otomatik';
 type ListingType = 'free' | 'auction' | 'premium_auction';
