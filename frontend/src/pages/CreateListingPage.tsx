@@ -231,14 +231,15 @@ export default function CreateListingPage() {
       if (insertErr) throw insertErr;
       if (!data) throw new Error('İlan eklendi ama veri dönmedi');
 
-      // BAŞARI MESAJI + YÖNLENDIRME
-      setSuccess('İlanınız başarıyla oluşturuldu! Profil > İlanlarım bölümünden kontrol edebilirsiniz.');
+      // BAŞARI MESAJI
+      setSuccess('İlanınız başarıyla oluşturuldu! İlan admin onayından sonra yayına alınacaktır.');
       setSubmitting(false);
 
-      // 2 saniye sonra Profil > İlanlarım sayfasına yönlendir
+      // 4 saniye sonra Profil > İlanlarım sayfasına yönlendir
+      // (mesaj kullanıcıya yeterli süre görünür)
       setTimeout(() => {
         navigate('/profil/ilanlarim');
-      }, 2000);
+      }, 4000);
     } catch (e: any) {
       setError(e.message || 'İlan eklenirken hata oluştu');
       setSubmitting(false);
