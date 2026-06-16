@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Car, Bike, Upload, X, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Car, Bike, Upload, X, Check, Wallet, CreditCard, Building2 } from 'lucide-react';
 import { supabase, BUCKETS } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -20,38 +20,30 @@ type FuelType = 'benzin' | 'dizel' | 'lpg' | 'elektrik' | 'hibrit';
 type TransmissionType = 'manuel' | 'otomatik' | 'yarı_otomatik';
 type ListingType = 'free' | 'auction' | 'premium_auction';
 type SubVehicleType = 'motorsiklet' | 'utv' | 'atv';
+type PaymentMethod = 'wallet' | 'card' | 'bank' | null;
 
 interface ListingForm {
-  // Step 1
   vehicle_type: VehicleType | '';
-  // Step 2
   brand_id: string;
   model_id: string;
-  // Step 3
   engine_size_id: string;
-  // Step 4 - Otomobil ailesi
   year: string;
   km: string;
   fuel: FuelType;
   transmission: TransmissionType;
   body: BodyType | '';
   color: string;
-  // Step 4 - Motorsiklet ailesi
   sub_type: SubVehicleType | '';
-  // Step 5
   damage_record: boolean;
   damage_detail: string;
   disabled_plate: boolean;
   exchange_accepted: boolean;
   description: string;
-  // Step 6
   images: string[];
-  // Step 7
   city: string;
   district: string;
   title: string;
   price: string;
-  // Step 8
   listing_type: ListingType;
 }
 
@@ -81,7 +73,7 @@ const INITIAL_FORM: ListingForm = {
 };
 
 const VEHICLE_TYPES: { value: VehicleType; label: string; icon: any; desc: string }[] = [
-  { value: 'otomobil', label: 'Otomobil', icon: Car, desc: 'Sedan, hatchback, SUV, coupe, cabrio' },
+  { value: 'otomobil', label: 'Otomobil', icon: Car, desc: 'Sedan, hatchback, station wagon, coupe, cabrio' },
   { value: 'suv_pickup', label: 'SUV / Pickup', icon: Car, desc: 'SUV ve pickup araçlar' },
   { value: 'elektrikli', label: 'Elektrikli', icon: Car, desc: 'Tamamen elektrikli araçlar' },
   { value: 'minivan_panelvan', label: 'Minivan / Panelvan', icon: Car, desc: 'Geniş iç hacimli araçlar' },
@@ -122,27 +114,29 @@ export default function CreateListingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'card' | 'bank' | null>(null);
-  const [show3DS, setShow3DS] = useState(false);
-  const [showBankModal, setShowBankModal] = useState(false);
   const [form, setForm] = useState<ListingForm>(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
 
-  // Tüm hook'lar her zaman çalışır, queryFn içinde kontrol
+  // Test amaçlı cüzdan bakiyesi (production'da Supabase'den çekilecek)
+  const [walletBalance] = useState(500);
+
   const isMotorcycle = form.vehicle_type === 'motorsiklet_utv_atv';
+  const isAuction = form.listing_type === 'auction' || form.listing_type === 'premium_auction';
+  const fee = form.listing_type === 'premium_auction' ? 200 : 100;
+
   const brandsQuery = isMotorcycle ? useMotorcycleBrands() : useBrands(form.vehicle_type);
   const modelsQuery = isMotorcycle ? useMotorcycleModels(form.brand_id) : useModels(form.brand_id);
   const engineSizesQuery = useEngineSizes();
   const citiesQuery = useCities();
   const districtsQuery = useDistricts(form.city);
 
-  // Marka değişince modeli sıfırla
   useEffect(() => {
     setForm(f => ({ ...f, model_id: '' }));
   }, [form.brand_id]);
 
-  // Araç tipi değişince her şeyi sıfırla
   useEffect(() => {
     setForm(f => ({ ...f, brand_id: '', model_id: '', engine_size_id: '' }));
   }, [form.vehicle_type]);
@@ -156,12 +150,8 @@ export default function CreateListingPage() {
     setForm(f => ({ ...f, [key]: value }));
   }
 
-  function nextStep() {
-    setStep(s => Math.min(s + 1, 7));
-  }
-  function prevStep() {
-    setStep(s => Math.max(s - 1, 0));
-  }
+  function nextStep() { setStep(s => Math.min(s + 1, 7)); }
+  function prevStep() { setStep(s => Math.max(s - 1, 0)); }
 
   function canGoNext(): boolean {
     switch (step) {
@@ -176,44 +166,39 @@ export default function CreateListingPage() {
       case 4: return form.damage_record ? !!form.damage_detail : true;
       case 5: return form.images.length > 0;
       case 6: return !!form.city && !!form.district && !!form.title && !!form.price;
-      case 7: return true;
+      case 7: {
+        if (form.listing_type === 'free') return true;
+        return !!paymentMethod;
+      }
       default: return true;
     }
   }
 
-  async function handleSubmit() {
-    if (!user) {
-      navigate('/giris?next=/ilan-ver');
-      return;
+  // Cüzdan bakiyesini düş
+  async function deductWallet(amount: number): Promise<boolean> {
+    if (walletBalance < amount) {
+      setError(`Cüzdan bakiyeniz yetersiz. Mevcut: ${walletBalance} TL, Gerekli: ${amount} TL`);
+      return false;
     }
-    const currentUser = user;
-    // Ücretsiz ilan: direkt ekle
-    if (form.listing_type === 'free') {
-      await submitListing(currentUser);
-      return;
-    }
-    // Açık arttırma / Premium: ödeme yöntemi seçilmeli
-    if (!paymentMethod) {
-      setError('Lütfen bir ödeme yöntemi seçin');
-      return;
-    }
-    if (paymentMethod === 'card') {
-      setShow3DS(true);
-      return;
-    }
-    if (paymentMethod === 'bank') {
-      setShowBankModal(true);
-      return;
-    }
-    // Cüzdan: direkt düş ve ekle
-    await submitListing(currentUser);
+    // Production'da: Supabase'de wallet transaction kaydı
+    return true;
   }
 
   async function submitListing(currentUser: any) {
     if (!currentUser) return;
     setSubmitting(true);
     setError(null);
+    setSuccess(null);
     try {
+      // Ücretli ilan ise cüzdan kontrolü
+      if (isAuction && paymentMethod === 'wallet') {
+        const ok = await deductWallet(fee);
+        if (!ok) {
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const payload: any = {
         seller_id: currentUser.id,
         vehicle_type: form.vehicle_type,
@@ -245,12 +230,45 @@ export default function CreateListingPage() {
         .single();
       if (insertErr) throw insertErr;
       if (!data) throw new Error('İlan eklendi ama veri dönmedi');
-      navigate(`/ilan/${data.id}`);
+
+      // BAŞARI MESAJI + YÖNLENDIRME
+      setSuccess('İlanınız başarıyla oluşturuldu! Hesabım > İlanlarım bölümünden kontrol edebilirsiniz.');
+      setSubmitting(false);
+
+      // 2 saniye sonra Hesabım > İlanlarım sayfasına yönlendir
+      setTimeout(() => {
+        navigate('/hesabim/ilanlarim');
+      }, 2000);
     } catch (e: any) {
       setError(e.message || 'İlan eklenirken hata oluştu');
-    } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handlePublish() {
+    if (!user) {
+      navigate('/giris?next=/ilan-ver');
+      return;
+    }
+    if (form.listing_type === 'free') {
+      await submitListing(user);
+      return;
+    }
+    if (!paymentMethod) {
+      setError('Lütfen bir ödeme yöntemi seçin');
+      return;
+    }
+    // Hangi yöntem seçildiyse o modalı göster
+    if (paymentMethod === 'card') {
+      // 3D Modal açılır, onaylayınca submitListing çağrılır
+      return;
+    }
+    if (paymentMethod === 'bank') {
+      // Banka modalı açılır, onaylayınca submitListing çağrılır
+      return;
+    }
+    // Cüzdan: direkt düş ve ekle
+    await submitListing(user);
   }
 
   return (
@@ -258,64 +276,19 @@ export default function CreateListingPage() {
       <h1 className="text-2xl font-extrabold mb-2">İlan Ver</h1>
       <ProgressBar step={step} />
 
+      {success && (
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 flex items-start gap-2">
+          <Check className="h-5 w-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-bold">Başarılı!</div>
+            <div className="text-sm">{success}</div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
-        </div>
-      )}
-
-      {/* 3D Secure Modal - basit simülasyon */}
-      {show3DS && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-bold mb-2">3D Secure Doğrulama</h3>
-            <p className="text-sm text-slate-600 mb-4">Bankanıza yönlendiriliyorsunuz...</p>
-            <div className="bg-slate-50 p-3 rounded mb-4 text-sm">
-              <div className="font-mono">İşlem No: 3DS-{Date.now()}</div>
-              <div className="font-mono">Tutar: {form.listing_type === 'premium_auction' ? '200' : '100'} TL</div>
-            </div>
-            <input type="text" placeholder="SMS ile gelen 6 haneli kod" maxLength={6} className="input mb-3" id="threeds-code" />
-            <div className="flex gap-2">
-              <button onClick={() => setShow3DS(false)} className="flex-1 btn-ghost">İptal</button>
-              <button
-                onClick={async () => {
-                  setShow3DS(false);
-                  if (user) await submitListing(user);
-                }}
-                className="flex-1 btn-primary"
-              >
-                Onayla ve Öde
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Banka Havalesi Modal */}
-      {showBankModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-bold mb-2">Banka Havalesi</h3>
-            <p className="text-sm text-slate-600 mb-4">Aşağıdaki IBAN'a {form.listing_type === 'premium_auction' ? '200' : '100'} TL yatırın ve dekont yükleyin.</p>
-            <div className="bg-slate-50 p-3 rounded mb-4 text-sm space-y-1">
-              <div><strong>Banka:</strong> Ziraat Bankası</div>
-              <div><strong>IBAN:</strong> TR12 0001 0012 3456 7890 1234 56</div>
-              <div><strong>Alıcı:</strong> Arabamabak A.Ş.</div>
-              <div><strong>Tutar:</strong> {form.listing_type === 'premium_auction' ? '200' : '100'} TL</div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowBankModal(false)} className="flex-1 btn-ghost">İptal</button>
-              <button
-                onClick={async () => {
-                  setShowBankModal(false);
-                  if (user) await submitListing(user);
-                }}
-                className="flex-1 btn-primary"
-              >
-                Dekont Yüklendi, Onayla
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -327,10 +300,26 @@ export default function CreateListingPage() {
           ? <StepMotorcycleSpecs form={form} setField={setField} />
           : <StepCarSpecs form={form} setField={setField} />)}
         {step === 4 && <StepCondition form={form} setField={setField} />}
-        {step === 5 && <StepImages form={form} setField={setField} />}
+        {step === 5 && <StepImages form={form} setField={setField} userId={user.id} />}
         {step === 6 && <StepLocation form={form} setField={setField} cities={citiesQuery.data} districts={districtsQuery.data} />}
-        {step === 7 && <StepPublish form={form} setField={setField} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} />}
+        {step === 7 && <StepPublish form={form} setField={setField} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} walletBalance={walletBalance} fee={fee} />}
       </div>
+
+      {/* Ödeme Modal'ları */}
+      {paymentMethod === 'card' && (
+        <CardPaymentModal
+          fee={fee}
+          onCancel={() => setPaymentMethod(null)}
+          onSuccess={() => { if (user) submitListing(user); }}
+        />
+      )}
+      {paymentMethod === 'bank' && (
+        <BankTransferModal
+          fee={fee}
+          onCancel={() => setPaymentMethod(null)}
+          onSuccess={() => { if (user) submitListing(user); }}
+        />
+      )}
 
       <div className="mt-4 flex justify-between">
         <button onClick={prevStep} disabled={step === 0} className="btn-ghost disabled:opacity-30">
@@ -341,7 +330,7 @@ export default function CreateListingPage() {
             İleri <ChevronRight className="inline h-4 w-4 ml-1" />
           </button>
         ) : (
-          <button onClick={handleSubmit} disabled={submitting} className="btn-primary disabled:opacity-50">
+          <button onClick={handlePublish} disabled={submitting} className="btn-primary disabled:opacity-50">
             {submitting ? 'Yayınlanıyor...' : 'İlanı Yayınla'} <Check className="inline h-4 w-4 ml-1" />
           </button>
         )}
@@ -563,20 +552,18 @@ function StepCondition({ form, setField }: any) {
 }
 
 // ==================== STEP 6: IMAGES ====================
-function StepImages({ form, setField }: any) {
-  const { user } = useAuth();
+function StepImages({ form, setField, userId }: any) {
   const [uploading, setUploading] = useState(false);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!user) return;
     const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+    if (files.length === 0 || !userId) return;
     setUploading(true);
     try {
       const urls: string[] = [];
       for (const file of files) {
         const ext = file.name.split('.').pop();
-        const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from(BUCKETS.VEHICLE_IMAGES)
           .upload(path, file);
@@ -657,9 +644,8 @@ function StepLocation({ form, setField, cities, districts }: any) {
 }
 
 // ==================== STEP 8: PUBLISH ====================
-function StepPublish({ form, setField, paymentMethod, setPaymentMethod }: any) {
+function StepPublish({ form, setField, paymentMethod, setPaymentMethod, walletBalance, fee }: any) {
   const isAuction = form.listing_type === 'auction' || form.listing_type === 'premium_auction';
-  const fee = form.listing_type === 'premium_auction' ? 200 : 100;
   return (
     <div>
       <h2 className="text-xl font-extrabold mb-1">Yayın Tipi</h2>
@@ -683,7 +669,7 @@ function StepPublish({ form, setField, paymentMethod, setPaymentMethod }: any) {
           )}
         >
           <div className="font-bold">Açık Arttırma</div>
-          <div className="text-sm text-slate-500 mt-1">Canlı açık arttırma, {fee} TL ücret</div>
+          <div className="text-sm text-slate-500 mt-1">Canlı açık arttırma, 100 TL ücret</div>
         </button>
         <button
           onClick={() => setField('listing_type', 'premium_auction')}
@@ -699,38 +685,51 @@ function StepPublish({ form, setField, paymentMethod, setPaymentMethod }: any) {
 
       {isAuction && (
         <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <h3 className="font-bold text-amber-900 mb-2">Ödeme Yöntemi ({fee} TL)</h3>
+          <h3 className="font-bold text-amber-900 mb-3">Ödeme Yöntemi ({fee} TL)</h3>
           <div className="space-y-2">
-            <label className={cn(
-              'flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer',
-              paymentMethod === 'wallet' ? 'border-amber-500 bg-white' : 'border-slate-200 bg-white'
-            )}>
-              <input type="radio" name="payment" checked={paymentMethod === 'wallet'} onChange={() => setPaymentMethod('wallet')} />
-              <div>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('wallet')}
+              className={cn(
+                'w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition',
+                paymentMethod === 'wallet' ? 'border-amber-500 bg-white' : 'border-slate-200 bg-white hover:border-slate-300'
+              )}
+            >
+              <Wallet className="h-5 w-5 text-amber-600" />
+              <div className="flex-1">
                 <div className="font-semibold text-sm">Cüzdan</div>
                 <div className="text-xs text-slate-500">Bakiyenden otomatik düşer</div>
               </div>
-            </label>
-            <label className={cn(
-              'flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer',
-              paymentMethod === 'card' ? 'border-amber-500 bg-white' : 'border-slate-200 bg-white'
-            )}>
-              <input type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
+              <div className="text-sm font-bold text-amber-600">{walletBalance} TL</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('card')}
+              className={cn(
+                'w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition',
+                paymentMethod === 'card' ? 'border-amber-500 bg-white' : 'border-slate-200 bg-white hover:border-slate-300'
+              )}
+            >
+              <CreditCard className="h-5 w-5 text-amber-600" />
               <div>
                 <div className="font-semibold text-sm">Kredi / Banka Kartı</div>
                 <div className="text-xs text-slate-500">3D Secure ile güvenli ödeme</div>
               </div>
-            </label>
-            <label className={cn(
-              'flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer',
-              paymentMethod === 'bank' ? 'border-amber-500 bg-white' : 'border-slate-200 bg-white'
-            )}>
-              <input type="radio" name="payment" checked={paymentMethod === 'bank'} onChange={() => setPaymentMethod('bank')} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('bank')}
+              className={cn(
+                'w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition',
+                paymentMethod === 'bank' ? 'border-amber-500 bg-white' : 'border-slate-200 bg-white hover:border-slate-300'
+              )}
+            >
+              <Building2 className="h-5 w-5 text-amber-600" />
               <div>
                 <div className="font-semibold text-sm">Banka Havalesi / EFT</div>
                 <div className="text-xs text-slate-500">Dekont yükleyerek onay al</div>
               </div>
-            </label>
+            </button>
           </div>
         </div>
       )}
@@ -740,6 +739,129 @@ function StepPublish({ form, setField, paymentMethod, setPaymentMethod }: any) {
         <br />
         {form.city && form.district && <span>{form.city} / {form.district}</span>}
       </div>
+    </div>
+  );
+}
+
+// ==================== CARD PAYMENT MODAL ====================
+function CardPaymentModal({ fee, onCancel, onSuccess }: { fee: number; onCancel: () => void; onSuccess: () => void }) {
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!cardNumber || !expiry || !cvc) {
+      alert('Tüm alanları doldurun');
+      return;
+    }
+    setProcessing(true);
+    // Simülasyon: 1.5 saniye sonra başarılı
+    setTimeout(() => {
+      setProcessing(false);
+      onSuccess();
+    }, 1500);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 max-w-md w-full">
+        <h3 className="text-lg font-bold mb-2">Kredi / Banka Kartı ile Ödeme</h3>
+        <p className="text-sm text-slate-600 mb-4">Toplam: <strong>{fee} TL</strong> (3D Secure simülasyonu)</p>
+        <div className="space-y-3 mb-4">
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Kart Numarası</label>
+            <input
+              type="text"
+              maxLength={19}
+              value={cardNumber}
+              onChange={e => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim())}
+              className="input mt-1"
+              placeholder="0000 0000 0000 0000"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-500">Son Kullanma</label>
+              <input
+                type="text"
+                maxLength={5}
+                value={expiry}
+                onChange={e => setExpiry(e.target.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2'))}
+                className="input mt-1"
+                placeholder="AA/YY"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-slate-500">CVC</label>
+              <input
+                type="text"
+                maxLength={4}
+                value={cvc}
+                onChange={e => setCvc(e.target.value.replace(/\D/g, ''))}
+                className="input mt-1"
+                placeholder="000"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} disabled={processing} className="flex-1 btn-ghost disabled:opacity-50">İptal</button>
+          <button type="submit" disabled={processing} className="flex-1 btn-primary disabled:opacity-50">
+            {processing ? 'İşleniyor...' : `${fee} TL Öde ve Yayınla`}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ==================== BANK TRANSFER MODAL ====================
+function BankTransferModal({ fee, onCancel, onSuccess }: { fee: number; onCancel: () => void; onSuccess: () => void }) {
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!receipt) {
+      alert('Lütfen dekont yükleyin');
+      return;
+    }
+    setUploading(true);
+    setTimeout(() => {
+      setUploading(false);
+      onSuccess();
+    }, 1500);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 max-w-md w-full">
+        <h3 className="text-lg font-bold mb-2">Banka Havalesi / EFT</h3>
+        <p className="text-sm text-slate-600 mb-3">Aşağıdaki IBAN'a <strong>{fee} TL</strong> yatırın ve dekontu yükleyin.</p>
+        <div className="bg-slate-50 p-3 rounded-lg mb-4 text-sm space-y-1">
+          <div><strong>Banka:</strong> Ziraat Bankası</div>
+          <div className="font-mono text-xs"><strong>IBAN:</strong> TR12 0001 0012 3456 7890 1234 56</div>
+          <div><strong>Alıcı:</strong> Arabamabak A.Ş.</div>
+          <div><strong>Tutar:</strong> {fee} TL</div>
+        </div>
+        <div className="mb-4">
+          <label className="text-xs font-semibold uppercase text-slate-500">Dekont Yükle *</label>
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={e => setReceipt(e.target.files?.[0] || null)}
+            className="input mt-1"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} disabled={uploading} className="flex-1 btn-ghost disabled:opacity-50">İptal</button>
+          <button type="submit" disabled={uploading || !receipt} className="flex-1 btn-primary disabled:opacity-50">
+            {uploading ? 'Yükleniyor...' : 'Dekontu Yükle ve Yayınla'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
