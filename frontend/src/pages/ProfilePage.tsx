@@ -8,7 +8,7 @@ import { Camera, Loader, Save, User, Wallet, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, publicUrl } from '../lib/supabase';
 import { formatPrice, cn } from '../lib/utils';
-import { useCities } from '../lib/useLocationData';
+import { useCities, useDistricts } from '../lib/useLocationData';
 
 const schema = z.object({
   full_name: z.string().min(2, 'Ad soyad en az 2 karakter olmalı').max(80),
@@ -37,6 +37,7 @@ export default function ProfilePage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -48,6 +49,10 @@ export default function ProfilePage() {
       bio: '',
     },
   });
+
+  // İl değişince ilçeleri yükle
+  const watchedCity = watch('city');
+  const districtsQuery = useDistricts(watchedCity);
 
   useEffect(() => {
     reset({
@@ -213,7 +218,16 @@ export default function ProfilePage() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700">İlçe</label>
-                <input className="input" placeholder="İlçe" {...register('district')} />
+                <select
+                  className="input"
+                  {...register('district')}
+                  disabled={!watchedCity}
+                >
+                  <option value="">{watchedCity ? 'İlçe seçin' : 'Önce il seçin'}</option>
+                  {districtsQuery.data?.map((d) => (
+                    <option key={d.id} value={d.name}>{d.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="md:col-span-2">
                 <label className="mb-1 block text-xs font-semibold text-slate-700">

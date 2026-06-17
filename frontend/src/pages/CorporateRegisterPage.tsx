@@ -71,7 +71,6 @@ export default function CorporateRegisterPage() {
     supabase
       .from('cities')
       .select('id, name, plate_code')
-      .eq('is_active', true)
       .order('plate_code', { ascending: true })
       .then(({ data, error }) => {
         if (error) { setError('Şehirler yüklenemedi: ' + error.message); return; }
@@ -91,7 +90,6 @@ export default function CorporateRegisterPage() {
       .from('districts')
       .select('id, city_id, name')
       .eq('city_id', cityId)
-      .eq('is_active', true)
       .order('name', { ascending: true })
       .then(({ data }) => {
         setDistricts((data || []) as District[]);
