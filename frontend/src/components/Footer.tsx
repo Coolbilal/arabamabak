@@ -32,6 +32,7 @@ export default function Footer() {
           <ul className="space-y-2 text-sm">
             <li><Link to="/kategori/live" className="hover:text-white">Devam Eden Açık Arttırmalar</Link></li>
             <li><Link to="/kategori/upcoming" className="hover:text-white">Yaklaşan Açık Arttırmalar</Link></li>
+            <li><Link to="/kategori/sold" className="hover:text-white">Satılan Araçlar</Link></li>
             <li><Link to="/kategori/free" className="hover:text-white">Ücretsiz İlanlar</Link></li>
             <li><Link to="/ilan-ver" className="hover:text-white">İlan Ver</Link></li>
             <li><Link to="/ekspertiz" className="hover:text-white">Ekspertiz Yaptır</Link></li>

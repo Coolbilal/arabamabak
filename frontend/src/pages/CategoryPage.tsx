@@ -30,7 +30,7 @@ import {
   Settings2,
 } from 'lucide-react';
 
-type Cat = 'live' | 'upcoming' | 'free';
+type Cat = 'live' | 'upcoming' | 'sold' | 'free';
 type SortKey = 'created_desc' | 'created_asc' | 'price_asc' | 'price_desc' | 'year_asc' | 'year_desc';
 type View = 'grid' | 'list';
 
@@ -59,6 +59,12 @@ const CAT_META: Record<Cat, { title: string; subtitle: string; color: string; ic
     subtitle: 'Sahibinden ilanlar — komisyon yok, aracısız',
     color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     icon: <Car className="h-5 w-5" />,
+  },
+  sold: {
+    title: 'Satılan Araçlar',
+    subtitle: 'Tamamlanmış açık arttırmalar — satıldı mührü vurulan araçlar',
+    color: 'bg-slate-100 text-slate-700 border-slate-300',
+    icon: <Gavel className="h-5 w-5" />,
   },
 };
 
@@ -128,6 +134,9 @@ export default function CategoryPage() {
         q = q.in('listing_type', ['auction', 'premium_auction']);
       } else if (cat === 'free') {
         q = q.eq('listing_type', 'free');
+      } else if (cat === 'sold') {
+        // Satılanlar: sadece auction tipinde ve status='sold' olan ilanlar
+        q = q.in('listing_type', ['auction', 'premium_auction']).eq('status', 'sold');
       } else {
         // upcoming: scheduled auctions in the future
         q = q.in('listing_type', ['auction', 'premium_auction']);
@@ -174,6 +183,17 @@ export default function CategoryPage() {
         rows = rows
           .filter((r) => r.auction && r.auction.status === 'scheduled' && r.auction.start_at && r.auction.start_at > now)
           .sort((a, b) => ((a.auction?.start_at ?? '') > (b.auction?.start_at ?? '') ? 1 : -1));
+      } else if (cat === 'sold') {
+        // Satılanlar: sadece auctions.status='ended' olanlar
+        rows = rows.filter(
+          (r) => r.auction && (r.auction.status === 'ended' || r.auction.status === 'completed'),
+        );
+        // Satılanlar: en son satılan üstte
+        rows = rows.sort((a, b) => {
+          const ad = a.auction?.ended_at ?? a.sold_at ?? a.created_at;
+          const bd = b.auction?.ended_at ?? b.sold_at ?? b.created_at;
+          return bd.localeCompare(ad);
+        });
       }
       return rows;
     },
@@ -623,10 +643,13 @@ function ResultCard({ v, cat }: { v: AuctionVehicle; cat: Cat }) {
         )}
         <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
           {v.is_premium && <span className="badge bg-amber-500 text-white">PREMIUM</span>}
-          {isAuction && (
+          {isAuction && cat !== 'sold' && (
             <span className="badge bg-red-600 text-white">
               {v.auction?.status === 'scheduled' ? 'YAKINDA' : 'CANLI'}
             </span>
+          )}
+          {cat === 'sold' && (
+            <span className="badge bg-slate-800 text-white">SATILDI</span>
           )}
         </div>
         {v.auction && cat === 'live' && (
@@ -715,10 +738,13 @@ function ResultRow({ v, cat }: { v: AuctionVehicle; cat: Cat }) {
         </div>
         <div className="flex items-center gap-2 pt-1 flex-wrap">
           {v.is_premium && <span className="badge bg-amber-500 text-white">PREMIUM</span>}
-          {isAuction && (
+          {isAuction && cat !== 'sold' && (
             <span className="badge bg-red-600 text-white">
               {v.auction?.status === 'scheduled' ? 'YAKINDA' : 'CANLI'}
             </span>
+          )}
+          {cat === 'sold' && (
+            <span className="badge bg-slate-800 text-white">SATILDI</span>
           )}
           {v.damage_record && <span className="badge bg-orange-100 text-orange-700">Hasar Kaydı Var</span>}
           {v.exchange_accepted && <span className="badge bg-blue-100 text-blue-700">Takas Kabul</span>}
