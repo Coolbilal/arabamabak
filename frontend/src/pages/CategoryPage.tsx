@@ -184,14 +184,15 @@ export default function CategoryPage() {
           .filter((r) => r.auction && r.auction.status === 'scheduled' && r.auction.start_at && r.auction.start_at > now)
           .sort((a, b) => ((a.auction?.start_at ?? '') > (b.auction?.start_at ?? '') ? 1 : -1));
       } else if (cat === 'sold') {
-        // Satılanlar: sadece auctions.status='ended' olanlar
+        // Satılanlar: sadece vehicles.status='sold' olanlar (zaten sorguda filtreledik)
+        // ve auction bilgisi olanlar
         rows = rows.filter(
-          (r) => r.auction && (r.auction.status === 'ended' || r.auction.status === 'completed'),
+          (r) => r.auction != null,
         );
-        // Satılanlar: en son satılan üstte
+        // En son satılan üstte
         rows = rows.sort((a, b) => {
-          const ad = a.auction?.ended_at ?? a.sold_at ?? a.created_at;
-          const bd = b.auction?.ended_at ?? b.sold_at ?? b.created_at;
+          const ad = a.auction?.ended_at ?? a.created_at;
+          const bd = b.auction?.ended_at ?? b.created_at;
           return bd.localeCompare(ad);
         });
       }
