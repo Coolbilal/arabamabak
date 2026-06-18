@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { SoldStamp } from '../components/SoldStamp';
-import { cn, formatDate, formatDateOnly, formatKm, formatPrice, pad, timeUntil } from '../lib/utils';
+import { cn, formatDate, formatDateOnly, formatKm, formatPrice, timeUntil } from '../lib/utils';
 import CountdownTimer from '../components/CountdownTimer';
 import type {
   Auction,
@@ -691,9 +691,10 @@ function AuctionPanel({
   }, [bids, lastBidId]);
 
   const isAtTable = mySeat.data?.status === 'holding';
-  const isWinningBidder =
+  const isWinningBidder = Boolean(
     isAtTable && auction.winning_bid_id && bids[0]?.id === auction.winning_bid_id &&
-    bids[0]?.bidder?.id === user?.id;
+    bids[0]?.bidder?.id === user?.id
+  );
 
   const joinTable = useMutation({
     mutationFn: async () => {
@@ -898,9 +899,9 @@ function AuctionPanel({
                 {joinTable.isPending ? (
                   <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
                 ) : null}
-                {(wallet.data ?? 0) < Number(auction.seat_hold_fee)
-                  ? 'Cuzdana Para Yukle (Modul: ' + formatPrice(auction.seat_hold_fee) + ')'
-                  : 'Masaya Otur (' + formatPrice(auction.seat_hold_fee) + ' bloke)'}
+                {(wallet.data ?? 0) < (auction.seat_hold_fee ?? 0)
+                  ? 'Cuzdana Para Yukle (Modul: ' + formatPrice(auction.seat_hold_fee ?? 0) + ')'
+                  : 'Masaya Otur (' + formatPrice(auction.seat_hold_fee ?? 0) + ' bloke)'}
               </button>
             )}
           </div>
@@ -970,7 +971,7 @@ function AuctionPanel({
 
         {!isAtTable && !isOwn && isLive && user && (
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
-            Teklif verebilmek icin masaya oturmaniz ve modul ucreti ({formatPrice(auction.seat_hold_fee)}) bloke edilmesi gerekir.
+            Teklif verebilmek icin masaya oturmaniz ve modul ucreti ({formatPrice(auction.seat_hold_fee ?? 0)}) bloke edilmesi gerekir.
           </div>
         )}
 
