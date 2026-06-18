@@ -605,6 +605,7 @@ function SpecRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 }
 
 /* ---------------- Auction panel ---------------- */
+/* ---------------- Auction panel ---------------- */
 
 function AuctionPanel({
   auction,
@@ -628,30 +629,126 @@ function AuctionPanel({
   const [bidAmount, setBidAmount] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showAllBids, setShowAllBids] = useState(false);
+  const [pulse, setPulse] = useState(false);
+  const [lastBidId, setLastBidId] = useState<string | null>(null);
 
   const minNextBid = Number(auction.current_price) + Number(auction.bid_increment);
 
+  const wallet = useQuery({
+    queryKey: ['wallet', user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('wallet_balance')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.wallet_balance ?? 0;
+    },
+  });
+
+  const mySeat = useQuery({
+    queryKey: ['my-seat', auction.id, user?.id],
+    enabled: !!user && !!auction.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('auction_seat_holds')
+        .select('id, status, amount, bid_id')
+        .eq('auction_id', auction.id)
+        .eq('user_id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id: string; status: string; amount: number; bid_id: string | null } | null;
+    },
+  });
+
+  const seatCount = useQuery({
+    queryKey: ['seat-count', auction.id],
+    enabled: !!auction.id,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('auction_seat_holds')
+        .select('id', { count: 'exact', head: true })
+        .eq('auction_id', auction.id)
+        .eq('status', 'holding');
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  // Yeni teklif geldi mi? (animasyon için)
+  useEffect(() => {
+    if (bids.length === 0) return;
+    const top = bids[0];
+    if (top.id !== lastBidId) {
+      setLastBidId(top.id);
+      setPulse(true);
+      const t = setTimeout(() => setPulse(false), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [bids, lastBidId]);
+
+  const isAtTable = mySeat.data?.status === 'holding';
+  const isWinningBidder =
+    isAtTable && auction.winning_bid_id && bids[0]?.id === auction.winning_bid_id &&
+    bids[0]?.bidder?.id === user?.id;
+
+  const joinTable = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('join_table', {
+        p_auction_id: auction.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-seat', auction.id] });
+      queryClient.invalidateQueries({ queryKey: ['seat-count', auction.id] });
+      queryClient.invalidateQueries({ queryKey: ['wallet', user?.id] });
+      setSuccess('Masaya oturdunuz!');
+      setTimeout(() => setSuccess(null), 3000);
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const leaveTable = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('leave_table', {
+        p_auction_id: auction.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-seat', auction.id] });
+      queryClient.invalidateQueries({ queryKey: ['seat-count', auction.id] });
+      queryClient.invalidateQueries({ queryKey: ['wallet', user?.id] });
+      setSuccess('Masadan ayrildiniz.');
+      setTimeout(() => setSuccess(null), 3000);
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
   const placeBid = useMutation({
     mutationFn: async (amount: number) => {
-      if (!user) throw new Error('Teklif vermek için giriş yapmalısınız');
-      if (isOwn) throw new Error('Kendi ilanınıza teklif veremezsiniz');
-      if (auction.status !== 'live') throw new Error('Bu açık arttırma şu anda aktif değil');
-      if (amount < minNextBid) {
-        throw new Error(
-          `Teklif en az ${formatPrice(minNextBid)} olmalıdır`,
-        );
-      }
-      const { error } = await supabase
-        .from('bids')
-        .insert({ auction_id: auction.id, bidder_id: user.id, amount });
+      if (!user) throw new Error('Teklif vermek icin giris yapmalisiniz');
+      if (!isAtTable) throw new Error('Teklif vermek icin masaya oturmali siniz');
+      const { data, error } = await supabase.rpc('place_bid', {
+        p_auction_id: auction.id,
+        p_amount: amount,
+      });
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       setError(null);
-      setSuccess('Teklifiniz başarıyla kaydedildi!');
+      setSuccess('Teklifiniz basariyla kaydedildi!');
       setBidAmount('');
       queryClient.invalidateQueries({ queryKey: ['bids', auction.id] });
       queryClient.invalidateQueries({ queryKey: ['vehicle', auction.vehicle_id] });
+      queryClient.invalidateQueries({ queryKey: ['my-seat', auction.id] });
       setTimeout(() => setSuccess(null), 4000);
     },
     onError: (e: Error) => setError(e.message),
@@ -661,35 +758,52 @@ function AuctionPanel({
   const isLive = auction.status === 'live';
   const isScheduled = auction.status === 'scheduled';
   const isCancelled = auction.status === 'cancelled';
-  const isEnded = auction.status === 'ended' || (isLive && t !== null && t.total <= 0);
+  const isEnded = auction.status === 'ended' || auction.status === 'sold_pending_confirmation' ||
+    (isLive && t !== null && t.total <= 0);
+
+  const maskName = (fullName: string | null | undefined): string => {
+    if (!fullName) return 'Kullanici';
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0];
+    const first = parts[0];
+    const last = parts[parts.length - 1];
+    return first + ' ' + last.charAt(0) + '.';
+  };
 
   return (
     <div className="card overflow-hidden">
       <div className="bg-gradient-to-r from-red-600 to-red-700 p-5 text-white">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold">Açık Arttırma</h3>
+          <h3 className="font-bold">Acik Arttirma</h3>
           <span
             className={cn(
               'badge',
               isLive ? 'bg-white text-red-700' : isScheduled ? 'bg-amber-300 text-amber-900' : 'bg-slate-200 text-slate-700',
             )}
           >
-            {isLive ? 'CANLI' : isScheduled ? 'PLANLANDI' : 'SONA ERDİ'}
+            {isLive ? 'CANLI' : isScheduled ? 'PLANLANDI' : isEnded ? 'SATILDI' : 'IPTAL'}
           </span>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <div className="text-[11px] uppercase opacity-80">Açılış Fiyatı</div>
+            <div className="text-[11px] uppercase opacity-80">Acilis Fiyati</div>
             <div className="text-lg font-bold">{formatPrice(auction.opening_price)}</div>
           </div>
           <div>
             <div className="text-[11px] uppercase opacity-80">Son Teklif</div>
-            <div className="text-lg font-bold">{formatPrice(auction.current_price)}</div>
+            <div
+              className={cn(
+                'text-lg font-bold transition-all duration-500',
+                pulse && 'animate-pulse text-yellow-200 drop-shadow-[0_0_8px_rgba(250,204,21,0.9)] scale-110',
+              )}
+            >
+              {formatPrice(auction.current_price)}
+            </div>
           </div>
         </div>
         <div className="mt-3">
           <div className="text-[11px] uppercase opacity-80 mb-1">
-            {isLive ? 'Mezat Bitişine' : isScheduled ? 'Başlangıca' : 'Süre Doldu'}
+            {isLive ? 'Mezat Bitisine' : isScheduled ? 'Baslangica' : 'Sure Doldu'}
           </div>
           {isLive ? (
             <CountdownTimer
@@ -706,7 +820,7 @@ function AuctionPanel({
               format="hmsm"
             />
           ) : (
-            <div className="text-2xl font-bold">⏱ Süre Doldu</div>
+            <div className="text-2xl font-bold">Sure Doldu</div>
           )}
         </div>
       </div>
@@ -714,16 +828,16 @@ function AuctionPanel({
       <div className="p-5 space-y-4">
         {isScheduled && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            Bu açık arttırma henüz başlamadı. Başlangıç: {formatDate(auction.start_at)}
+            Bu acik arttirma henuz baslamadi. Baslangic: {formatDate(auction.start_at)}
           </div>
         )}
         {isEnded && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
             <div className="font-bold text-base flex items-center gap-1">
-              <CheckCircle2 className="h-4 w-4" /> Bu araç satıldı!
+              <CheckCircle2 className="h-4 w-4" /> Bu arac satildi!
             </div>
             <div className="mt-1">
-              <strong>Satış Fiyatı:</strong> {formatPrice((auction as any).final_price || auction.current_price)}
+              <strong>Satis Fiyati:</strong> {formatPrice((auction as any).final_price || auction.current_price)}
             </div>
             {auction.winner_id && (
               <div className="text-xs mt-1">Kazanan belirlendi.</div>
@@ -732,17 +846,73 @@ function AuctionPanel({
         )}
         {isCancelled && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            Bu açık arttırma iptal edildi.
+            Bu acik arttirma iptal edildi.
           </div>
         )}
 
-        {!isOwn && isLive && user && (
+        {!isEnded && !isCancelled && user && !isOwn && (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">Masa:</span>
+                <span className="inline-flex items-center gap-1 text-slate-700">
+                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  {seatCount.data ?? 0} kisi oturuyor
+                </span>
+              </div>
+              {wallet.data !== undefined && (
+                <span className="text-xs text-slate-600">
+                  Cuzdan: <strong>{formatPrice(wallet.data)}</strong>
+                </span>
+              )}
+            </div>
+            {isAtTable ? (
+              <button
+                type="button"
+                onClick={() => leaveTable.mutate()}
+                disabled={leaveTable.isPending || isWinningBidder}
+                className={cn(
+                  'w-full rounded-lg px-4 py-2 text-sm font-semibold transition',
+                  isWinningBidder
+                    ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                    : 'bg-red-100 text-red-700 hover:bg-red-200',
+                )}
+              >
+                {leaveTable.isPending ? (
+                  <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
+                ) : null}
+                {isWinningBidder ? 'Son teklif sahibisiniz - masada kalmalisiniz' : 'Masadan Ayril'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => joinTable.mutate()}
+                disabled={joinTable.isPending || !isLive}
+                className={cn(
+                  'w-full rounded-lg px-4 py-2 text-sm font-semibold transition',
+                  (wallet.data ?? 0) < Number(auction.seat_hold_fee)
+                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700',
+                )}
+              >
+                {joinTable.isPending ? (
+                  <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
+                ) : null}
+                {(wallet.data ?? 0) < Number(auction.seat_hold_fee)
+                  ? 'Cuzdana Para Yukle (Modul: ' + formatPrice(auction.seat_hold_fee) + ')'
+                  : 'Masaya Otur (' + formatPrice(auction.seat_hold_fee) + ' bloke)'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {!isOwn && isLive && user && isAtTable && (
           <form
             onSubmit={(e) => {
               e.preventDefault();
               const v = parseFloat(bidAmount.replace(/\./g, '').replace(',', '.'));
               if (Number.isNaN(v) || v <= 0) {
-                setError('Geçerli bir tutar girin');
+                setError('Gecerli bir tutar girin');
                 return;
               }
               placeBid.mutate(v);
@@ -778,7 +948,7 @@ function AuctionPanel({
               </button>
             </div>
             <p className="text-xs text-slate-500">
-              Artış: {formatPrice(auction.bid_increment)} · Adım: {pad(auction.bid_increment, 0)}
+              Artis: {formatPrice(auction.bid_increment)}
             </p>
           </form>
         )}
@@ -788,13 +958,19 @@ function AuctionPanel({
             to={`/giris?next=${encodeURIComponent(window.location.pathname)}`}
             className="btn-primary w-full justify-center"
           >
-            Teklif vermek için giriş yapın
+            Teklif vermek icin giris yapin
           </Link>
         )}
 
         {isOwn && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-            Bu sizin ilanınız.
+            Bu sizin ilaniniz.
+          </div>
+        )}
+
+        {!isAtTable && !isOwn && isLive && user && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+            Teklif verebilmek icin masaya oturmaniz ve modul ucreti ({formatPrice(auction.seat_hold_fee)}) bloke edilmesi gerekir.
           </div>
         )}
 
@@ -809,17 +985,17 @@ function AuctionPanel({
           </div>
         )}
 
-        {contactHidden && (
+        {contactHidden && !isWinningBidder && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
             <AlertCircle className="inline h-4 w-4 mr-1" />
-            Kazanan teklif verince iletişim bilgileri açılır.
+            Iletisim bilgileri sadece kazanan teklif sahibine acilir.
           </div>
         )}
 
         <div className="border-t border-slate-200 pt-3">
           <div className="mb-2 flex items-center justify-between">
             <h4 className="text-sm font-semibold text-slate-900">
-              Teklif Geçmişi ({auction.total_bids})
+              Son Teklifler ({auction.total_bids})
             </h4>
             <button
               type="button"
@@ -830,35 +1006,45 @@ function AuctionPanel({
             </button>
           </div>
           {bidsLoading ? (
-            <p className="text-sm text-slate-500">Yükleniyor…</p>
+            <p className="text-sm text-slate-500">Yukleniyor...</p>
           ) : bids.length === 0 ? (
-            <p className="text-sm text-slate-500">Henüz teklif verilmedi.</p>
+            <p className="text-sm text-slate-500">Henuz teklif verilmedi.</p>
           ) : (
-            <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-              {bids.map((b) => (
-                <li
-                  key={b.id}
-                  className={cn(
-                    'flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm',
-                    b.is_winning && 'border-amber-200 bg-amber-50',
-                  )}
-                >
-                  <div>
-                    <div className="font-semibold text-slate-800">
-                      {b.bidder?.full_name || b.bidder?.email || 'Kullanıcı'}
+            <>
+              <ul className="space-y-1.5">
+                {(showAllBids ? bids : bids.slice(0, 5)).map((b) => (
+                  <li
+                    key={b.id}
+                    className={cn(
+                      'flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm',
+                      b.is_winning && 'border-amber-200 bg-amber-50',
+                    )}
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-800">
+                        {maskName(b.bidder?.full_name)}
+                      </div>
+                      <div className="text-[11px] text-slate-500">{formatDate(b.created_at)}</div>
                     </div>
-                    <div className="text-[11px] text-slate-500">{formatDate(b.created_at)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-brand-600">{formatPrice(b.amount)}</div>
-                    {b.is_winning && <span className="text-[10px] text-amber-700">EN YÜKSEK</span>}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div className="text-right">
+                      <div className="font-bold text-brand-600">{formatPrice(b.amount)}</div>
+                      {b.is_winning && <span className="text-[10px] text-amber-700">EN YUKSEK</span>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {bids.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllBids((v) => !v)}
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  {showAllBids ? '▲ Daha az goster' : '▼ Tum teklifleri gor (' + bids.length + ')'}
+                </button>
+              )}
+            </>
           )}
         </div>
-        {/* Suppress unused listingPrice warning - kept for future reference */}
         <span className="hidden">{listingPrice}</span>
       </div>
     </div>
