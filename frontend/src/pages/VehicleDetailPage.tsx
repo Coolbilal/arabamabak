@@ -252,17 +252,21 @@ export default function VehicleDetailPage() {
   const isOwnListing = user?.id === v.seller_id;
 
   // Auto-reveal kontrolü: mezat bittikten 24 saat sonra otomatik açılır
+  const auctionIdForReveal = vehicle.data?.auction?.id;
+  const auctionStatusForReveal = vehicle.data?.auction?.status;
+  const auctionApprovedAt = vehicle.data?.auction?.contact_reveal_approved_at;
+  const auctionRejectedAt = vehicle.data?.auction?.seller_rejected_at;
   useEffect(() => {
-    if (!auction || !user) return;
-    if (auction.status !== 'ended' && auction.status !== 'sold_pending_confirmation') return;
-    if (auction.contact_reveal_approved_at || auction.seller_rejected_at) return;
+    if (!auctionIdForReveal || !user) return;
+    if (auctionStatusForReveal !== 'ended' && auctionStatusForReveal !== 'sold_pending_confirmation') return;
+    if (auctionApprovedAt || auctionRejectedAt) return;
     (async () => {
       try {
-        await supabase.rpc('auto_reveal_contact_if_pending', { p_auction_id: auction.id });
+        await supabase.rpc('auto_reveal_contact_if_pending', { p_auction_id: auctionIdForReveal });
         queryClient.invalidateQueries({ queryKey: qcKey });
       } catch {}
     })();
-  }, [auction, user, queryClient, qcKey]);
+  }, [auctionIdForReveal, auctionStatusForReveal, auctionApprovedAt, auctionRejectedAt, user?.id, queryClient, qcKey]);
 
   // İletişim sadece onaylanmış kazanan kullanıcıya açılır
   // Açık arttırma süresince (live/scheduled) HERKES İÇİN GİZLİ
