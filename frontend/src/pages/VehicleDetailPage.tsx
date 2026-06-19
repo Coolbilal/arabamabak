@@ -748,16 +748,16 @@ function AuctionPanel({
   });
 
   // Yeni teklif geldi mi? (animasyon için)
+  const topBidId = bids[0]?.id;
   useEffect(() => {
-    if (bids.length === 0) return;
-    const top = bids[0];
-    if (top.id !== lastBidId) {
-      setLastBidId(top.id);
+    if (!topBidId) return;
+    if (topBidId !== lastBidId) {
+      setLastBidId(topBidId);
       setPulse(true);
       const t = setTimeout(() => setPulse(false), 1500);
       return () => clearTimeout(t);
     }
-  }, [bids, lastBidId]);
+  }, [topBidId, lastBidId]);
 
   const isAtTable = mySeat.data?.status === 'holding';
   const isWinningBidder = Boolean(
