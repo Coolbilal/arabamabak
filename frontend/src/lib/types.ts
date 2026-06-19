@@ -418,6 +418,9 @@ export interface Auction {
   seller_auto_approval_at: string | null;
   seller_confirmed: boolean;
   seller_confirmed_at: string | null;
+  contact_reveal_approved_at: string | null;
+  contact_revealed_to: string | null;
+  seller_rejected_at: string | null;
   slot_id: string | null;
   start_at: string;
   status: AuctionStatus;

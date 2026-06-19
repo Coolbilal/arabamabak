@@ -157,12 +157,12 @@ export default function VehicleDetailPage() {
     },
   });
 
-  // Realtime bids
+  // Realtime bids + auction + seat changes
   useEffect(() => {
     const auctionId = vehicle.data?.auction?.id;
     if (!auctionId) return;
     const channel = supabase
-      .channel(`bids-${auctionId}`)
+      .channel(`auction-live-${auctionId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bids', filter: `auction_id=eq.${auctionId}` },
@@ -171,11 +171,27 @@ export default function VehicleDetailPage() {
           queryClient.invalidateQueries({ queryKey: qcKey });
         },
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'auctions', filter: `id=eq.${auctionId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qcKey });
+          queryClient.invalidateQueries({ queryKey: ['bids', auctionId] });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'auction_seat_holds', filter: `auction_id=eq.${auctionId}` },
+        () => {
+          if (user) queryClient.invalidateQueries({ queryKey: ['my-seat', auctionId, user.id] });
+          queryClient.invalidateQueries({ queryKey: ['seat-count', auctionId] });
+        },
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [vehicle.data?.auction?.id, queryClient, qcKey]);
+  }, [vehicle.data?.auction?.id, queryClient, qcKey, user?.id]);
 
   const startConversation = useMutation({
     mutationFn: async () => {
@@ -234,11 +250,17 @@ export default function VehicleDetailPage() {
   const v = vehicle.data;
   const auction = v.auction;
   const isOwnListing = user?.id === v.seller_id;
+  // İletişim sadece onaylanmış kazanan kullanıcıya açılır
+  const isApprovedWinner = Boolean(
+    auction?.winner_id === user?.id &&
+    auction?.seller_confirmed === true &&
+    auction?.contact_reveal_approved_at
+  );
   const contactHiddenForUser =
     !!auction &&
     v.contact_hidden &&
     v.contact_revealed_to !== user?.id &&
-    !(auction.winner_id && auction.winner_id === user?.id);
+    !isApprovedWinner;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
@@ -326,6 +348,10 @@ export default function VehicleDetailPage() {
             />
           )}
 
+          {auction && isOwnListing && (auction.status === 'sold_pending_confirmation' || (auction.status === 'ended' && auction.winning_bid_id && !auction.seller_confirmed)) && (
+            <SellerApprovalPanel auction={auction} bids={bids.data ?? []} />
+          )}
+
           {!auction && (
             <div className="card p-5">
               <div className="text-xs text-slate-500">Fiyat</div>
@@ -339,14 +365,37 @@ export default function VehicleDetailPage() {
           <div className="card p-5 space-y-3">
             <h3 className="font-semibold text-slate-900">Satıcı</h3>
             {contactHiddenForUser ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                <AlertCircle className="inline h-4 w-4 mr-1" />
-                Açık arttırmayı kazandığınızda iletişim bilgileri açılır.
-              </div>
-            ) : (
               <div className="space-y-1.5 text-sm">
                 <div className="font-semibold text-slate-900">
                   {v.seller?.full_name || 'İsimsiz Satıcı'}
+                </div>
+                <div className="relative rounded-lg border-2 border-dashed border-amber-300 bg-gradient-to-br from-amber-50 to-amber-100 p-4 text-center">
+                  <div className="select-none blur-sm">
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Phone className="h-4 w-4" /> 05XX XXX XX XX
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-700 mt-1">
+                      <Mail className="h-4 w-4" /> xxx@xxx.com
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <AlertCircle className="h-5 w-5 text-amber-700 mb-1" />
+                    <div className="text-xs font-semibold text-amber-900">
+                      İletişim Bilgileri Gizli
+                    </div>
+                    <div className="text-[10px] text-amber-700 mt-0.5">
+                      Son teklif sahibine açılır
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5 text-sm">
+                <div className="font-semibold text-slate-900 flex items-center gap-2">
+                  {v.seller?.full_name || 'İsimsiz Satıcı'}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                    <CheckCircle2 className="h-3 w-3" /> İLETİŞİM AÇIK
+                  </span>
                 </div>
                 {v.seller?.phone && (
                   <a
@@ -1047,6 +1096,150 @@ function AuctionPanel({
           )}
         </div>
         <span className="hidden">{listingPrice}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Seller Approval Panel (ilan sahibi onay) ---------------- */
+
+function SellerApprovalPanel({
+  auction,
+  bids,
+}: {
+  auction: Auction;
+  bids: BidWithBidder[];
+}) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const winningBid = bids.find((b) => b.id === auction.winning_bid_id);
+  const winnerProfile = winningBid?.bidder;
+
+  const approve = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('seller_approve_winner', {
+        p_auction_id: auction.id,
+        p_approve: true,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle', auction.vehicle_id] });
+      setSuccess('Kazanan onaylandı! İletişim bilgileri açıldı.');
+      setError(null);
+      setTimeout(() => setSuccess(null), 4000);
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const reject = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('seller_approve_winner', {
+        p_auction_id: auction.id,
+        p_approve: false,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle', auction.vehicle_id] });
+      setSuccess('Kazanan reddedildi.');
+      setError(null);
+      setTimeout(() => setSuccess(null), 4000);
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  return (
+    <div className="card overflow-hidden border-2 border-amber-300">
+      <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 text-white">
+        <h3 className="font-bold flex items-center gap-2">
+          <AlertCircle className="h-5 w-5" />
+          Açık Arttırma Onayınızı Bekliyor
+        </h3>
+      </div>
+      <div className="p-5 space-y-4">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="text-xs uppercase text-slate-500 mb-1">Son Teklif (Kazanan)</div>
+          <div className="text-2xl font-extrabold text-brand-600">
+            {formatPrice(auction.current_price)}
+          </div>
+          {winnerProfile && (
+            <div className="mt-2 text-sm">
+              <div className="font-semibold text-slate-800">
+                {winnerProfile.full_name || 'Kazanan'}
+              </div>
+            </div>
+          )}
+          <div className="text-[11px] text-slate-500 mt-2">
+            Mezat: {formatDate(auction.ended_at ?? auction.end_at)}
+          </div>
+        </div>
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+            <XCircle className="inline h-4 w-4 mr-1" /> {error}
+          </div>
+        )}
+        {success && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-700">
+            <CheckCircle2 className="inline h-4 w-4 mr-1" /> {success}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm('Kazanan teklifi onaylıyor musunuz? Onaylarsanız iletişim bilgileriniz kazanan kullanıcıya açılır.')) {
+                approve.mutate();
+              }
+            }}
+            disabled={approve.isPending || auction.seller_confirmed === true}
+            className="rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+          >
+            {approve.isPending ? (
+              <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
+            ) : (
+              <CheckCircle2 className="inline h-4 w-4 mr-1" />
+            )}
+            Onayla
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm('Kazanan teklifi reddediyor musunuz? İlan satışa kapatılacak ve blokeler çözülecek.')) {
+                reject.mutate();
+              }
+            }}
+            disabled={reject.isPending || auction.seller_rejected_at}
+            className="rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+          >
+            {reject.isPending ? (
+              <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
+            ) : (
+              <XCircle className="inline h-4 w-4 mr-1" />
+            )}
+            Reddet
+          </button>
+        </div>
+
+        {auction.seller_confirmed && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+            <CheckCircle2 className="inline h-4 w-4 mr-1" />
+            Onaylandı: {formatDate(auction.seller_confirmed_at)}
+          </div>
+        )}
+
+        {auction.seller_rejected_at && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <XCircle className="inline h-4 w-4 mr-1" />
+            Reddedildi: {formatDate(auction.seller_rejected_at)}
+          </div>
+        )}
       </div>
     </div>
   );
