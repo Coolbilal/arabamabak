@@ -250,17 +250,33 @@ export default function VehicleDetailPage() {
   const v = vehicle.data;
   const auction = v.auction;
   const isOwnListing = user?.id === v.seller_id;
+
+  // Auto-reveal kontrolü: mezat bittikten 24 saat sonra otomatik açılır
+  useEffect(() => {
+    if (!auction || !user) return;
+    if (auction.status !== 'ended' && auction.status !== 'sold_pending_confirmation') return;
+    if (auction.contact_reveal_approved_at || auction.seller_rejected_at) return;
+    (async () => {
+      try {
+        await supabase.rpc('auto_reveal_contact_if_pending', { p_auction_id: auction.id });
+        queryClient.invalidateQueries({ queryKey: qcKey });
+      } catch {}
+    })();
+  }, [auction, user, queryClient, qcKey]);
+
   // İletişim sadece onaylanmış kazanan kullanıcıya açılır
+  // Açık arttırma süresince (live/scheduled) HERKES İÇİN GİZLİ
+  const isAuctionActive = auction?.status === 'live' || auction?.status === 'scheduled';
   const isApprovedWinner = Boolean(
     auction?.winner_id === user?.id &&
-    auction?.seller_confirmed === true &&
-    auction?.contact_reveal_approved_at
+    (auction?.contact_reveal_approved_at || auction?.seller_confirmed) &&
+    !auction?.seller_rejected_at
   );
   const contactHiddenForUser =
     !!auction &&
     v.contact_hidden &&
-    v.contact_revealed_to !== user?.id &&
-    !isApprovedWinner;
+    (isAuctionActive || !isApprovedWinner) &&
+    v.contact_revealed_to !== user?.id;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">

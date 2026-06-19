@@ -5,11 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Car as CarIcon, Edit, ExternalLink, Eye, Heart, Loader, ListChecks, Save, Trash2, X, EyeOff,
+  Car as CarIcon, Edit, ExternalLink, Eye, Heart, Loader, ListChecks, Save, Trash2, X, EyeOff, Gavel,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { cn, formatNumber, formatPrice } from '../lib/utils';
+import { cn, formatDate, formatNumber, formatPrice } from '../lib/utils';
 import type { ListingStatus, VehicleWithRelations } from '../lib/types';
 
 const STATUS_STYLES: Record<ListingStatus, string> = {
@@ -37,13 +37,14 @@ export default function MyListingsPage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<VehicleWithRelations | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<VehicleWithRelations | null>(null);
+  const [sellerApproval, setSellerApproval] = useState<VehicleWithRelations | null>(null);
 
   const listQuery = useQuery({
     queryKey: ['my-listings', user.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vehicles')
-        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*)')
+        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*), auction:auctions!auctions_vehicle_id_fkey(*)')
         .eq('seller_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -206,6 +207,17 @@ export default function MyListingsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          {v.auction && (v.auction.status === 'sold_pending_confirmation' || (v.auction.status === 'ended' && v.auction.winning_bid_id && !v.auction.seller_confirmed)) && (
+                            <button
+                              type="button"
+                              onClick={() => setSellerApproval(v)}
+                              className="rounded-md bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 transition hover:bg-amber-200"
+                              title="Son Teklifi Onayla/Reddet"
+                            >
+                              <Gavel className="inline h-3.5 w-3.5 mr-1" />
+                              Onay Bekliyor
+                            </button>
+                          )}
                           <a
                             href={`/ilan/${v.id}`}
                             target="_blank"
@@ -280,6 +292,17 @@ export default function MyListingsPage() {
           pending={remove.isPending}
         />
       )}
+
+      {sellerApproval && sellerApproval.auction && (
+        <SellerApprovalModal
+          vehicle={sellerApproval}
+          onClose={() => setSellerApproval(null)}
+          onSuccess={() => {
+            setSellerApproval(null);
+            listQuery.refetch();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -301,6 +324,7 @@ function labelFor(s: ListingStatus): string {
 function EditModal({
   vehicle, onClose, onSaved,
 }: { vehicle: VehicleWithRelations; onClose: () => void; onSaved: () => void }) {
+  const qc = useQueryClient();
   const {
     register, handleSubmit, formState: { errors },
   } = useForm<EditValues>({
@@ -316,7 +340,10 @@ function EditModal({
         .eq('id', vehicle.id);
       if (error) throw error;
     },
-    onSuccess: onSaved,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-listings'] });
+      onSaved();
+    },
     onError: (err: Error) => alert(err.message || 'Kayıt başarısız'),
   });
 
@@ -328,6 +355,11 @@ function EditModal({
           <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-500 hover:bg-slate-100" aria-label="Kapat">
             <X className="h-4 w-4" />
           </button>
+        </div>
+        <div className="px-5 pt-3">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <strong>Dikkat:</strong> Başlık veya fiyat değişikliği ilanınızı admin onayına düşürecektir. İlan yayından kalkacak ve admin onayından sonra tekrar yayına alınacaktır.
+          </div>
         </div>
         <form onSubmit={handleSubmit((v) => save.mutate(v))} className="space-y-3 p-5">
           <div>
@@ -344,7 +376,7 @@ function EditModal({
             <button type="button" onClick={onClose} className="btn-secondary">İptal</button>
             <button type="submit" disabled={save.isPending} className="btn-primary">
               {save.isPending ? <Loader className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Kaydet
+              Kaydet (Yeniden Onay)
             </button>
           </div>
         </form>
@@ -373,6 +405,129 @@ function ConfirmDeleteModal({
               {pending ? <Loader className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               Evet, Sil
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function SellerApprovalModal({
+  vehicle, onClose, onSuccess,
+}: {
+  vehicle: VehicleWithRelations;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const qc = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const auction = vehicle.auction!;
+
+  const approve = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('seller_approve_winner', {
+        p_auction_id: auction.id,
+        p_approve: true,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-listings'] });
+      onSuccess();
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const reject = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('seller_approve_winner', {
+        p_auction_id: auction.id,
+        p_approve: false,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-listings'] });
+      onSuccess();
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 animate-fade-in" onClick={onClose}>
+      <div className="card w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white">
+          <h3 className="text-base font-bold flex items-center gap-2">
+            <Gavel className="h-4 w-4" /> Son Teklifi Onayla
+          </h3>
+          <button type="button" onClick={onClose} className="rounded-md p-1 text-white/80 hover:bg-white/20" aria-label="Kapat">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="text-xs uppercase text-slate-500 mb-1">Son Teklif</div>
+            <div className="text-2xl font-extrabold text-brand-600">
+              {formatPrice(auction.current_price)}
+            </div>
+            <div className="mt-2 text-xs text-slate-500">
+              Mezat Bitiş: {formatDate(auction.ended_at ?? auction.end_at)}
+            </div>
+          </div>
+
+          {auction.seller_confirmed && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+              Onaylanmış. Kazanan kullanıcıya iletişim bilgileriniz açıldı.
+            </div>
+          )}
+
+          {auction.seller_rejected_at && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              Reddedildi. İlan satışa kapatıldı.
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('Kazanan teklifi onaylıyor musunuz? İletişim bilgileriniz kazanan kullanıcıya açılır.')) {
+                  approve.mutate();
+                }
+              }}
+              disabled={approve.isPending || auction.seller_confirmed === true}
+              className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+            >
+              {approve.isPending ? (
+                <Loader className="inline h-4 w-4 animate-spin mr-1" />
+              ) : null}
+              Onayla
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('Kazanan teklifi reddediyor musunuz?')) {
+                  reject.mutate();
+                }
+              }}
+              disabled={reject.isPending || Boolean(auction.seller_rejected_at)}
+              className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+            >
+              {reject.isPending ? (
+                <Loader className="inline h-4 w-4 animate-spin mr-1" />
+              ) : null}
+              Reddet
+            </button>
+          </div>
+          <div className="text-[11px] text-slate-500 text-center">
+            Onaylamazsanız, mezat bittikten 24 saat sonra sistem kazanan kullanıcıya iletişim bilgilerinizi otomatik olarak açacaktır.
           </div>
         </div>
       </div>
