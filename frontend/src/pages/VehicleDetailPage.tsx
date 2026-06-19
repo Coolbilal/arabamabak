@@ -1198,7 +1198,7 @@ function SellerApprovalPanel({
                 approve.mutate();
               }
             }}
-            disabled={approve.isPending || auction.seller_confirmed === true}
+            disabled={approve.isPending || Boolean(auction.seller_confirmed)}
             className="rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
           >
             {approve.isPending ? (
@@ -1215,7 +1215,7 @@ function SellerApprovalPanel({
                 reject.mutate();
               }
             }}
-            disabled={reject.isPending || auction.seller_rejected_at}
+            disabled={reject.isPending || Boolean(auction.seller_rejected_at)}
             className="rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
           >
             {reject.isPending ? (
