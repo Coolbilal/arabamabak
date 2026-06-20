@@ -79,9 +79,9 @@ export default function AuctionsPage() {
           start_at, end_at, live_started_at, live_ends_at, ended_at, final_price,
           vehicle:vehicles!inner(
             id, title, year, km, fuel, transmission, city, price, status, listing_type, sold_at,
-            vehicle_brands!vehicles_brand_id_fkey(name),
-            vehicle_models(name),
-            vehicle_images(url, sort_order)
+            brand:vehicle_brands(name),
+            model:vehicle_models(name),
+            images:vehicle_images(url, sort_order)
           ),
           slot:auction_slots(slot_date, start_time, end_time)
         `)
