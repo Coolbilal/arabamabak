@@ -183,7 +183,7 @@ export default function WalletPage() {
     onError: (err: Error) => alert(err.message || 'Çekim başarısız'),
   });
 
-  const downloadReceipt = (tx: Transaction) => {
+  const downloadReceipt = (tx: { receipt_url: string | null; amount: number | string; [key: string]: any }) => {
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
     doc.setFont('helvetica');
     const W = doc.internal.pageSize.getWidth();
