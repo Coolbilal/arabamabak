@@ -176,11 +176,20 @@ export default function CreateListingPage() {
 
   // Cüzdan bakiyesini düş
   async function deductWallet(amount: number): Promise<boolean> {
-    if (walletBalance < amount) {
-      setError(`Cüzdan bakiyeniz yetersiz. Mevcut: ${walletBalance} TL, Gerekli: ${amount} TL`);
+    if (!user) {
+      setError('Giriş yapmalısınız');
       return false;
     }
-    // Production'da: Supabase'de wallet transaction kaydı
+    const { data, error: rpcErr } = await supabase.rpc('deduct_wallet_for_listing', {
+      p_user_id: user.id,
+      p_amount: amount,
+      p_vehicle_id: '00000000-0000-0000-0000-000000000000'::uuid, // henüz ilan yok
+      p_description: 'İlan verme ücreti (ön ödeme)',
+    });
+    if (rpcErr) {
+      setError(`Cüzdan işlemi başarısız: ${rpcErr.message}`);
+      return false;
+    }
     return true;
   }
 

@@ -806,7 +806,8 @@ function AuctionPanel({
   const isScheduled = auction.status === 'scheduled';
   const isCancelled = auction.status === 'cancelled';
   const tStart = useMemo(() => (auction.start_at ? timeUntil(auction.start_at) : null), [auction.start_at]);
-  const isStartingSoon = isScheduled && tStart && tStart.total > 0 && tStart.total <= 60; // 1 dakika kala
+  // 2 dakika kala veya süre geldi/geçtiyse (henüz live olmamışsa) banner göster
+  const isStartingSoon = isScheduled && tStart && tStart.total <= 120;
   const isEnded = auction.status === 'ended' || auction.status === 'sold_pending_confirmation' ||
     (auction.status as string) === 'sold' ||
     (isLive && t !== null && t.total <= 0);
@@ -888,7 +889,9 @@ function AuctionPanel({
               AÇIK ARTTIRMA BAŞLIYOR!
             </div>
             <div className="text-sm mt-1 opacity-90">
-              {tStart && tStart.total > 0 ? `${tStart.total} saniye içinde masaya oturabilirsiniz` : 'Hemen başlıyor!'}
+              {tStart && tStart.total > 0
+                ? `${tStart.total} saniye içinde masaya oturabilirsiniz`
+                : 'Süre geldi! Sayfa otomatik canlı moda geçecek.'}
             </div>
           </div>
         )}

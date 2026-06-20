@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Users, Car, Gavel, BadgePlus, Banknote, Store,
   TrendingUp, TrendingDown, RefreshCw, Loader2, AlertCircle,
+  ShieldCheck, Wallet,
 } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -173,6 +174,26 @@ export default function DashboardPage() {
         .from('transactions').select('amount').eq('status', 'completed');
       if (error) throw error;
       return (data ?? []).reduce((s, r: any) => s + Number(r.amount || 0), 0);
+    },
+  });
+
+  // Tip bazlı kazançlar (bugün)
+  const txByTypeToday = useQuery({
+    queryKey: ['dash', 'tx-by-type-today'],
+    queryFn: async () => {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('type, amount')
+        .eq('status', 'completed')
+        .gte('completed_at', startOfDay.toISOString());
+      if (error) throw error;
+      const groups: Record<string, number> = {};
+      (data ?? []).forEach((r: any) => {
+        groups[r.type] = (groups[r.type] ?? 0) + Number(r.amount);
+      });
+      return groups;
     },
   });
 
@@ -369,6 +390,38 @@ export default function DashboardPage() {
           icon={<Store className="h-5 w-5" />}
           iconClass="bg-violet-600"
           loading={dealershipsActive.isLoading}
+        />
+      </div>
+
+      {/* Günlük Kazanç Dağılımı */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+        <StatCard
+          label="İlan Ücreti Gelirleri (Bugün)"
+          value={formatPrice(txByTypeToday.data?.premium_payment ?? 0)}
+          icon={<BadgePlus className="h-5 w-5" />}
+          iconClass="bg-emerald-500"
+          loading={txByTypeToday.isLoading}
+        />
+        <StatCard
+          label="Açık Arttırma Modül Ücreti (Bugün)"
+          value={formatPrice(txByTypeToday.data?.auction_payment ?? 0)}
+          icon={<Gavel className="h-5 w-5" />}
+          iconClass="bg-rose-500"
+          loading={txByTypeToday.isLoading}
+        />
+        <StatCard
+          label="Ekspertiz Kazançları (Bugün)"
+          value={formatPrice(txByTypeToday.data?.expertise_payment ?? 0)}
+          icon={<ShieldCheck className="h-5 w-5" />}
+          iconClass="bg-sky-500"
+          loading={txByTypeToday.isLoading}
+        />
+        <StatCard
+          label="Banka Havale Yükleme (Bugün)"
+          value={formatPrice((txByTypeToday.data?.deposit ?? 0))}
+          icon={<Wallet className="h-5 w-5" />}
+          iconClass="bg-amber-500"
+          loading={txByTypeToday.isLoading}
         />
       </div>
 
