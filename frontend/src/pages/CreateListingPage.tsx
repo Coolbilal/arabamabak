@@ -180,7 +180,7 @@ export default function CreateListingPage() {
       setError('Giriş yapmalısınız');
       return false;
     }
-    const { data, error: rpcErr } = await supabase.rpc('deduct_wallet_for_listing', {
+    const { error: rpcErr } = await supabase.rpc('deduct_wallet_for_listing', {
       p_user_id: user.id,
       p_amount: amount,
       p_vehicle_id: '00000000-0000-0000-0000-000000000000',
