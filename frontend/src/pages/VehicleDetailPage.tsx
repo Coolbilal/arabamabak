@@ -158,8 +158,9 @@ export default function VehicleDetailPage() {
   });
 
   // Realtime bids + auction + seat changes
+  const realtimeAuctionId = vehicle.data?.auction?.id;
   useEffect(() => {
-    const auctionId = vehicle.data?.auction?.id;
+    const auctionId = realtimeAuctionId;
     if (!auctionId) return;
     const channel = supabase
       .channel(`auction-live-${auctionId}`)
@@ -167,15 +168,6 @@ export default function VehicleDetailPage() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bids', filter: `auction_id=eq.${auctionId}` },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['bids', auctionId] });
-          queryClient.invalidateQueries({ queryKey: qcKey });
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'auctions', filter: `id=eq.${auctionId}` },
-        () => {
-          queryClient.invalidateQueries({ queryKey: qcKey });
           queryClient.invalidateQueries({ queryKey: ['bids', auctionId] });
         },
       )
@@ -191,7 +183,7 @@ export default function VehicleDetailPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [vehicle.data?.auction?.id, queryClient, qcKey, user?.id]);
+  }, [realtimeAuctionId]);
 
   const startConversation = useMutation({
     mutationFn: async () => {
@@ -251,22 +243,7 @@ export default function VehicleDetailPage() {
   const auction = v.auction;
   const isOwnListing = user?.id === v.seller_id;
 
-  // Auto-reveal kontrolü: mezat bittikten 24 saat sonra otomatik açılır
-  const auctionIdForReveal = vehicle.data?.auction?.id;
-  const auctionStatusForReveal = vehicle.data?.auction?.status;
-  const auctionApprovedAt = vehicle.data?.auction?.contact_reveal_approved_at;
-  const auctionRejectedAt = vehicle.data?.auction?.seller_rejected_at;
-  useEffect(() => {
-    if (!auctionIdForReveal || !user) return;
-    if (auctionStatusForReveal !== 'ended' && auctionStatusForReveal !== 'sold_pending_confirmation') return;
-    if (auctionApprovedAt || auctionRejectedAt) return;
-    (async () => {
-      try {
-        await supabase.rpc('auto_reveal_contact_if_pending', { p_auction_id: auctionIdForReveal });
-        queryClient.invalidateQueries({ queryKey: qcKey });
-      } catch {}
-    })();
-  }, [auctionIdForReveal, auctionStatusForReveal, auctionApprovedAt, auctionRejectedAt, user?.id, queryClient, qcKey]);
+  // Auto-reveal RPC çağrısı kaldırıldı — Supabase trigger ile yapılacak
 
   // İletişim sadece onaylanmış kazanan kullanıcıya açılır
   // Açık arttırma süresince (live/scheduled) HERKES İÇİN GİZLİ
