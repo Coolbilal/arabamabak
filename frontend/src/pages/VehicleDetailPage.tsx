@@ -802,11 +802,11 @@ function AuctionPanel({
   });
 
   const t = useMemo(() => (auction.end_at ? timeUntil(auction.end_at) : null), [auction.end_at]);
-  const tStart = useMemo(() => (auction.start_at ? timeUntil(auction.start_at) : null), [auction.start_at]);
-  const isStartingSoon = isScheduled && tStart && tStart.total > 0 && tStart.total <= 60; // 1 dakika kala
   const isLive = auction.status === 'live';
   const isScheduled = auction.status === 'scheduled';
   const isCancelled = auction.status === 'cancelled';
+  const tStart = useMemo(() => (auction.start_at ? timeUntil(auction.start_at) : null), [auction.start_at]);
+  const isStartingSoon = isScheduled && tStart && tStart.total > 0 && tStart.total <= 60; // 1 dakika kala
   const isEnded = auction.status === 'ended' || auction.status === 'sold_pending_confirmation' ||
     (isLive && t !== null && t.total <= 0);
 
