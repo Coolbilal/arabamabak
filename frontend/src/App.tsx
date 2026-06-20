@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeProvider';
+import AuctionTicker from './components/AuctionTicker';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import AuctionsPage from './pages/AuctionsPage';
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
+      <AuctionTicker />
     </ThemeProvider>
   );
 }
