@@ -132,7 +132,9 @@ export default function WalletPage() {
       if (!user) throw new Error('Giriş yapmalısınız');
       const balance = profile?.wallet_balance ?? 0;
       if (vals.amount > balance) throw new Error('Yetersiz bakiye');
-      // 1) transaction kaydı (pending)
+      if (vals.amount < 50) throw new Error('Minimum çekim tutarı 50 TL');
+
+      // Sadece çekim talebi oluştur, bakiye admin onayında düşecek
       const { error: txErr } = await supabase
         .from('transactions')
         .insert({
@@ -142,20 +144,17 @@ export default function WalletPage() {
           status: 'pending',
           payment_method: 'bank_transfer',
           reference_id: vals.iban,
+          iban: vals.iban,
+          withdrawal_account_name: user.user_metadata?.full_name || user.email,
           description: `IBAN ${vals.iban.slice(0, 4)}****${vals.iban.slice(-4)} adresine çekim talebi`,
         });
       if (txErr) throw txErr;
-      // 2) bakiyeyi düş
-      const { error: updErr } = await supabase
-        .from('profiles')
-        .update({ wallet_balance: balance - vals.amount })
-        .eq('id', user.id);
-      if (updErr) throw updErr;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wallet-tx'] });
       refreshProfile();
       setShowWithdraw(false);
+      alert('Çekim talebiniz oluşturuldu. Admin onayından sonra IBAN\'ınıza gönderilecek.');
     },
     onError: (err: Error) => alert(err.message || 'Çekim başarısız'),
   });
