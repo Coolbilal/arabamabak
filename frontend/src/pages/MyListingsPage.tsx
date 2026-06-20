@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -39,6 +39,9 @@ export default function MyListingsPage() {
   const [confirmDelete, setConfirmDelete] = useState<VehicleWithRelations | null>(null);
   const [sellerApproval, setSellerApproval] = useState<VehicleWithRelations | null>(null);
 
+  const lastBidsRef = useRef<Map<string, number>>(new Map());
+  const [pulsingIds, setPulsingIds] = useState<Set<string>>(new Set());
+
   const listQuery = useQuery({
     queryKey: ['my-listings', user.id],
     queryFn: async () => {
@@ -52,6 +55,32 @@ export default function MyListingsPage() {
     },
     refetchInterval: 5_000, // Son teklif anlık güncellensin
   });
+
+  // Son teklif değişimlerini tespit et (ışık efekti)
+  useEffect(() => {
+    const listings = listQuery.data ?? [];
+    const newPulsing = new Set<string>();
+    listings.forEach((v) => {
+      if (!v.auction) return;
+      const cur = Number((v.auction as any).current_price ?? 0);
+      const prev = lastBidsRef.current.get(v.id);
+      if (prev !== undefined && cur > prev) {
+        newPulsing.add(v.id);
+      }
+      lastBidsRef.current.set(v.id, cur);
+    });
+    if (newPulsing.size > 0) {
+      setPulsingIds((prev) => new Set([...prev, ...newPulsing]));
+      const timer = setTimeout(() => {
+        setPulsingIds((prev) => {
+          const next = new Set(prev);
+          newPulsing.forEach((id) => next.delete(id));
+          return next;
+        });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [listQuery.data]);
 
   const deactivate = useMutation({
     mutationFn: async (id: string) => {
@@ -191,7 +220,10 @@ export default function MyListingsPage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
                         {v.auction ? (
-                          <div>
+                          <div className={cn(
+                            'rounded-md px-2 py-1 transition-all duration-700',
+                            pulsingIds.has(v.id) && 'bg-amber-100 ring-2 ring-amber-400 animate-pulse scale-105 shadow-lg'
+                          )}>
                             <div className="font-bold text-brand-700">
                               {formatPrice((v.auction as any).current_price ?? v.auction.final_price ?? v.price)}
                             </div>

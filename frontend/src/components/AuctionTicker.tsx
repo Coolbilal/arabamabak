@@ -21,8 +21,8 @@ export default function AuctionTicker() {
 
     // İlk yüklemede bir kere çalıştır
     tick();
-    // Sonra her 30 saniyede bir
-    const interval = setInterval(tick, 30_000);
+    // Sonra her 10 saniyede bir (daha hızlı tepki için)
+    const interval = setInterval(tick, 10_000);
 
     return () => {
       cancelled = true;

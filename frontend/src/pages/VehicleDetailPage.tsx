@@ -808,6 +808,7 @@ function AuctionPanel({
   const tStart = useMemo(() => (auction.start_at ? timeUntil(auction.start_at) : null), [auction.start_at]);
   const isStartingSoon = isScheduled && tStart && tStart.total > 0 && tStart.total <= 60; // 1 dakika kala
   const isEnded = auction.status === 'ended' || auction.status === 'sold_pending_confirmation' ||
+    auction.status === 'sold' ||
     (isLive && t !== null && t.total <= 0);
 
   const maskName = (fullName: string | null | undefined): string => {
