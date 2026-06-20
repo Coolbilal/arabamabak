@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -82,6 +82,30 @@ export default function WalletPage() {
         .limit(100);
       if (error) throw error;
       return (data ?? []) as unknown as Transaction[];
+    },
+  });
+
+  // Açık arttırma bloke/çözüm/kesim hareketleri
+  const seatTxQuery = useQuery({
+    queryKey: ['wallet-seat-tx', user.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('auction_seat_transactions')
+        .select('id, amount, balance_after, transaction_type, created_at, auction_id, seat_hold_id, metadata')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        amount: number;
+        balance_after: number | null;
+        transaction_type: string;
+        created_at: string;
+        auction_id: string;
+        seat_hold_id: string;
+        metadata: any;
+      }>;
     },
   });
 
@@ -206,6 +230,46 @@ export default function WalletPage() {
   };
 
   const txs = txQuery.data ?? [];
+  const seatTxs = seatTxQuery.data ?? [];
+
+  // İki listeyi birleştir (tarihe göre azalan)
+  const combinedTxs = useMemo(() => {
+    const walletRows = txs.map((t) => ({
+      id: t.id,
+      type: t.type,
+      amount: Number(t.amount),
+      status: t.status,
+      payment_method: t.payment_method,
+      description: t.description,
+      receipt_url: t.receipt_url,
+      created_at: t.created_at,
+      balance_after: t.balance_after,
+      source: 'wallet' as const,
+    }));
+    const seatRows = seatTxs.map((t) => {
+      const txLabel = {
+        hold: 'Masa Blokesi',
+        release: 'Bloke Çözüldü',
+        forfeit: 'Bloke Kesildi',
+        left: 'Masadan Ayrılma',
+      }[t.transaction_type] || t.transaction_type;
+      return {
+        id: t.id,
+        type: `seat_${t.transaction_type}` as any,
+        amount: Number(t.amount),
+        status: 'completed' as const,
+        payment_method: 'wallet_block',
+        description: `${txLabel} (Açık Arttırma)`,
+        receipt_url: null,
+        created_at: t.created_at,
+        balance_after: t.balance_after,
+        source: 'seat' as const,
+      };
+    });
+    return [...walletRows, ...seatRows].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [txs, seatTxs]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -267,10 +331,13 @@ export default function WalletPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {txs.map((tx) => {
-                  const positive = tx.type === 'deposit' || tx.type === 'refund';
+                {combinedTxs.map((tx) => {
+                  const positive = tx.type === 'deposit' || tx.type === 'refund' || (typeof tx.type === 'string' && tx.type === 'seat_release');
+                  const label = typeof tx.type === 'string' && tx.type.startsWith('seat_')
+                    ? (tx.description || 'Açık Arttırma Hareketi')
+                    : (TX_LABELS[tx.type as keyof typeof TX_LABELS] ?? String(tx.type));
                   return (
-                    <tr key={tx.id} className="hover:bg-slate-50">
+                    <tr key={`${tx.source}-${tx.id}`} className="hover:bg-slate-50">
                       <td className="whitespace-nowrap px-4 py-3 text-slate-700">
                         {formatDate(tx.created_at)}
                       </td>
@@ -281,7 +348,7 @@ export default function WalletPage() {
                           ) : (
                             <ArrowUpCircle className="h-4 w-4 text-rose-600" />
                           )}
-                          <span className="font-medium">{TX_LABELS[tx.type] ?? tx.type}</span>
+                          <span className="font-medium">{label}</span>
                         </div>
                         {tx.description && (
                           <div className="text-xs text-slate-500">{tx.description}</div>
