@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, FileText, ExternalLink, User as UserIcon,
-  AlertCircle, RefreshCw, X,
+  AlertCircle, RefreshCw, X, Check,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,6 +61,7 @@ function isPdf(url: string | null | undefined): boolean {
 
 export default function TransactionsPage() {
   const { hasPermission } = useAuth();
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | TxType>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | TxStatus>('all');
@@ -69,6 +70,34 @@ export default function TransactionsPage() {
   const [receiptTarget, setReceiptTarget] = useState<TransactionRow | null>(null);
 
   const canView = hasPermission('transactions', 'view');
+
+  // Para çekme onayı
+  const approveWithdraw = useMutation({
+    mutationFn: async ({ id, approve }: { id: string; approve: boolean }) => {
+      const { data, error } = await supabase.rpc('approve_withdrawal', {
+        p_transaction_id: id,
+        p_approve: approve,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-transactions'] }),
+    onError: (e: Error) => alert(e.message || 'Onay başarısız'),
+  });
+
+  // Banka havalesi onayı
+  const approveBankDeposit = useMutation({
+    mutationFn: async ({ id, approve }: { id: string; approve: boolean }) => {
+      const { data, error } = await supabase.rpc('approve_bank_deposit', {
+        p_transaction_id: id,
+        p_approve: approve,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-transactions'] }),
+    onError: (e: Error) => alert(e.message || 'Onay başarısız'),
+  });
 
   const transactionsQuery = useQuery({
     queryKey: ['transactions'],
@@ -223,6 +252,56 @@ export default function TransactionsPage() {
             <FileText className="h-3.5 w-3.5" /> PDF
           </button>
         ),
+      },
+      {
+        key: 'actions',
+        header: 'İşlem',
+        align: 'right',
+        width: 'w-48',
+        render: (row) => {
+          const isPending = row.status === 'pending';
+          const isWithdraw = row.type === 'withdraw';
+          const isBankDeposit = row.type === 'deposit' && row.payment_method === 'bank_transfer';
+          if (!isPending || (!isWithdraw && !isBankDeposit)) {
+            return <span className="text-xs text-slate-400">—</span>;
+          }
+          return (
+            <div className="flex items-center justify-end gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(isWithdraw ? 'Çekim talebini onaylıyor musunuz? Bakiye düşülecek.' : 'Bakiye yüklemeyi onaylıyor musunuz?')) {
+                    if (isWithdraw) {
+                      approveWithdraw.mutate({ id: row.id, approve: true });
+                    } else {
+                      approveBankDeposit.mutate({ id: row.id, approve: true });
+                    }
+                  }
+                }}
+                disabled={approveWithdraw.isPending || approveBankDeposit.isPending}
+                className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+              >
+                <Check className="h-3.5 w-3.5" /> Onayla
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(isWithdraw ? 'Çekim talebini reddediyor musunuz?' : 'Bakiye yüklemeyi reddediyor musunuz?')) {
+                    if (isWithdraw) {
+                      approveWithdraw.mutate({ id: row.id, approve: false });
+                    } else {
+                      approveBankDeposit.mutate({ id: row.id, approve: false });
+                    }
+                  }
+                }}
+                disabled={approveWithdraw.isPending || approveBankDeposit.isPending}
+                className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 transition"
+              >
+                <X className="h-3.5 w-3.5" /> Reddet
+              </button>
+            </div>
+          );
+        },
       },
     ],
     [],
