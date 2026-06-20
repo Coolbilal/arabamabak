@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -370,14 +370,110 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
 
 function DepositForm({ onSubmit, pending }: { onSubmit: (v: DepositValues) => void; pending: boolean }) {
   const {
-    register, handleSubmit, formState: { errors },
+    register, handleSubmit, watch, formState: { errors },
   } = useForm<DepositValues>({
     resolver: zodResolver(depositSchema),
     defaultValues: { amount: 500, card_number: '', expiry: '', cvv: '', card_name: '' },
   });
+  const [methods, setMethods] = useState<Array<{ id: string; code: string; name: string; description: string | null; icon: string | null; type: string; config: any }>>([]);
+  const [selectedMethod, setSelectedMethod] = useState<string>('');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+
+  // Aktif ödeme yöntemlerini DB'den çek
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('payment_methods')
+        .select('id, code, name, description, icon, type, config')
+        .eq('is_active', true)
+        .order('sort_order');
+      if (data) {
+        setMethods(data);
+        if (data.length > 0 && !selectedMethod) setSelectedMethod(data[0].code);
+      }
+    })();
+  }, []);
+
+  const selectedConfig = methods.find(m => m.code === selectedMethod)?.config;
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) {
+      setReceiptFile(f);
+      setReceiptPreview(URL.createObjectURL(f));
+    }
+  };
+
+  const onSubmitWrapped = async (vals: DepositValues) => {
+    if (selectedMethod === 'bank_transfer') {
+      // Havale: dekont yükle, status=pending, admin onayı beklenir
+      if (!user) return;
+      let receiptUrl: string | null = null;
+      if (receiptFile) {
+        const ext = receiptFile.name.split('.').pop();
+        const path = `receipts/${user.id}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('payment-receipts').upload(path, receiptFile);
+        if (upErr) throw upErr;
+        const { data: pub } = supabase.storage.from('payment-receipts').getPublicUrl(path);
+        receiptUrl = pub.publicUrl;
+      }
+      const { error } = await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'deposit',
+        amount: vals.amount,
+        status: 'pending',
+        payment_method: 'bank_transfer',
+        description: `Banka havalesi - ${selectedConfig?.bank_name || 'Beklemede'}`,
+        receipt_url: receiptUrl,
+      });
+      if (error) throw error;
+      alert('Dekont yüklendi! Admin onayından sonra bakiyenize yüklenecek.');
+      setReceiptFile(null);
+      setReceiptPreview(null);
+      return;
+    }
+    // Cüzdandan aktarım veya kredi kartı (demo): mevcut akış
+    onSubmit(vals);
+  };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+    <form onSubmit={handleSubmit(onSubmitWrapped)} className="space-y-3">
+      <div>
+        <label className="mb-1 block text-xs font-semibold text-slate-700">Ödeme Yöntemi *</label>
+        <div className="space-y-2">
+          {methods.map((m) => (
+            <label
+              key={m.code}
+              className={cn(
+                'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition',
+                selectedMethod === m.code
+                  ? 'border-brand-500 bg-brand-50'
+                  : 'border-slate-200 hover:border-slate-300'
+              )}
+            >
+              <input
+                type="radio"
+                name="payment_method"
+                value={m.code}
+                checked={selectedMethod === m.code}
+                onChange={() => setSelectedMethod(m.code)}
+                className="mt-1"
+              />
+              <div className="flex-1">
+                <div className="font-semibold text-slate-900 text-sm">{m.name}</div>
+                {m.description && <div className="text-xs text-slate-500 mt-0.5">{m.description}</div>}
+                {m.type === 'card' && (
+                  <div className="text-xs text-amber-600 mt-1">
+                    {m.config?.sandbox ? 'SANDBOX (Test)' : 'PRODUCTION (Canlı)'} - Yapım aşamasında
+                  </div>
+                )}
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div>
         <label className="mb-1 block text-xs font-semibold text-slate-700">Tutar (₺) *</label>
         <input
@@ -389,61 +485,40 @@ function DepositForm({ onSubmit, pending }: { onSubmit: (v: DepositValues) => vo
         {errors.amount && <p className="mt-1 text-xs text-red-600">{errors.amount.message}</p>}
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-semibold text-slate-700">Kart Numarası *</label>
-        <input
-          className={cn('input font-mono', errors.card_number && 'border-red-400')}
-          placeholder="0000 0000 0000 0000"
-          maxLength={19}
-          {...register('card_number')}
-        />
-        {errors.card_number && <p className="mt-1 text-xs text-red-600">{errors.card_number.message}</p>}
-      </div>
+      {selectedMethod === 'bank_transfer' && (
+        <>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs space-y-1">
+            <div className="font-semibold text-blue-900">Banka Havale Bilgileri</div>
+            <div className="text-blue-800">Banka: <strong>{selectedConfig?.bank_name || '—'}</strong></div>
+            <div className="text-blue-800 font-mono text-[11px] break-all">IBAN: {selectedConfig?.iban || '—'}</div>
+            <div className="text-blue-800">Hesap Sahibi: <strong>{selectedConfig?.account_holder || '—'}</strong></div>
+            <div className="text-blue-700 mt-2">Havale yaptıktan sonra dekont yükleyin. Admin onayından sonra bakiyenize yüklenecek.</div>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-700">Dekont (JPG/PNG) *</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFile}
+              className="input"
+            />
+            {receiptPreview && (
+              <img src={receiptPreview} alt="dekont" className="mt-2 max-h-32 rounded border" />
+            )}
+          </div>
+        </>
+      )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-700">Son Kullanma *</label>
-          <input
-            className={cn('input font-mono', errors.expiry && 'border-red-400')}
-            placeholder="AA/YY"
-            maxLength={5}
-            {...register('expiry')}
-          />
-          {errors.expiry && <p className="mt-1 text-xs text-red-600">{errors.expiry.message}</p>}
+      {selectedMethod === 'iyzico' || selectedMethod === 'paytr' || selectedMethod === 'stripe' ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          <AlertCircle className="inline h-4 w-4 mr-1" />
+          {methods.find(m => m.code === selectedMethod)?.name} entegrasyonu yakında aktif olacak. Şimdilik lütfen <strong>Banka Havalesi</strong> kullanın.
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-700">CVV *</label>
-          <input
-            type="password"
-            className={cn('input font-mono', errors.cvv && 'border-red-400')}
-            placeholder="000"
-            maxLength={4}
-            {...register('cvv')}
-          />
-          {errors.cvv && <p className="mt-1 text-xs text-red-600">{errors.cvv.message}</p>}
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs font-semibold text-slate-700">Kart Üzerindeki Ad *</label>
-        <input
-          className={cn('input', errors.card_name && 'border-red-400')}
-          placeholder="AD SOYAD"
-          {...register('card_name')}
-        />
-        {errors.card_name && <p className="mt-1 text-xs text-red-600">{errors.card_name.message}</p>}
-      </div>
-
-      <div className="flex items-start gap-2 rounded-md bg-amber-50 p-3 text-xs text-amber-800">
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>
-          Bu demo bir ödeme akışıdır. Gerçek kart bilgisi girmeyin. Bakiye yalnızca test amaçlı yüklenir.
-        </span>
-      </div>
+      ) : null}
 
       <button type="submit" disabled={pending} className="btn-primary w-full justify-center">
         {pending ? <Loader className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-        Yükle
+        {selectedMethod === 'bank_transfer' ? 'Dekontu Yükle' : 'Yükle'}
       </button>
     </form>
   );
