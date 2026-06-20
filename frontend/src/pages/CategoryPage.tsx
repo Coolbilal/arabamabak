@@ -121,7 +121,7 @@ export default function CategoryPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['category', cat, sort, filters],
-    staleTime: 30_000,
+    staleTime: 0,
     queryFn: async () => {
       let q = supabase
         .from('vehicles')
@@ -636,7 +636,13 @@ function ResultCard({ v, cat }: { v: AuctionVehicle; cat: Cat }) {
     <Link to={`/ilan/${v.id}`} className="card group overflow-hidden transition hover:shadow-md">
       <div className="relative aspect-[4/3] w-full bg-slate-100">
         {cover ? (
-          <img src={cover} alt={v.title} className="h-full w-full object-cover transition group-hover:scale-105" />
+          <img 
+            src={cover} 
+            alt={v.title} 
+            className="h-full w-full object-cover transition group-hover:scale-105" 
+            onError={(e) => { console.error('IMG FAIL:', v.title, cover); (e.target as HTMLImageElement).src = ''; (e.target as HTMLImageElement).style.display = 'none'; }}
+            onLoad={() => console.log('IMG OK:', v.title)}
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-slate-300">
             <Car className="h-12 w-12" />
