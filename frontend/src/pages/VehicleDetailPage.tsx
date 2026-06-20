@@ -802,6 +802,8 @@ function AuctionPanel({
   });
 
   const t = useMemo(() => (auction.end_at ? timeUntil(auction.end_at) : null), [auction.end_at]);
+  const tStart = useMemo(() => (auction.start_at ? timeUntil(auction.start_at) : null), [auction.start_at]);
+  const isStartingSoon = isScheduled && tStart && tStart.total > 0 && tStart.total <= 60; // 1 dakika kala
   const isLive = auction.status === 'live';
   const isScheduled = auction.status === 'scheduled';
   const isCancelled = auction.status === 'cancelled';
@@ -878,15 +880,30 @@ function AuctionPanel({
             Bu acik arttirma henuz baslamadi. Baslangic: {formatDate(auction.start_at)}
           </div>
         )}
+        {isStartingSoon && (
+          <div className="rounded-lg border-2 border-rose-400 bg-gradient-to-r from-rose-500 to-red-600 p-4 text-white shadow-lg animate-pulse">
+            <div className="flex items-center gap-2 font-bold text-base">
+              <span className="inline-block h-3 w-3 rounded-full bg-white animate-ping" />
+              AÇIK ARTTIRMA BAŞLIYOR!
+            </div>
+            <div className="text-sm mt-1 opacity-90">
+              {tStart && tStart.total > 0 ? `${tStart.total} saniye içinde masaya oturabilirsiniz` : 'Hemen başlıyor!'}
+            </div>
+          </div>
+        )}
         {isEnded && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
             <div className="font-bold text-base flex items-center gap-1">
-              <CheckCircle2 className="h-4 w-4" /> Bu arac satildi!
+              <CheckCircle2 className="h-4 w-4" />
+              {auction.status === 'sold_pending_confirmation' ? 'Onay Bekleniyor...' : 'Bu arac satildi!'}
             </div>
             <div className="mt-1">
               <strong>Satis Fiyati:</strong> {formatPrice((auction as any).final_price || auction.current_price)}
             </div>
-            {auction.winner_id && (
+            {auction.status === 'sold_pending_confirmation' && (
+              <div className="text-xs mt-1">İlan sahibi onayı bekleniyor. 5 saniye içinde otomatik onaylanacak.</div>
+            )}
+            {auction.status !== 'sold_pending_confirmation' && auction.winner_id && (
               <div className="text-xs mt-1">Kazanan belirlendi.</div>
             )}
           </div>

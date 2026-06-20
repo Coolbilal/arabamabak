@@ -50,6 +50,7 @@ export default function MyListingsPage() {
       if (error) throw error;
       return (data ?? []) as unknown as VehicleWithRelations[];
     },
+    refetchInterval: 5_000, // Son teklif anlık güncellensin
   });
 
   const deactivate = useMutation({
@@ -187,6 +188,18 @@ export default function MyListingsPage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums text-slate-900">
                         {formatPrice(v.price)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+                        {v.auction ? (
+                          <div>
+                            <div className="font-bold text-brand-700">
+                              {formatPrice((v.auction as any).current_price ?? v.auction.final_price ?? v.price)}
+                            </div>
+                            <div className="text-[10px] text-slate-500">Son Teklif</div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className={cn('badge', STATUS_STYLES[v.status])}>
