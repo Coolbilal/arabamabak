@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -370,7 +371,7 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
 
 function DepositForm({ onSubmit, pending }: { onSubmit: (v: DepositValues) => void; pending: boolean }) {
   const {
-    register, handleSubmit, watch, formState: { errors },
+    register, handleSubmit, formState: { errors },
   } = useForm<DepositValues>({
     resolver: zodResolver(depositSchema),
     defaultValues: { amount: 500, card_number: '', expiry: '', cvv: '', card_name: '' },
@@ -379,6 +380,8 @@ function DepositForm({ onSubmit, pending }: { onSubmit: (v: DepositValues) => vo
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+
+  const { user } = useAuth();
 
   // Aktif ödeme yöntemlerini DB'den çek
   useEffect(() => {
