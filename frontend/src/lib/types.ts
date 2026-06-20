@@ -39,7 +39,8 @@ export type AuctionStatus =
   | 'ended'
   | 'live'
   | 'scheduled'
-  | 'sold_pending_confirmation';
+  | 'sold_pending_confirmation'
+  | 'sold';
 
 // vehicle_type (ana kategori)
 export type VehicleType =
@@ -1122,6 +1123,7 @@ export const AUCTION_STATUS_LABELS: Record<AuctionStatus, string> = {
   live: 'Canlı',
   scheduled: 'Planlandı',
   sold_pending_confirmation: 'Satıcı Onayı Bekliyor',
+  sold: 'Satıldı',
 };
 
 export const LISTING_TYPE_LABELS: Record<ListingType, string> = {
