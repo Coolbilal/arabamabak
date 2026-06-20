@@ -209,9 +209,9 @@ export default function WalletPage() {
     line('Tarih', formatDate(tx.created_at));
     line('Kullanici', profile?.full_name ?? user.email ?? '-');
     line('E-posta', user.email ?? '-');
-    line('Islem Tipi', TX_LABELS[tx.type] ?? tx.type);
-    line('Tutar', formatPrice(tx.amount));
-    line('Durum', STATUS_LABELS[tx.status] ?? tx.status);
+    line('Islem Tipi', (TX_LABELS as any)[tx.type] ?? String(tx.type));
+    line('Tutar', formatPrice(Number(tx.amount)));
+    line('Durum', (STATUS_LABELS as any)[tx.status] ?? String(tx.status));
     if (tx.reference_id) line('Referans', tx.reference_id);
     if (tx.description) line('Aciklama', tx.description);
     if (tx.payment_method) line('Odeme Yontemi', tx.payment_method);
