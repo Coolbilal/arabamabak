@@ -679,7 +679,26 @@ function AuctionPanel({
   const [pulse, setPulse] = useState(false);
   const [lastBidId, setLastBidId] = useState<string | null>(null);
 
-  const minNextBid = Number(auction.current_price) + Number(auction.bid_increment);
+  // Site ayarları (min artış yüzdesi için)
+  const siteSettings = useQuery({
+    queryKey: ['site-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('max_bid_increase_percent, bid_increment')
+        .eq('id', 1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { max_bid_increase_percent?: number; bid_increment?: number } | null;
+    },
+    staleTime: 60_000,
+  });
+
+  const pct = Number(siteSettings.data?.max_bid_increase_percent ?? 2);
+  const minNextBid = Math.max(
+    Number(auction.current_price) * (1 + pct / 100),
+    Number(auction.current_price) + Number(auction.bid_increment || siteSettings.data?.bid_increment || 100)
+  );
 
   const wallet = useQuery({
     queryKey: ['wallet', user?.id],
@@ -701,12 +720,14 @@ function AuctionPanel({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('auction_seat_holds')
-        .select('id, status, amount, bid_id')
+        .select('id, status, amount, bid_id, created_at')
         .eq('auction_id', auction.id)
         .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return data as { id: string; status: string; amount: number; bid_id: string | null } | null;
+      return data as { id: string; status: string; amount: number; bid_id: string | null; created_at?: string } | null;
     },
   });
 
