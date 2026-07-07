@@ -685,20 +685,19 @@ function AuctionPanel({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('site_settings')
-        .select('max_bid_increase_percent, bid_increment')
+        .select('min_bid_increase, max_bid_increase')
         .eq('id', 1)
         .maybeSingle();
       if (error) throw error;
-      return data as { max_bid_increase_percent?: number; bid_increment?: number } | null;
+      return data as { min_bid_increase?: number; max_bid_increase?: number } | null;
     },
     staleTime: 60_000,
   });
 
-  const pct = Number(siteSettings.data?.max_bid_increase_percent ?? 2);
-  const minNextBid = Math.max(
-    Number(auction.current_price) * (1 + pct / 100),
-    Number(auction.current_price) + Number(auction.bid_increment || siteSettings.data?.bid_increment || 100)
-  );
+  const minIncrease = Number(siteSettings.data?.min_bid_increase ?? 1000);
+  const maxIncrease = Number(siteSettings.data?.max_bid_increase ?? 50000);
+  const minNextBid = Number(auction.current_price) + minIncrease;
+  const maxNextBid = Number(auction.current_price) + maxIncrease;
 
   const wallet = useQuery({
     queryKey: ['wallet', user?.id],
@@ -1016,11 +1015,12 @@ function AuctionPanel({
                 type="number"
                 inputMode="decimal"
                 min={minNextBid}
-                step={auction.bid_increment}
+                max={maxNextBid}
+                step={100}
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 className="input flex-1"
-                placeholder={String(minNextBid)}
+                placeholder={`${minNextBid} - ${maxNextBid}`}
                 required
               />
               <button
@@ -1036,9 +1036,25 @@ function AuctionPanel({
                 Teklif Ver
               </button>
             </div>
-            <p className="text-xs text-slate-500">
-              Artis: {formatPrice(auction.bid_increment)}
-            </p>
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>Min: <strong className="text-emerald-700">{formatPrice(minNextBid)}</strong> · Max: <strong className="text-rose-700">{formatPrice(maxNextBid)}</strong></span>
+            </div>
+            <div className="flex gap-2">
+              {[1000, 5000, 10000].map((inc) => {
+                const suggested = Number(auction.current_price) + inc;
+                const final = Math.min(Math.max(suggested, minNextBid), maxNextBid);
+                return (
+                  <button
+                    key={inc}
+                    type="button"
+                    onClick={() => setBidAmount(String(final))}
+                    className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-brand-300"
+                  >
+                    +{formatPrice(inc)}
+                  </button>
+                );
+              })}
+            </div>
           </form>
         )}
 

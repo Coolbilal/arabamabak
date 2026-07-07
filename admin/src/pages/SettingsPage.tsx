@@ -29,8 +29,8 @@ const settingsSchema = z.object({
   expertise_fee: z.coerce.number().min(0, 'Geçerli bir tutar girin'),
   auction_default_duration_minutes: z.coerce.number().min(1, 'En az 1 dakika').max(1440, 'En fazla 1440 dakika'),
   auction_countdown_refresh_ms: z.coerce.number().min(10).max(1000).default(50),
-  min_bid_amount: z.coerce.number().min(0, 'En az 0 TL').default(1000),
-  max_bid_amount: z.coerce.number().min(1, 'En az 1 TL').default(50000),
+  min_bid_increase: z.coerce.number().min(0, 'En az 0 TL').default(1000),
+  max_bid_increase: z.coerce.number().min(1, 'En az 1 TL').default(50000),
 });
 type SettingsForm = z.infer<typeof settingsSchema>;
 
@@ -79,9 +79,8 @@ export default function SettingsPage() {
       expertise_fee: 1500,
       auction_default_duration_minutes: 30,
       auction_countdown_refresh_ms: 50,
-      max_bid_increase_percent: 2,
-      min_bid_amount: 1000,
-      max_bid_amount: 50000,
+      min_bid_increase: 1000,
+      max_bid_increase: 50000,
     },
   });
 
@@ -104,9 +103,8 @@ export default function SettingsPage() {
         auction_default_duration_minutes: Number(settingsQ.data.auction_default_duration_minutes ?? 30),
         auction_countdown_refresh_ms: Number(settingsQ.data.auction_countdown_refresh_ms ?? 50),
         expertise_fee: Number(settingsQ.data.expertise_fee ?? 1500),
-        max_bid_increase_percent: Number(settingsQ.data.max_bid_increase_percent ?? 2),
-        min_bid_amount: Number(settingsQ.data.min_bid_amount ?? 1000),
-        max_bid_amount: Number(settingsQ.data.max_bid_amount ?? 50000),
+        min_bid_increase: Number(settingsQ.data.min_bid_increase ?? 1000),
+        max_bid_increase: Number(settingsQ.data.max_bid_increase ?? 50000),
       });
     }
   }, [settingsQ.data, reset]);
@@ -138,9 +136,8 @@ export default function SettingsPage() {
         expertise_fee: values.expertise_fee,
         auction_default_duration_minutes: values.auction_default_duration_minutes,
         auction_countdown_refresh_ms: values.auction_countdown_refresh_ms,
-        max_bid_increase_percent: values.max_bid_increase_percent,
-        min_bid_amount: values.min_bid_amount,
-        max_bid_amount: values.max_bid_amount,
+        min_bid_increase: values.min_bid_increase,
+        max_bid_increase: values.max_bid_increase,
       };
       const { error } = await supabase
         .from('site_settings').update(payload).eq('id', 1);
@@ -503,28 +500,28 @@ export default function SettingsPage() {
               <p className="mt-1 text-xs text-slate-500">Slot saati geldiğinde mezatın süreceği dakika. Son teklif = satış fiyatı olur.</p>
             </div>
             <div>
-              <label className="label">Min. Teklif Tutarı (₺)</label>
+              <label className="label">Min. Teklif Artışı (₺)</label>
               <input
                 type="number"
                 min={0}
                 step="0.01"
-                className={cn('input', errors.min_bid_amount && 'border-red-400')}
-                {...register('min_bid_amount')}
+                className={cn('input', errors.min_bid_increase && 'border-red-400')}
+                {...register('min_bid_increase')}
               />
-              {errors.min_bid_amount && <p className="mt-1 text-xs text-red-600">{errors.min_bid_amount.message}</p>}
-              <p className="mt-1 text-xs text-slate-500">Kullanıcının verebileceği en düşük teklif tutarı.</p>
+              {errors.min_bid_increase && <p className="mt-1 text-xs text-red-600">{errors.min_bid_increase.message}</p>}
+              <p className="mt-1 text-xs text-slate-500">Her yeni teklif, son tekliften en az bu kadar fazla olmalı. Varsayılan: 1000 TL.</p>
             </div>
             <div>
-              <label className="label">Max. Teklif Tutarı (₺)</label>
+              <label className="label">Max. Teklif Artışı (₺)</label>
               <input
                 type="number"
                 min={1}
                 step="0.01"
-                className={cn('input', errors.max_bid_amount && 'border-red-400')}
-                {...register('max_bid_amount')}
+                className={cn('input', errors.max_bid_increase && 'border-red-400')}
+                {...register('max_bid_increase')}
               />
-              {errors.max_bid_amount && <p className="mt-1 text-xs text-red-600">{errors.max_bid_amount.message}</p>}
-              <p className="mt-1 text-xs text-slate-500">Kullanıcının verebileceği en yüksek teklif tutarı. Çok yüksek teklifleri engeller.</p>
+              {errors.max_bid_increase && <p className="mt-1 text-xs text-red-600">{errors.max_bid_increase.message}</p>}
+              <p className="mt-1 text-xs text-slate-500">Her yeni teklif, son tekliften en fazla bu kadar fazla olabilir. Varsayılan: 50000 TL.</p>
             </div>
           </div>
           <div className="text-xs text-slate-500">
@@ -533,8 +530,8 @@ export default function SettingsPage() {
             <span className="font-semibold text-slate-700">Premium: {formatPrice(watch('premium_auction_fee'))}</span>,&nbsp;
             <span className="font-semibold text-slate-700">Ekspertiz: {formatPrice(watch('expertise_fee'))}</span>,&nbsp;
             <span className="font-semibold text-slate-700">Mezat: {watch('auction_default_duration_minutes')} dk</span>,&nbsp;
-            <span className="font-semibold text-slate-700">Min Teklif: {formatPrice(watch('min_bid_amount'))}</span>,&nbsp;
-            <span className="font-semibold text-slate-700">Max Teklif: {formatPrice(watch('max_bid_amount'))}</span>.
+            <span className="font-semibold text-slate-700">Min Artış: {formatPrice(watch('min_bid_increase'))}</span>,&nbsp;
+            <span className="font-semibold text-slate-700">Max Artış: {formatPrice(watch('max_bid_increase'))}</span>.
           </div>
         </div>
 
