@@ -58,13 +58,21 @@ export default function HomePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vehicles')
-        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*)')
+        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*), auction:auctions!auctions_vehicle_id_fkey(*)')
         .eq('is_premium', true)
         .eq('status', 'active')
+        .eq('listing_type', 'premium_auction')
         .order('created_at', { ascending: false })
         .limit(8);
       if (error) throw error;
-      return (data ?? []) as unknown as BannerVehicle[];
+      const now = Date.now();
+      return ((data ?? []) as unknown as BannerVehicle[]).filter((v) => {
+        const a = (v as any).auction;
+        if (!a) return true;
+        if (a.status === 'cancelled' || a.status === 'ended' || a.status === 'sold' || a.status === 'sold_pending_confirmation') return false;
+        if (a.start_at && new Date(a.start_at).getTime() <= now) return false;
+        return true;
+      });
     },
   });
 
@@ -404,15 +412,15 @@ function PremiumBanner({ vehicles, loading, ads }: { vehicles: BannerVehicle[]; 
   if (!active) return null;
 
   return (
-    <div className="relative">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="relative overflow-hidden">
+      <div
+        className="flex transition-transform duration-700 ease-in-out"
+        style={{ transform: `translateX(-${idx * 50}%)` }}
+      >
         {slides.map((s, i) => (
-          <SlideCard
-            key={s.key}
-            slide={s}
-            active={i === idx}
-            onClick={() => setIdx(i)}
-          />
+          <div key={s.key} className="w-1/2 flex-shrink-0 px-2">
+            <SlideCard slide={s} active={i === idx} onClick={() => setIdx(i)} />
+          </div>
         ))}
       </div>
       {total > 1 && (
