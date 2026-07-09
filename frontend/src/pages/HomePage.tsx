@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
@@ -19,7 +19,6 @@ import {
   Car,
   CheckCircle2,
   Clock,
-  Eye,
   Fuel,
   Gavel,
   Heart,
@@ -361,7 +360,7 @@ function AdBannerSlider({ banners, loading }: { banners: AdBannerItem[]; loading
         className="flex transition-transform duration-700 ease-in-out"
         style={{ transform: `translateX(-${idx * 50}%)` }}
       >
-        {banners.map((b, i) => (
+        {banners.map((b) => (
           <div key={b.id} className="w-1/2 flex-shrink-0 px-2">
             <AdBannerCard banner={b} />
           </div>
