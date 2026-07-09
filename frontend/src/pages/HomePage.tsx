@@ -24,9 +24,7 @@ import {
   Heart,
   MapPin,
   Palette,
-  Search,
   Settings2,
-  Sparkles,
 } from 'lucide-react';
 
 interface AdBannerItem {
@@ -124,8 +122,6 @@ export default function HomePage() {
 
   return (
     <div className="bg-slate-50">
-      <HeroSection />
-
       {/* Banner Paneli (Kayan) */}
       <section className="bg-gradient-to-b from-slate-50 to-white py-10">
         <div className="mx-auto max-w-7xl px-4">
@@ -198,56 +194,6 @@ export default function HomePage() {
           />
         </div>
       </section>
-    </div>
-  );
-}
-
-function HeroSection() {
-  return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-brand-800 text-white">
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute -top-20 -right-20 h-72 w-72 rounded-full bg-white blur-3xl" />
-        <div className="absolute -bottom-32 -left-10 h-80 w-80 rounded-full bg-amber-300 blur-3xl" />
-      </div>
-      <div className="relative mx-auto max-w-7xl px-4 py-16 md:py-24">
-        <div className="max-w-3xl">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
-            <Sparkles className="h-3.5 w-3.5" /> Türkiye'nin yeni nesil araç platformu
-          </span>
-          <h1 className="mt-4 text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight">
-            Hayalindeki aracı <span className="text-amber-300">açık arttırmayla</span> bul.
-          </h1>
-          <p className="mt-4 text-base md:text-lg text-white/90 max-w-2xl">
-            Binlerce araç, yüzlerce canlı açık arttırma ve ekspertiz raporlarıyla güvenli alışverişin adresi.
-            Hemen keşfet, en iyi fiyatı yakala.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link to="/muzayedeler" className="btn-secondary !bg-white !text-brand-700 hover:!bg-amber-50">
-              <Gavel className="h-4 w-4" /> Tüm Açık Arttırmalar
-            </Link>
-            <Link
-              to="/kategori/free"
-              className="btn-secondary !bg-white/10 !border-white/20 !text-white hover:!bg-white/20"
-            >
-              <Search className="h-4 w-4" /> Ücretsiz İlanları Keşfet
-            </Link>
-          </div>
-          <div className="mt-10 grid grid-cols-3 max-w-md gap-4 text-white/90">
-            <Stat value="10K+" label="Aktif İlan" />
-            <Stat value="2.4K" label="Tamamlanan Satış" />
-            <Stat value="%98" label="Müşteri Memnuniyeti" />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <div className="text-2xl md:text-3xl font-extrabold">{value}</div>
-      <div className="text-xs md:text-sm text-white/70">{label}</div>
     </div>
   );
 }
