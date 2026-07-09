@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle, CheckCircle2, Edit3, ExternalLink, Image as ImageIcon,
@@ -274,8 +274,6 @@ function BannerModal({ banner, onClose, onSaved, canEdit }: {
   const [endAt, setEndAt] = useState(banner?.end_at?.slice(0, 16) ?? '');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileRef = useState<HTMLInputElement | null>(null);
-
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;

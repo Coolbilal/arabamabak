@@ -750,6 +750,8 @@ export interface SiteSettings {
   logo_size: string | null;
   logo_url: string | null;
   min_bid_increment: number;
+  min_bid_increase: number;
+  max_bid_increase: number;
   primary_color: string;
   secondary_color: string;
   site_name: string;
