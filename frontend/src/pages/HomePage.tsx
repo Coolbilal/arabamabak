@@ -36,6 +36,14 @@ type BannerVehicle = Vehicle & {
   images: VehicleImage[];
 };
 
+interface AdBannerItem {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string;
+  link_url: string | null;
+}
+
 type AuctionVehicle = Vehicle & {
   brand: VehicleBrand | null;
   model: VehicleModel | null;
@@ -57,6 +65,22 @@ export default function HomePage() {
         .limit(8);
       if (error) throw error;
       return (data ?? []) as unknown as BannerVehicle[];
+    },
+  });
+
+  const adBannersQ = useQuery({
+    queryKey: ['home', 'ad-banners'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ad_banners')
+        .select('id, title, description, image_url, link_url')
+        .eq('is_active', true)
+        .eq('display_position', 'hero_inline')
+        .order('display_order', { ascending: true })
+        .limit(8);
+      if (error) throw error;
+      return (data ?? []) as AdBannerItem[];
     },
   });
 
@@ -134,7 +158,11 @@ export default function HomePage() {
             description="Premium yerleştirme ile öne çıkarılan seçkin araçlar"
             link={{ to: '/kategori/free', label: 'Tüm Ücretsiz İlanlar' }}
           />
-          <PremiumBanner vehicles={premium.data ?? []} loading={premium.isLoading} />
+          <PremiumBanner
+            vehicles={premium.data ?? []}
+            loading={premium.isLoading}
+            ads={adBannersQ.data ?? []}
+          />
         </div>
       </section>
 
@@ -332,8 +360,20 @@ function CategoryCard({
 
 /* ---------------- Premium Banner Carousel ---------------- */
 
-function PremiumBanner({ vehicles, loading }: { vehicles: BannerVehicle[]; loading: boolean }) {
-  const slides = useMemo(() => vehicles.slice(0, 2), [vehicles]);
+function PremiumBanner({ vehicles, loading, ads }: { vehicles: BannerVehicle[]; loading: boolean; ads: AdBannerItem[] }) {
+  const slides = useMemo(() => {
+    const merged: Array<{ type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string }> = [];
+    const vehList = vehicles.slice(0, 6);
+    const adList = ads.slice(0, 4);
+    vehList.forEach((v, i) => {
+      merged.push({ type: 'vehicle', payload: v, key: `v-${v.id}` });
+      if ((i === 2 || i === 5) && adList.length > 0) {
+        const ad = adList.shift()!;
+        merged.push({ type: 'ad', payload: ad, key: `a-${ad.id}` });
+      }
+    });
+    return merged;
+  }, [vehicles, ads]);
   const [idx, setIdx] = useState(0);
   const total = slides.length;
 
@@ -366,21 +406,30 @@ function PremiumBanner({ vehicles, loading }: { vehicles: BannerVehicle[]; loadi
   return (
     <div className="relative">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {slides.map((v, i) => (
-          <PremiumCard key={v.id} v={v} active={i === idx} onClick={() => setIdx(i)} />
+        {slides.map((s, i) => (
+          <SlideCard
+            key={s.key}
+            slide={s}
+            active={i === idx}
+            onClick={() => setIdx(i)}
+          />
         ))}
       </div>
       {total > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
-          {slides.map((_, i) => (
+          {slides.map((s, i) => (
             <button
-              key={i}
+              key={s.key}
               type="button"
               onClick={() => setIdx(i)}
               aria-label={`Banner ${i + 1}`}
               className={cn(
                 'h-2.5 rounded-full transition-all',
-                i === idx ? 'w-8 bg-brand-600' : 'w-2.5 bg-slate-300 hover:bg-slate-400',
+                i === idx
+                  ? s.type === 'ad'
+                    ? 'w-8 bg-rose-500'
+                    : 'w-8 bg-brand-600'
+                  : 'w-2.5 bg-slate-300 hover:bg-slate-400',
               )}
             />
           ))}
@@ -388,6 +437,60 @@ function PremiumBanner({ vehicles, loading }: { vehicles: BannerVehicle[]; loadi
       )}
     </div>
   );
+}
+
+function SlideCard({
+  slide,
+  active,
+  onClick,
+}: {
+  slide: { type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string };
+  active: boolean;
+  onClick: () => void;
+}) {
+  if (slide.type === 'ad') {
+    const ad = slide.payload as AdBannerItem;
+    const inner = (
+      <div
+        className={cn(
+          'group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition',
+          active ? 'ring-2 ring-rose-400/60' : 'opacity-90 hover:opacity-100',
+        )}
+      >
+        <div className="aspect-[16/9] w-full bg-slate-100">
+          <img src={ad.image_url} alt={ad.title} className="h-full w-full object-cover transition group-hover:scale-105" />
+        </div>
+        <div className="absolute top-3 left-3 flex items-center gap-2">
+          <span className="badge bg-rose-600 text-white">REKLAM</span>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
+          <div className="text-lg font-bold leading-tight line-clamp-1">{ad.title}</div>
+          {ad.description && (
+            <div className="text-xs opacity-90 line-clamp-1">{ad.description}</div>
+          )}
+        </div>
+      </div>
+    );
+    if (ad.link_url) {
+      return (
+        <a
+          href={ad.link_url}
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          onClick={onClick}
+        >
+          {inner}
+        </a>
+      );
+    }
+    return (
+      <div onClick={onClick} className="cursor-pointer">
+        {inner}
+      </div>
+    );
+  }
+  const v = slide.payload as BannerVehicle;
+  return <PremiumCard v={v} active={active} onClick={onClick} />;
 }
 
 function PremiumCard({

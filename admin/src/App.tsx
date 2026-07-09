@@ -24,6 +24,7 @@ import ExpertiseDealershipApplicationsPage from './pages/ExpertiseDealershipAppl
 import PaymentsPage from './pages/PaymentsPage';
 import ExpertValetsPage from './pages/ExpertValetsPage';
 import ExpertiseDealershipsPage from './pages/ExpertiseDealershipsPage';
+import AdBannersPage from './pages/AdBannersPage';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { admin, loading } = useAuth();
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="users" element={<UsersPage />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="slots" element={<SlotsPage />} />
+        <Route path="site/reklamlar" element={<AdBannersPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
