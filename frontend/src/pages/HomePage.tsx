@@ -30,12 +30,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-type BannerVehicle = Vehicle & {
-  brand: VehicleBrand | null;
-  model: VehicleModel | null;
-  images: VehicleImage[];
-};
-
 interface AdBannerItem {
   id: string;
   title: string;
@@ -52,30 +46,6 @@ type AuctionVehicle = Vehicle & {
 };
 
 export default function HomePage() {
-  const premium = useQuery({
-    queryKey: ['home', 'premium'],
-    staleTime: 30_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*), auction:auctions!auctions_vehicle_id_fkey(*)')
-        .eq('is_premium', true)
-        .eq('status', 'active')
-        .eq('listing_type', 'premium_auction')
-        .order('created_at', { ascending: false })
-        .limit(8);
-      if (error) throw error;
-      const now = Date.now();
-      return ((data ?? []) as unknown as BannerVehicle[]).filter((v) => {
-        const a = (v as any).auction;
-        if (!a) return true;
-        if (a.status === 'cancelled' || a.status === 'ended' || a.status === 'sold' || a.status === 'sold_pending_confirmation') return false;
-        if (a.start_at && new Date(a.start_at).getTime() <= now) return false;
-        return true;
-      });
-    },
-  });
-
   const adBannersQ = useQuery({
     queryKey: ['home', 'ad-banners'],
     staleTime: 60_000,
@@ -157,20 +127,10 @@ export default function HomePage() {
     <div className="bg-slate-50">
       <HeroSection />
 
-      {/* Premium Banner */}
+      {/* Banner Paneli (Kayan) */}
       <section className="bg-gradient-to-b from-slate-50 to-white py-10">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeader
-            icon={<Sparkles className="h-5 w-5 text-amber-500" />}
-            title="Öne Çıkan İlanlar"
-            description="Premium yerleştirme ile öne çıkarılan seçkin araçlar"
-            link={{ to: '/kategori/free', label: 'Tüm Ücretsiz İlanlar' }}
-          />
-          <PremiumBanner
-            vehicles={premium.data ?? []}
-            loading={premium.isLoading}
-            ads={adBannersQ.data ?? []}
-          />
+          <AdBannerSlider banners={adBannersQ.data ?? []} loading={adBannersQ.isLoading} />
         </div>
       </section>
 
@@ -366,28 +326,15 @@ function CategoryCard({
   );
 }
 
-/* ---------------- Premium Banner Carousel ---------------- */
+/* ---------------- Ad Banner Slider (Kayan) ---------------- */
 
-function PremiumBanner({ vehicles, loading, ads }: { vehicles: BannerVehicle[]; loading: boolean; ads: AdBannerItem[] }) {
-  const slides = useMemo(() => {
-    const merged: Array<{ type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string }> = [];
-    const vehList = vehicles.slice(0, 6);
-    const adList = ads.slice(0, 4);
-    vehList.forEach((v, i) => {
-      merged.push({ type: 'vehicle', payload: v, key: `v-${v.id}` });
-      if ((i === 2 || i === 5) && adList.length > 0) {
-        const ad = adList.shift()!;
-        merged.push({ type: 'ad', payload: ad, key: `a-${ad.id}` });
-      }
-    });
-    return merged;
-  }, [vehicles, ads]);
+function AdBannerSlider({ banners, loading }: { banners: AdBannerItem[]; loading: boolean }) {
   const [idx, setIdx] = useState(0);
-  const total = slides.length;
+  const total = banners.length;
 
   useEffect(() => {
     if (total <= 1) return;
-    const id = setInterval(() => setIdx((i) => (i + 1) % total), 5000);
+    const id = setInterval(() => setIdx((i) => (i + 1) % Math.max(total - 1, 1)), 5000);
     return () => clearInterval(id);
   }, [total]);
 
@@ -403,13 +350,10 @@ function PremiumBanner({ vehicles, loading, ads }: { vehicles: BannerVehicle[]; 
   if (total === 0) {
     return (
       <div className="card p-8 text-center text-slate-500">
-        Şu anda öne çıkan ilan bulunmuyor.
+        Şu anda reklam bannerı bulunmuyor.
       </div>
     );
   }
-
-  const active = slides[idx];
-  if (!active) return null;
 
   return (
     <div className="relative overflow-hidden">
@@ -417,27 +361,23 @@ function PremiumBanner({ vehicles, loading, ads }: { vehicles: BannerVehicle[]; 
         className="flex transition-transform duration-700 ease-in-out"
         style={{ transform: `translateX(-${idx * 50}%)` }}
       >
-        {slides.map((s, i) => (
-          <div key={s.key} className="w-1/2 flex-shrink-0 px-2">
-            <SlideCard slide={s} active={i === idx} onClick={() => setIdx(i)} />
+        {banners.map((b, i) => (
+          <div key={b.id} className="w-1/2 flex-shrink-0 px-2">
+            <AdBannerCard banner={b} />
           </div>
         ))}
       </div>
       {total > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
-          {slides.map((s, i) => (
+          {Array.from({ length: total }).map((_, i) => (
             <button
-              key={s.key}
+              key={i}
               type="button"
               onClick={() => setIdx(i)}
               aria-label={`Banner ${i + 1}`}
               className={cn(
                 'h-2.5 rounded-full transition-all',
-                i === idx
-                  ? s.type === 'ad'
-                    ? 'w-8 bg-rose-500'
-                    : 'w-8 bg-brand-600'
-                  : 'w-2.5 bg-slate-300 hover:bg-slate-400',
+                i === idx ? 'w-8 bg-rose-500' : 'w-2.5 bg-slate-300 hover:bg-slate-400',
               )}
             />
           ))}
@@ -447,108 +387,44 @@ function PremiumBanner({ vehicles, loading, ads }: { vehicles: BannerVehicle[]; 
   );
 }
 
-function SlideCard({
-  slide,
-  active,
-  onClick,
-}: {
-  slide: { type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string };
-  active: boolean;
-  onClick: () => void;
-}) {
-  if (slide.type === 'ad') {
-    const ad = slide.payload as AdBannerItem;
-    const inner = (
-      <div
-        className={cn(
-          'group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition',
-          active ? 'ring-2 ring-rose-400/60' : 'opacity-90 hover:opacity-100',
-        )}
-      >
-        <div className="aspect-[16/9] w-full bg-slate-100">
-          <img src={ad.image_url} alt={ad.title} className="h-full w-full object-cover transition group-hover:scale-105" />
-        </div>
-        <div className="absolute top-3 left-3 flex items-center gap-2">
-          <span className="badge bg-rose-600 text-white">REKLAM</span>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
-          <div className="text-lg font-bold leading-tight line-clamp-1">{ad.title}</div>
-          {ad.description && (
-            <div className="text-xs opacity-90 line-clamp-1">{ad.description}</div>
-          )}
-        </div>
-      </div>
-    );
-    if (ad.link_url) {
-      return (
-        <a
-          href={ad.link_url}
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          onClick={onClick}
-        >
-          {inner}
-        </a>
-      );
-    }
-    return (
-      <div onClick={onClick} className="cursor-pointer">
-        {inner}
-      </div>
-    );
-  }
-  const v = slide.payload as BannerVehicle;
-  return <PremiumCard v={v} active={active} onClick={onClick} />;
-}
-
-function PremiumCard({
-  v,
-  active,
-  onClick,
-}: {
-  v: BannerVehicle;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const cover = v.images?.[0]?.url;
-  return (
-    <Link
-      to={`/ilan/${v.id}`}
-      onClick={onClick}
-      className={cn(
-        'group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition',
-        active ? 'ring-2 ring-amber-400/60' : 'opacity-90 hover:opacity-100',
-      )}
-    >
+function AdBannerCard({ banner }: { banner: AdBannerItem }) {
+  const inner = (
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
       <div className="aspect-[16/9] w-full bg-slate-100">
-        {cover ? (
-          <img src={cover} alt={v.title} className="h-full w-full object-cover transition group-hover:scale-105" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-slate-300">
-            <Car className="h-16 w-16" />
-          </div>
-        )}
+        <img src={banner.image_url} alt={banner.title} className="h-full w-full object-cover transition group-hover:scale-105" />
       </div>
       <div className="absolute top-3 left-3 flex items-center gap-2">
-        <span className="badge bg-amber-500 text-white">PREMIUM</span>
-        {v.listing_type !== 'free' && (
-          <span className="badge bg-red-600 text-white">AÇIK ARTTIRMA</span>
-        )}
+        <span className="badge bg-rose-600 text-white">REKLAM</span>
       </div>
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
-        <div className="text-sm opacity-90">
-          {v.brand?.name ?? 'Marka'} {v.model?.name ?? ''} · {v.year}
-        </div>
-        <div className="text-lg font-bold leading-tight line-clamp-1">{v.title}</div>
-        <div className="mt-1 flex items-center justify-between">
-          <span className="text-xl font-extrabold text-amber-300">{formatPrice(v.price)}</span>
-          <span className="inline-flex items-center gap-1 text-xs opacity-90">
-            <Eye className="h-3.5 w-3.5" /> {v.view_count}
-          </span>
-        </div>
+        <div className="text-lg font-bold leading-tight line-clamp-1">{banner.title}</div>
+        {banner.description && (
+          <div className="text-xs opacity-90 line-clamp-1">{banner.description}</div>
+        )}
       </div>
-    </Link>
+    </div>
   );
+  if (banner.link_url) {
+    return (
+      <a href={banner.link_url} target="_blank" rel="noopener noreferrer sponsored" onClick={() => trackAdClick(banner.id)}>
+        {inner}
+      </a>
+    );
+  }
+  return inner;
+}
+
+function trackAdClick(bannerId: string) {
+  // Best-effort tracking; fire and forget
+  try {
+    fetch('/api/track-ad', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: bannerId }),
+    }).catch(() => undefined);
+  } catch {
+    // ignore
+  }
 }
 
 function BannerSkeleton() {
