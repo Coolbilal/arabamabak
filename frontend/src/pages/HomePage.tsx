@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
@@ -26,6 +26,13 @@ import {
   Palette,
   Settings2,
 } from 'lucide-react';
+
+type BannerVehicle = Vehicle & {
+  brand: VehicleBrand | null;
+  model: VehicleModel | null;
+  images: VehicleImage[];
+  auction?: Auction | null;
+};
 
 interface AdBannerItem {
   id: string;
@@ -56,6 +63,30 @@ export default function HomePage() {
         .limit(8);
       if (error) throw error;
       return (data ?? []) as AdBannerItem[];
+    },
+  });
+
+  const premiumAuctionsQ = useQuery({
+    queryKey: ['home', 'premium-auctions'],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*), auction:auctions!auctions_vehicle_id_fkey(*)')
+        .eq('is_premium', true)
+        .eq('status', 'active')
+        .eq('listing_type', 'premium_auction')
+        .order('created_at', { ascending: false })
+        .limit(8);
+      if (error) throw error;
+      const now = Date.now();
+      return ((data ?? []) as unknown as BannerVehicle[]).filter((v) => {
+        const a = (v as any).auction;
+        if (!a) return true;
+        if (a.status !== 'scheduled') return false;
+        if (a.start_at && new Date(a.start_at).getTime() <= now) return false;
+        return true;
+      });
     },
   });
 
@@ -122,10 +153,14 @@ export default function HomePage() {
 
   return (
     <div className="bg-slate-50">
-      {/* Banner Paneli (Kayan) */}
+      {/* Premium Açık Arttırma İlan Panosu (Kayan) */}
       <section className="bg-gradient-to-b from-slate-50 to-white py-10">
         <div className="mx-auto max-w-7xl px-4">
-          <AdBannerSlider banners={adBannersQ.data ?? []} loading={adBannersQ.isLoading} />
+          <PremiumAuctionSlider
+            vehicles={premiumAuctionsQ.data ?? []}
+            ads={adBannersQ.data ?? []}
+            loading={premiumAuctionsQ.isLoading}
+          />
         </div>
       </section>
 
@@ -273,13 +308,27 @@ function CategoryCard({
 
 /* ---------------- Ad Banner Slider (Kayan) ---------------- */
 
-function AdBannerSlider({ banners, loading }: { banners: AdBannerItem[]; loading: boolean }) {
+function PremiumAuctionSlider({ vehicles, ads, loading }: { vehicles: BannerVehicle[]; ads: AdBannerItem[]; loading: boolean }) {
+  const slides = useMemo(() => {
+    type Slide = { type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string };
+    const merged: Slide[] = [];
+    const vehList = vehicles.slice(0, 6);
+    const adList = ads.slice(0, 4);
+    vehList.forEach((v, idx) => {
+      merged.push({ type: 'vehicle', payload: v, key: `v-${v.id}` });
+      if ((idx === 1 || idx === 3 || idx === 5) && adList.length > 0) {
+        const ad = adList.shift()!;
+        merged.push({ type: 'ad', payload: ad, key: `a-${ad.id}` });
+      }
+    });
+    return merged;
+  }, [vehicles, ads]);
   const [idx, setIdx] = useState(0);
-  const total = banners.length;
+  const total = slides.length;
 
   useEffect(() => {
     if (total <= 1) return;
-    const id = setInterval(() => setIdx((i) => (i + 1) % Math.max(total - 1, 1)), 5000);
+    const id = setInterval(() => setIdx((i) => (i + 1) % total), 5000);
     return () => clearInterval(id);
   }, [total]);
 
@@ -295,7 +344,7 @@ function AdBannerSlider({ banners, loading }: { banners: AdBannerItem[]; loading
   if (total === 0) {
     return (
       <div className="card p-8 text-center text-slate-500">
-        Şu anda reklam bannerı bulunmuyor.
+        Şu anda premium açık arttırma ilanı bulunmuyor.
       </div>
     );
   }
@@ -306,29 +355,82 @@ function AdBannerSlider({ banners, loading }: { banners: AdBannerItem[]; loading
         className="flex transition-transform duration-700 ease-in-out"
         style={{ transform: `translateX(-${idx * 50}%)` }}
       >
-        {banners.map((b) => (
-          <div key={b.id} className="w-1/2 flex-shrink-0 px-2">
-            <AdBannerCard banner={b} />
+        {slides.map((s) => (
+          <div key={s.key} className="w-1/2 flex-shrink-0 px-2">
+            {s.type === 'ad' ? (
+              <AdBannerCard banner={s.payload as AdBannerItem} />
+            ) : (
+              <PremiumAuctionCard v={s.payload as BannerVehicle} />
+            )}
           </div>
         ))}
       </div>
       {total > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
-          {Array.from({ length: total }).map((_, i) => (
+          {slides.map((s, i) => (
             <button
-              key={i}
+              key={s.key}
               type="button"
               onClick={() => setIdx(i)}
-              aria-label={`Banner ${i + 1}`}
+              aria-label={`Slide ${i + 1}`}
               className={cn(
                 'h-2.5 rounded-full transition-all',
-                i === idx ? 'w-8 bg-rose-500' : 'w-2.5 bg-slate-300 hover:bg-slate-400',
+                i === idx
+                  ? s.type === 'ad'
+                    ? 'w-8 bg-rose-500'
+                    : 'w-8 bg-amber-500'
+                  : 'w-2.5 bg-slate-300 hover:bg-slate-400',
               )}
             />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
+  const cover = v.images?.[0]?.url;
+  const a = (v as any).auction;
+  return (
+    <Link
+      to={`/ilan/${v.id}`}
+      className="group relative block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+    >
+      <div className="aspect-[16/9] w-full bg-slate-100">
+        {cover ? (
+          <img src={cover} alt={v.title} className="h-full w-full object-cover transition group-hover:scale-105" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-slate-300">
+            <Car className="h-16 w-16" />
+          </div>
+        )}
+      </div>
+      <div className="absolute top-3 left-3 flex items-center gap-2">
+        <span className="badge bg-amber-500 text-white">PREMIUM</span>
+        <span className="badge bg-red-600 text-white">AÇIK ARTTIRMA</span>
+      </div>
+      {a?.start_at && (
+        <div className="absolute top-3 right-3">
+          <span className="badge bg-black/70 text-white">
+            <Clock className="h-3 w-3 mr-1" />
+            {new Date(a.start_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      )}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
+        <div className="text-sm opacity-90">
+          {v.brand?.name ?? 'Marka'} {v.model?.name ?? ''} · {v.year}
+        </div>
+        <div className="text-lg font-bold leading-tight line-clamp-1">{v.title}</div>
+        <div className="mt-1 flex items-center justify-between">
+          <span className="text-xl font-extrabold text-amber-300">{formatPrice(v.price)}</span>
+          <span className="inline-flex items-center gap-1 text-xs opacity-90">
+            <Gavel className="h-3.5 w-3.5" /> Açık Arttırma
+          </span>
+        </div>
+      </div>
+    </Link>
   );
 }
 
