@@ -361,6 +361,33 @@ function PremiumAuctionSlider({
   const slideCount = Math.ceil(items.length / 2);
   const [idx, setIdx] = useState(0);
 
+  // Sürükle-bırak state
+  const [dragStartX, setDragStartX] = useState<number | null>(null);
+  const [dragDx, setDragDx] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    setDragStartX(e.clientX);
+    setIsDragging(true);
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (dragStartX === null) return;
+    setDragDx(e.clientX - dragStartX);
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (dragStartX === null) return;
+    const dx = e.clientX - dragStartX;
+    const threshold = 50; // 50px kaydırınca değiş
+    if (Math.abs(dx) > threshold) {
+      if (dx < 0 && idx < slideCount - 1) setIdx(idx + 1);
+      else if (dx > 0 && idx > 0) setIdx(idx - 1);
+    }
+    setDragStartX(null);
+    setDragDx(0);
+    setIsDragging(false);
+  };
+
   useEffect(() => {
     if (slideCount <= 1) return;
     const id = setInterval(() => setIdx((i) => (i + 1) % slideCount), Math.max(2, intervalSec) * 1000);
@@ -385,10 +412,18 @@ function PremiumAuctionSlider({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50/40 via-white to-rose-50/40 p-3 shadow-md">
+    <div
+      className="relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50/40 via-white to-rose-50/40 p-3 shadow-md select-none"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerUp}
+      onPointerCancel={onPointerUp}
+      style={{ touchAction: 'pan-y', cursor: dragStartX !== null ? 'grabbing' : 'grab' }}
+    >
       <div
-        className="flex transition-transform duration-700 ease-in-out"
-        style={{ transform: `translateX(-${idx * 50}%)` }}
+        className={cn('flex', !isDragging && 'transition-transform duration-700 ease-in-out')}
+        style={{ transform: `translateX(calc(-${idx * 50}% + ${dragDx}px))` }}
       >
         {items.map((s) => (
           <div key={s.key} className="w-1/2 flex-shrink-0 px-2">
@@ -505,9 +540,9 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
       {remaining !== null && (
         <div className="absolute top-3 right-3 z-10">
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-rose-500 blur-md opacity-60 animate-pulse" />
-            <span className="relative inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-slate-900 to-rose-900 px-3 py-1 text-sm font-extrabold text-white shadow-xl ring-2 ring-amber-300/50 tabular-nums">
-              <Clock className="h-3.5 w-3.5" />
+            <div className="absolute inset-0 bg-rose-300/70 blur-md animate-pulse rounded-full" />
+            <span className="relative inline-flex items-center gap-1 rounded-full bg-rose-100/95 px-3 py-1 text-sm font-extrabold text-rose-700 shadow-lg shadow-rose-300/40 ring-2 ring-rose-200/80 tabular-nums backdrop-blur-sm">
+              <Clock className="h-3.5 w-3.5 text-rose-600" />
               {formatRemaining(remaining)}
             </span>
           </div>
