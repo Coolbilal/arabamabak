@@ -335,8 +335,7 @@ function PremiumAuctionSlider({
   intervalSec: number;
   loading: boolean;
 }) {
-  // TEK KUTU: tüm ilan + banner'lar bir dizi, 2'li gruplanır
-  // Her 3 ilandan sonra 1 banner karışır
+  // Tüm ilan + banner'lar bir dizi, sonra 2'li gruplara (slide) bölünür
   const items = useMemo(() => {
     type Item = { type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string };
     const list: Item[] = [];
@@ -345,6 +344,7 @@ function PremiumAuctionSlider({
     let adCursor = 0;
     vehList.forEach((v, i) => {
       list.push({ type: 'vehicle', payload: v, key: `v-${v.id}` });
+      // her 3 ilandan sonra 1 banner karıştır
       if ((i + 1) % 3 === 0 && adCursor < adList.length) {
         const ad = adList[adCursor++];
         list.push({ type: 'ad', payload: ad, key: `a-${ad.id}` });
@@ -353,12 +353,15 @@ function PremiumAuctionSlider({
     if (adCursor === 0 && adList.length > 0) {
       list.push({ type: 'ad', payload: adList[0], key: `a-${adList[0].id}` });
     }
-    return list;
+    // 2'li gruplara böl (her grup = 1 slide)
+    const slides: Item[][] = [];
+    for (let i = 0; i < list.length; i += 2) {
+      slides.push(list.slice(i, i + 2));
+    }
+    return slides;
   }, [vehicles, ads]);
 
-  // Her bir item kendi slide'ı (2'li kayma)
-  // 2 ilan = 1 görünüm, kaydırma %50
-  const slideCount = Math.ceil(items.length / 2);
+  const slideCount = items.length;
   const [idx, setIdx] = useState(0);
 
   // Ekran boyutuna göre mobilde tek, masaüstünde 2'li gösterim
@@ -414,7 +417,7 @@ function PremiumAuctionSlider({
     );
   }
 
-  if (items.length === 0) {
+  if (slideCount === 0) {
     return (
       <div className="card p-8 text-center text-slate-500">
         Şu anda premium açık arttırma ilanı bulunmuyor.
@@ -424,7 +427,7 @@ function PremiumAuctionSlider({
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50/40 via-white to-rose-50/40 p-3 shadow-md select-none"
+      className="relative rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50/40 via-white to-rose-50/40 p-3 shadow-md select-none"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -432,22 +435,26 @@ function PremiumAuctionSlider({
       onPointerCancel={onPointerUp}
       style={{ touchAction: 'pan-y', cursor: dragStartX !== null ? 'grabbing' : 'grab' }}
     >
-      <div
-        className={cn('flex', !isDragging && 'transition-transform duration-700 ease-in-out')}
-        style={{ transform: `translateX(calc(-${idx * stepPercent}% + ${dragDx}px))` }}
-      >
-        {items.map((s) => (
-          <div
-            key={s.key}
-            className="w-full md:w-1/2 flex-shrink-0 px-2"
-          >
-            {s.type === 'ad' ? (
-              <AdBannerCard banner={s.payload as AdBannerItem} />
-            ) : (
-              <PremiumAuctionCard v={s.payload as BannerVehicle} />
-            )}
-          </div>
-        ))}
+      <div className="overflow-hidden">
+        <div
+          className={cn('flex', !isDragging && 'transition-transform duration-700 ease-in-out')}
+          style={{ transform: `translateX(calc(-${idx * stepPercent}% + ${dragDx}px))` }}
+        >
+          {items.map((slide, i) => (
+            <div key={`slide-${i}`} className="w-full md:w-1/2 flex-shrink-0 px-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {slide.map((s) =>
+                  s.type === 'ad' ? (
+                    <AdBannerCard key={s.key} banner={s.payload as AdBannerItem} />
+                  ) : (
+                    <PremiumAuctionCard key={s.key} v={s.payload as BannerVehicle} />
+                  ),
+                )}
+                {slide.length === 1 && <div className="hidden md:block" />}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
       {slideCount > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
