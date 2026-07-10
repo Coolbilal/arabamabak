@@ -546,14 +546,14 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
           </div>
         )}
       </div>
-      <div className="absolute top-3 left-3 flex items-center gap-2">
+      <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
         <span className="badge bg-amber-500 text-white inline-flex items-center gap-1 shadow-lg shadow-amber-500/30">
           <Star className="h-3 w-3 fill-current" /> PREMIUM
         </span>
         <span className="badge bg-red-600 text-white shadow-lg shadow-red-600/30">AÇIK ARTTIRMA</span>
       </div>
       {remaining !== null && (
-        <div className="absolute top-3 right-3 z-10">
+        <div className="absolute bottom-20 md:bottom-3 right-3 z-10">
           <div className="relative">
             <div className="absolute inset-0 bg-rose-300/70 blur-md animate-pulse rounded-full" />
             <span className="relative inline-flex items-center gap-1 rounded-full bg-rose-100/95 px-3 py-1 text-sm font-extrabold text-rose-700 shadow-lg shadow-rose-300/40 ring-2 ring-rose-200/80 tabular-nums backdrop-blur-sm">
