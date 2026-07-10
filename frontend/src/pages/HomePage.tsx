@@ -335,41 +335,37 @@ function PremiumAuctionSlider({
   intervalSec: number;
   loading: boolean;
 }) {
-  // Her 2 ilan/banner'dan sonra 1 banner karışsın, tek kutu içinde 2'li kayar
-  const slides = useMemo(() => {
-    type SlideItem = { type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string };
-    const items: SlideItem[] = [];
-    const vehList = vehicles.slice(0, 12);
-    const adList = ads.slice(0, 6);
+  // TEK KUTU: tüm ilan + banner'lar bir dizi, 2'li gruplanır
+  // Her 3 ilandan sonra 1 banner karışır
+  const items = useMemo(() => {
+    type Item = { type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string };
+    const list: Item[] = [];
+    const vehList = vehicles.slice(0, 20);
+    const adList = ads.slice(0, 8);
     let adCursor = 0;
     vehList.forEach((v, i) => {
-      items.push({ type: 'vehicle', payload: v, key: `v-${v.id}` });
-      // her 3 ilandan sonra 1 banner ekle (pairs oluşturmak için)
+      list.push({ type: 'vehicle', payload: v, key: `v-${v.id}` });
       if ((i + 1) % 3 === 0 && adCursor < adList.length) {
-        items.push({ type: 'ad', payload: adList[adCursor++], key: `a-${adList[adCursor - 1].id}` });
+        const ad = adList[adCursor++];
+        list.push({ type: 'ad', payload: ad, key: `a-${ad.id}` });
       }
     });
-    // Eğer hiç banner eklenmediyse ama banner varsa en sona 1 tane ekle
     if (adCursor === 0 && adList.length > 0) {
-      items.push({ type: 'ad', payload: adList[0], key: `a-${adList[0].id}` });
+      list.push({ type: 'ad', payload: adList[0], key: `a-${adList[0].id}` });
     }
-    // 2'li gruplara böl
-    const pairs: SlideItem[][] = [];
-    for (let i = 0; i < items.length; i += 2) {
-      const pair = items.slice(i, i + 2);
-      // Tek kaldıysa yanına boş bırak (grid tek satır gibi görünür)
-      pairs.push(pair);
-    }
-    return pairs;
+    return list;
   }, [vehicles, ads]);
+
+  // Her bir item kendi slide'ı (2'li kayma)
+  // 2 ilan = 1 görünüm, kaydırma %50
+  const slideCount = Math.ceil(items.length / 2);
   const [idx, setIdx] = useState(0);
-  const total = slides.length;
 
   useEffect(() => {
-    if (total <= 1) return;
-    const id = setInterval(() => setIdx((i) => (i + 1) % total), Math.max(2, intervalSec) * 1000);
+    if (slideCount <= 1) return;
+    const id = setInterval(() => setIdx((i) => (i + 1) % slideCount), Math.max(2, intervalSec) * 1000);
     return () => clearInterval(id);
-  }, [total, intervalSec]);
+  }, [slideCount, intervalSec]);
 
   if (loading) {
     return (
@@ -380,7 +376,7 @@ function PremiumAuctionSlider({
     );
   }
 
-  if (total === 0) {
+  if (items.length === 0) {
     return (
       <div className="card p-8 text-center text-slate-500">
         Şu anda premium açık arttırma ilanı bulunmuyor.
@@ -389,30 +385,24 @@ function PremiumAuctionSlider({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3">
+    <div className="relative overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50/40 via-white to-rose-50/40 p-3 shadow-md">
       <div
         className="flex transition-transform duration-700 ease-in-out"
-        style={{ transform: `translateX(-${idx * 100}%)` }}
+        style={{ transform: `translateX(-${idx * 50}%)` }}
       >
-        {slides.map((pair, i) => (
-          <div key={`slide-${i}`} className="w-full flex-shrink-0 px-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {pair.map((s) =>
-                s.type === 'ad' ? (
-                  <AdBannerCard key={s.key} banner={s.payload as AdBannerItem} />
-                ) : (
-                  <PremiumAuctionCard key={s.key} v={s.payload as BannerVehicle} />
-                ),
-              )}
-              {/* Tek kaldıysa dolu görünsün */}
-              {pair.length === 1 && <div className="hidden md:block" />}
-            </div>
+        {items.map((s) => (
+          <div key={s.key} className="w-1/2 flex-shrink-0 px-2">
+            {s.type === 'ad' ? (
+              <AdBannerCard banner={s.payload as AdBannerItem} />
+            ) : (
+              <PremiumAuctionCard v={s.payload as BannerVehicle} />
+            )}
           </div>
         ))}
       </div>
-      {total > 1 && (
+      {slideCount > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
-          {slides.map((pair, i) => (
+          {Array.from({ length: slideCount }).map((_, i) => (
             <button
               key={i}
               type="button"
@@ -420,11 +410,7 @@ function PremiumAuctionSlider({
               aria-label={`Slide ${i + 1}`}
               className={cn(
                 'h-2.5 rounded-full transition-all',
-                i === idx
-                  ? pair.some((s) => s.type === 'ad')
-                    ? 'w-8 bg-rose-500'
-                    : 'w-8 bg-amber-500'
-                  : 'w-2.5 bg-slate-300 hover:bg-slate-400',
+                i === idx ? 'w-8 bg-amber-500' : 'w-2.5 bg-slate-300 hover:bg-slate-400',
               )}
             />
           ))}
@@ -483,6 +469,7 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
   const cover = v.images?.[0]?.url;
   const a = (v as any).auction;
   const startAt = a?.start_at ? new Date(a.start_at).getTime() : null;
+  const startingPrice = a?.starting_price ?? v.price;
   const [remaining, setRemaining] = useState<number | null>(() =>
     startAt ? Math.max(0, startAt - Date.now()) : null,
   );
@@ -491,16 +478,16 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
     if (!startAt) return;
     const tick = () => setRemaining(Math.max(0, startAt - Date.now()));
     tick();
-    const id = setInterval(tick, 1000);
+    const id = setInterval(tick, 100); // 100ms - yumuşak akış
     return () => clearInterval(id);
   }, [startAt]);
 
   return (
     <Link
       to={`/ilan/${v.id}`}
-      className="group relative block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+      className="group relative block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md h-full"
     >
-      <div className="aspect-[16/9] w-full bg-slate-100">
+      <div className="aspect-[16/9] w-full bg-slate-100 relative">
         {cover ? (
           <img src={cover} alt={v.title} className="h-full w-full object-cover transition group-hover:scale-105" />
         ) : (
@@ -510,28 +497,34 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
         )}
       </div>
       <div className="absolute top-3 left-3 flex items-center gap-2">
-        <span className="badge bg-amber-500 text-white inline-flex items-center gap-1">
+        <span className="badge bg-amber-500 text-white inline-flex items-center gap-1 shadow-lg shadow-amber-500/30">
           <Star className="h-3 w-3 fill-current" /> PREMIUM
         </span>
-        <span className="badge bg-red-600 text-white">AÇIK ARTTIRMA</span>
+        <span className="badge bg-red-600 text-white shadow-lg shadow-red-600/30">AÇIK ARTTIRMA</span>
       </div>
       {remaining !== null && (
-        <div className="absolute top-3 right-3">
-          <span className="badge bg-black/70 text-white tabular-nums">
-            <Clock className="h-3 w-3 mr-1" />
-            {formatRemaining(remaining)}
-          </span>
+        <div className="absolute top-3 right-3 z-10">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-rose-500 blur-md opacity-60 animate-pulse" />
+            <span className="relative inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-slate-900 to-rose-900 px-3 py-1 text-sm font-extrabold text-white shadow-xl ring-2 ring-amber-300/50 tabular-nums">
+              <Clock className="h-3.5 w-3.5" />
+              {formatRemaining(remaining)}
+            </span>
+          </div>
         </div>
       )}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 text-white">
         <div className="text-sm opacity-90">
           {v.brand?.name ?? 'Marka'} {v.model?.name ?? ''} · {v.year}
         </div>
-        <div className="text-lg font-bold leading-tight line-clamp-1">{v.title}</div>
-        <div className="mt-1 flex items-center justify-between">
-          <span className="text-xl font-extrabold text-amber-300">{formatPrice(v.price)}</span>
-          <span className="inline-flex items-center gap-1 text-xs opacity-90">
-            <Gavel className="h-3.5 w-3.5" /> Açık Arttırma
+        <div className="text-base font-bold leading-tight line-clamp-1">{v.title}</div>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-amber-300/90">Açılış Fiyatı</div>
+            <div className="text-xl font-extrabold text-amber-300">{formatPrice(startingPrice)}</div>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-xs">
+            <Gavel className="h-3.5 w-3.5" /> Yaklaşıyor
           </span>
         </div>
       </div>
@@ -540,15 +533,14 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
 }
 
 function formatRemaining(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const d = Math.floor(totalSec / 86400);
-  const h = Math.floor((totalSec % 86400) / 3600);
+  // Saat:Dakika:Saniye:Salise
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  if (d > 0) return `${d}g ${h}s`;
-  if (h > 0) return `${h}s ${m}dk`;
-  if (m > 0) return `${m}dk ${s}sn`;
-  return `${s}sn`;
+  const cs = Math.floor((ms % 1000) / 10); // salise (0-99)
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)}:${pad(cs)}`;
 }
 
 function BannerSkeleton() {
