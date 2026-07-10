@@ -34,14 +34,6 @@ type BannerVehicle = Vehicle & {
   auction?: Auction | null;
 };
 
-interface AdBannerItem {
-  id: string;
-  title: string;
-  description: string | null;
-  image_url: string;
-  link_url: string | null;
-}
-
 type AuctionVehicle = Vehicle & {
   brand: VehicleBrand | null;
   model: VehicleModel | null;
@@ -50,22 +42,6 @@ type AuctionVehicle = Vehicle & {
 };
 
 export default function HomePage() {
-  const adBannersQ = useQuery({
-    queryKey: ['home', 'ad-banners'],
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ad_banners')
-        .select('id, title, description, image_url, link_url')
-        .eq('is_active', true)
-        .eq('display_position', 'hero_inline')
-        .order('display_order', { ascending: true })
-        .limit(8);
-      if (error) throw error;
-      return (data ?? []) as AdBannerItem[];
-    },
-  });
-
   const premiumAuctionsQ = useQuery({
     queryKey: ['home', 'premium-auctions'],
     staleTime: 30_000,
@@ -158,7 +134,6 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4">
           <PremiumAuctionSlider
             vehicles={premiumAuctionsQ.data ?? []}
-            ads={adBannersQ.data ?? []}
             loading={premiumAuctionsQ.isLoading}
           />
         </div>
@@ -308,21 +283,15 @@ function CategoryCard({
 
 /* ---------------- Ad Banner Slider (Kayan) ---------------- */
 
-function PremiumAuctionSlider({ vehicles, ads, loading }: { vehicles: BannerVehicle[]; ads: AdBannerItem[]; loading: boolean }) {
+function PremiumAuctionSlider({ vehicles, loading }: { vehicles: BannerVehicle[]; loading: boolean }) {
+  // 6 ilanı 3 slide'a böl (her slide'da 2 ilan yan yana)
   const slides = useMemo(() => {
-    type Slide = { type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string };
-    const merged: Slide[] = [];
-    const vehList = vehicles.slice(0, 6);
-    const adList = ads.slice(0, 4);
-    vehList.forEach((v, idx) => {
-      merged.push({ type: 'vehicle', payload: v, key: `v-${v.id}` });
-      if ((idx === 1 || idx === 3 || idx === 5) && adList.length > 0) {
-        const ad = adList.shift()!;
-        merged.push({ type: 'ad', payload: ad, key: `a-${ad.id}` });
-      }
-    });
-    return merged;
-  }, [vehicles, ads]);
+    const pairs: BannerVehicle[][] = [];
+    for (let i = 0; i < vehicles.length; i += 2) {
+      pairs.push(vehicles.slice(i, i + 2));
+    }
+    return pairs;
+  }, [vehicles]);
   const [idx, setIdx] = useState(0);
   const total = slides.length;
 
@@ -353,33 +322,29 @@ function PremiumAuctionSlider({ vehicles, ads, loading }: { vehicles: BannerVehi
     <div className="relative overflow-hidden">
       <div
         className="flex transition-transform duration-700 ease-in-out"
-        style={{ transform: `translateX(-${idx * 50}%)` }}
+        style={{ transform: `translateX(-${idx * 100}%)` }}
       >
-        {slides.map((s) => (
-          <div key={s.key} className="w-1/2 flex-shrink-0 px-2">
-            {s.type === 'ad' ? (
-              <AdBannerCard banner={s.payload as AdBannerItem} />
-            ) : (
-              <PremiumAuctionCard v={s.payload as BannerVehicle} />
-            )}
+        {slides.map((pair, i) => (
+          <div key={`slide-${i}`} className="w-full flex-shrink-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pair.map((v) => (
+                <PremiumAuctionCard key={v.id} v={v} />
+              ))}
+            </div>
           </div>
         ))}
       </div>
       {total > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
-          {slides.map((s, i) => (
+          {slides.map((_, i) => (
             <button
-              key={s.key}
+              key={i}
               type="button"
               onClick={() => setIdx(i)}
               aria-label={`Slide ${i + 1}`}
               className={cn(
                 'h-2.5 rounded-full transition-all',
-                i === idx
-                  ? s.type === 'ad'
-                    ? 'w-8 bg-rose-500'
-                    : 'w-8 bg-amber-500'
-                  : 'w-2.5 bg-slate-300 hover:bg-slate-400',
+                i === idx ? 'w-8 bg-amber-500' : 'w-2.5 bg-slate-300 hover:bg-slate-400',
               )}
             />
           ))}
@@ -392,6 +357,19 @@ function PremiumAuctionSlider({ vehicles, ads, loading }: { vehicles: BannerVehi
 function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
   const cover = v.images?.[0]?.url;
   const a = (v as any).auction;
+  const startAt = a?.start_at ? new Date(a.start_at).getTime() : null;
+  const [remaining, setRemaining] = useState<number | null>(() =>
+    startAt ? Math.max(0, startAt - Date.now()) : null,
+  );
+
+  useEffect(() => {
+    if (!startAt) return;
+    const tick = () => setRemaining(Math.max(0, startAt - Date.now()));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [startAt]);
+
   return (
     <Link
       to={`/ilan/${v.id}`}
@@ -410,11 +388,11 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
         <span className="badge bg-amber-500 text-white">PREMIUM</span>
         <span className="badge bg-red-600 text-white">AÇIK ARTTIRMA</span>
       </div>
-      {a?.start_at && (
+      {remaining !== null && (
         <div className="absolute top-3 right-3">
-          <span className="badge bg-black/70 text-white">
+          <span className="badge bg-black/70 text-white tabular-nums">
             <Clock className="h-3 w-3 mr-1" />
-            {new Date(a.start_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            {formatRemaining(remaining)}
           </span>
         </div>
       )}
@@ -434,44 +412,16 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
   );
 }
 
-function AdBannerCard({ banner }: { banner: AdBannerItem }) {
-  const inner = (
-    <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
-      <div className="aspect-[16/9] w-full bg-slate-100">
-        <img src={banner.image_url} alt={banner.title} className="h-full w-full object-cover transition group-hover:scale-105" />
-      </div>
-      <div className="absolute top-3 left-3 flex items-center gap-2">
-        <span className="badge bg-rose-600 text-white">REKLAM</span>
-      </div>
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
-        <div className="text-lg font-bold leading-tight line-clamp-1">{banner.title}</div>
-        {banner.description && (
-          <div className="text-xs opacity-90 line-clamp-1">{banner.description}</div>
-        )}
-      </div>
-    </div>
-  );
-  if (banner.link_url) {
-    return (
-      <a href={banner.link_url} target="_blank" rel="noopener noreferrer sponsored" onClick={() => trackAdClick(banner.id)}>
-        {inner}
-      </a>
-    );
-  }
-  return inner;
-}
-
-function trackAdClick(bannerId: string) {
-  // Best-effort tracking; fire and forget
-  try {
-    fetch('/api/track-ad', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: bannerId }),
-    }).catch(() => undefined);
-  } catch {
-    // ignore
-  }
+function formatRemaining(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const d = Math.floor(totalSec / 86400);
+  const h = Math.floor((totalSec % 86400) / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (d > 0) return `${d}g ${h}s`;
+  if (h > 0) return `${h}s ${m}dk`;
+  if (m > 0) return `${m}dk ${s}sn`;
+  return `${s}sn`;
 }
 
 function BannerSkeleton() {
