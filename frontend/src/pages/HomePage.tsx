@@ -48,23 +48,14 @@ export default function HomePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vehicles')
-        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*), auction:auctions!auctions_vehicle_id_fkey(*)')
+        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*)')
         .eq('is_premium', true)
         .eq('status', 'active')
         .eq('listing_type', 'premium_auction')
         .order('created_at', { ascending: false })
         .limit(8);
       if (error) throw error;
-      const now = Date.now();
-      return ((data ?? []) as unknown as BannerVehicle[]).filter((v) => {
-        const a = (v as any).auction;
-        if (!a) return true;
-        if (a.status === 'cancelled' || a.status === 'ended' || a.status === 'sold' || a.status === 'sold_pending_confirmation') return false;
-        if (a.start_at && new Date(a.start_at).getTime() <= now && a.status === 'scheduled') {
-          return a.start_at && new Date(a.start_at).getTime() > now - 60 * 60 * 1000;
-        }
-        return true;
-      });
+      return (data ?? []) as unknown as BannerVehicle[];
     },
   });
 
