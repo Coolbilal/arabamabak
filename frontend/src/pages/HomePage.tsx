@@ -25,6 +25,7 @@ import {
   MapPin,
   Palette,
   Settings2,
+  Star,
 } from 'lucide-react';
 
 type BannerVehicle = Vehicle & {
@@ -33,6 +34,14 @@ type BannerVehicle = Vehicle & {
   images: VehicleImage[];
   auction?: Auction | null;
 };
+
+interface AdBannerItem {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string;
+  link_url: string | null;
+}
 
 type AuctionVehicle = Vehicle & {
   brand: VehicleBrand | null;
@@ -48,14 +57,51 @@ export default function HomePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vehicles')
-        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*)')
+        .select('*, brand:vehicle_brands(*), model:vehicle_models(*), images:vehicle_images(*), auction:auctions!auctions_vehicle_id_fkey(*)')
         .eq('is_premium', true)
         .eq('status', 'active')
         .eq('listing_type', 'premium_auction')
         .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      const now = Date.now();
+      return ((data ?? []) as unknown as BannerVehicle[]).filter((v) => {
+        const a = (v as any).auction;
+        if (!a) return true;
+        if (a.status === 'live' || a.status === 'ended' || a.status === 'cancelled' || a.status === 'sold' || a.status === 'sold_pending_confirmation') return false;
+        if (a.start_at && new Date(a.start_at).getTime() <= now) return false;
+        return true;
+      });
+    },
+  });
+
+  const adBannersQ = useQuery({
+    queryKey: ['home', 'ad-banners'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ad_banners')
+        .select('id, title, description, image_url, link_url')
+        .eq('is_active', true)
+        .eq('display_position', 'hero_inline')
+        .order('display_order', { ascending: true })
         .limit(8);
       if (error) throw error;
-      return (data ?? []) as unknown as BannerVehicle[];
+      return (data ?? []) as AdBannerItem[];
+    },
+  });
+
+  const siteSettingsQ = useQuery({
+    queryKey: ['site-settings', 'slider-interval'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('premium_slider_interval_seconds')
+        .eq('id', 1)
+        .maybeSingle();
+      if (error) throw error;
+      return Number((data as any)?.premium_slider_interval_seconds ?? 5);
     },
   });
 
@@ -127,6 +173,8 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4">
           <PremiumAuctionSlider
             vehicles={premiumAuctionsQ.data ?? []}
+            ads={adBannersQ.data ?? []}
+            intervalSec={siteSettingsQ.data ?? 5}
             loading={premiumAuctionsQ.isLoading}
           />
         </div>
@@ -274,25 +322,54 @@ function CategoryCard({
   );
 }
 
-/* ---------------- Ad Banner Slider (Kayan) ---------------- */
+/* ---------------- Premium Auction Slider (Kayan) ---------------- */
 
-function PremiumAuctionSlider({ vehicles, loading }: { vehicles: BannerVehicle[]; loading: boolean }) {
-  // 6 ilanı 3 slide'a böl (her slide'da 2 ilan yan yana)
+function PremiumAuctionSlider({
+  vehicles,
+  ads,
+  intervalSec,
+  loading,
+}: {
+  vehicles: BannerVehicle[];
+  ads: AdBannerItem[];
+  intervalSec: number;
+  loading: boolean;
+}) {
+  // Her 2 ilan/banner'dan sonra 1 banner karışsın, tek kutu içinde 2'li kayar
   const slides = useMemo(() => {
-    const pairs: BannerVehicle[][] = [];
-    for (let i = 0; i < vehicles.length; i += 2) {
-      pairs.push(vehicles.slice(i, i + 2));
+    type SlideItem = { type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string };
+    const items: SlideItem[] = [];
+    const vehList = vehicles.slice(0, 12);
+    const adList = ads.slice(0, 6);
+    let adCursor = 0;
+    vehList.forEach((v, i) => {
+      items.push({ type: 'vehicle', payload: v, key: `v-${v.id}` });
+      // her 3 ilandan sonra 1 banner ekle (pairs oluşturmak için)
+      if ((i + 1) % 3 === 0 && adCursor < adList.length) {
+        items.push({ type: 'ad', payload: adList[adCursor++], key: `a-${adList[adCursor - 1].id}` });
+      }
+    });
+    // Eğer hiç banner eklenmediyse ama banner varsa en sona 1 tane ekle
+    if (adCursor === 0 && adList.length > 0) {
+      items.push({ type: 'ad', payload: adList[0], key: `a-${adList[0].id}` });
+    }
+    // 2'li gruplara böl
+    const pairs: SlideItem[][] = [];
+    for (let i = 0; i < items.length; i += 2) {
+      const pair = items.slice(i, i + 2);
+      // Tek kaldıysa yanına boş bırak (grid tek satır gibi görünür)
+      pairs.push(pair);
     }
     return pairs;
-  }, [vehicles]);
+  }, [vehicles, ads]);
   const [idx, setIdx] = useState(0);
   const total = slides.length;
 
   useEffect(() => {
     if (total <= 1) return;
-    const id = setInterval(() => setIdx((i) => (i + 1) % total), 5000);
+    const id = setInterval(() => setIdx((i) => (i + 1) % total), Math.max(2, intervalSec) * 1000);
     return () => clearInterval(id);
-  }, [total]);
+  }, [total, intervalSec]);
 
   if (loading) {
     return (
@@ -312,24 +389,30 @@ function PremiumAuctionSlider({ vehicles, loading }: { vehicles: BannerVehicle[]
   }
 
   return (
-    <div className="relative overflow-hidden">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3">
       <div
         className="flex transition-transform duration-700 ease-in-out"
         style={{ transform: `translateX(-${idx * 100}%)` }}
       >
         {slides.map((pair, i) => (
-          <div key={`slide-${i}`} className="w-full flex-shrink-0">
+          <div key={`slide-${i}`} className="w-full flex-shrink-0 px-1">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {pair.map((v) => (
-                <PremiumAuctionCard key={v.id} v={v} />
-              ))}
+              {pair.map((s) =>
+                s.type === 'ad' ? (
+                  <AdBannerCard key={s.key} banner={s.payload as AdBannerItem} />
+                ) : (
+                  <PremiumAuctionCard key={s.key} v={s.payload as BannerVehicle} />
+                ),
+              )}
+              {/* Tek kaldıysa dolu görünsün */}
+              {pair.length === 1 && <div className="hidden md:block" />}
             </div>
           </div>
         ))}
       </div>
       {total > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
-          {slides.map((_, i) => (
+          {slides.map((pair, i) => (
             <button
               key={i}
               type="button"
@@ -337,7 +420,11 @@ function PremiumAuctionSlider({ vehicles, loading }: { vehicles: BannerVehicle[]
               aria-label={`Slide ${i + 1}`}
               className={cn(
                 'h-2.5 rounded-full transition-all',
-                i === idx ? 'w-8 bg-amber-500' : 'w-2.5 bg-slate-300 hover:bg-slate-400',
+                i === idx
+                  ? pair.some((s) => s.type === 'ad')
+                    ? 'w-8 bg-rose-500'
+                    : 'w-8 bg-amber-500'
+                  : 'w-2.5 bg-slate-300 hover:bg-slate-400',
               )}
             />
           ))}
@@ -345,6 +432,51 @@ function PremiumAuctionSlider({ vehicles, loading }: { vehicles: BannerVehicle[]
       )}
     </div>
   );
+}
+
+function AdBannerCard({ banner }: { banner: AdBannerItem }) {
+  const inner = (
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md h-full">
+      <div className="aspect-[16/9] w-full bg-slate-100">
+        <img src={banner.image_url} alt={banner.title} className="h-full w-full object-cover transition group-hover:scale-105" />
+      </div>
+      <div className="absolute top-3 left-3 flex items-center gap-2">
+        <span className="badge bg-rose-600 text-white">REKLAM</span>
+      </div>
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
+        <div className="text-lg font-bold leading-tight line-clamp-1">{banner.title}</div>
+        {banner.description && (
+          <div className="text-xs opacity-90 line-clamp-1">{banner.description}</div>
+        )}
+      </div>
+    </div>
+  );
+  if (banner.link_url) {
+    return (
+      <a
+        href={banner.link_url}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        onClick={() => trackAdClick(banner.id)}
+        className="block h-full"
+      >
+        {inner}
+      </a>
+    );
+  }
+  return inner;
+}
+
+function trackAdClick(bannerId: string) {
+  try {
+    fetch('/api/track-ad', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: bannerId }),
+    }).catch(() => undefined);
+  } catch {
+    // ignore
+  }
 }
 
 function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
@@ -378,7 +510,9 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
         )}
       </div>
       <div className="absolute top-3 left-3 flex items-center gap-2">
-        <span className="badge bg-amber-500 text-white">PREMIUM</span>
+        <span className="badge bg-amber-500 text-white inline-flex items-center gap-1">
+          <Star className="h-3 w-3 fill-current" /> PREMIUM
+        </span>
         <span className="badge bg-red-600 text-white">AÇIK ARTTIRMA</span>
       </div>
       {remaining !== null && (

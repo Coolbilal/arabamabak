@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle, CheckCircle2, Edit3, ExternalLink, Image as ImageIcon,
-  Loader2, Megaphone, Plus, RefreshCw, Save, Trash2, X,
+  Loader2, Megaphone, Plus, RefreshCw, Save, Sliders, Trash2, X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -106,6 +106,8 @@ export default function AdBannersPage() {
           </div>
         </div>
       )}
+
+      <SliderIntervalCard canEdit={canEdit} />
 
       {error && (
         <div className="card p-3 bg-red-50 border-red-200 text-sm text-red-700">{error}</div>
@@ -413,6 +415,87 @@ function BannerModal({ banner, onClose, onSaved, canEdit }: {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+function SliderIntervalCard({ canEdit }: { canEdit: boolean }) {
+  const qc = useQueryClient();
+  const settingsQ = useQuery({
+    queryKey: ['site-settings', 'slider-interval'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('premium_slider_interval_seconds')
+        .eq('id', 1)
+        .maybeSingle();
+      if (error) throw error;
+      return Number((data as any)?.premium_slider_interval_seconds ?? 5);
+    },
+  });
+  const [val, setVal] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const current = val ?? settingsQ.data ?? 5;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('site_settings')
+        .update({ premium_slider_interval_seconds: current })
+        .eq('id', 1);
+      if (error) throw error;
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      qc.invalidateQueries({ queryKey: ['site-settings', 'slider-interval'] });
+    } catch (e) {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="h-10 w-10 rounded-lg bg-brand-50 flex items-center justify-center">
+          <Sliders className="h-5 w-5 text-brand-600" />
+        </div>
+        <div className="flex-1">
+          <div className="font-semibold text-slate-900">Slider Geçiş Süresi</div>
+          <div className="text-xs text-slate-500">
+            Premium açık arttırma panosu kaç saniyede bir slide geçişi yapsın
+          </div>
+        </div>
+        {saved && (
+          <span className="text-xs text-emerald-600 flex items-center gap-1">
+            <CheckCircle2 className="h-4 w-4" /> Kaydedildi
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={2}
+          max={30}
+          step={1}
+          value={current}
+          onChange={(e) => setVal(Number(e.target.value))}
+          disabled={!canEdit}
+          className="flex-1"
+        />
+        <div className="w-20 text-center">
+          <span className="text-2xl font-bold text-brand-600">{current}</span>
+          <span className="text-xs text-slate-500 ml-1">sn</span>
+        </div>
+        {canEdit && (
+          <button onClick={save} disabled={saving} className="btn-primary">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Kaydet
+          </button>
+        )}
       </div>
     </div>
   );

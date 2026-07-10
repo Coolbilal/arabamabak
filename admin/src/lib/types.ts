@@ -750,6 +750,7 @@ export interface SiteSettings {
   logo_size: string | null;
   logo_url: string | null;
   min_bid_increment: number;
+  premium_slider_interval_seconds: number;
   min_bid_increase: number;
   max_bid_increase: number;
   primary_color: string;
