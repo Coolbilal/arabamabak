@@ -361,6 +361,17 @@ function PremiumAuctionSlider({
   const slideCount = Math.ceil(items.length / 2);
   const [idx, setIdx] = useState(0);
 
+  // Ekran boyutuna göre mobilde tek, masaüstünde 2'li gösterim
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false,
+  );
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const stepPercent = isMobile ? 100 : 50;
+
   // Sürükle-bırak state
   const [dragStartX, setDragStartX] = useState<number | null>(null);
   const [dragDx, setDragDx] = useState(0);
@@ -423,10 +434,13 @@ function PremiumAuctionSlider({
     >
       <div
         className={cn('flex', !isDragging && 'transition-transform duration-700 ease-in-out')}
-        style={{ transform: `translateX(calc(-${idx * 50}% + ${dragDx}px))` }}
+        style={{ transform: `translateX(calc(-${idx * stepPercent}% + ${dragDx}px))` }}
       >
         {items.map((s) => (
-          <div key={s.key} className="w-1/2 flex-shrink-0 px-2">
+          <div
+            key={s.key}
+            className="w-full md:w-1/2 flex-shrink-0 px-2"
+          >
             {s.type === 'ad' ? (
               <AdBannerCard banner={s.payload as AdBannerItem} />
             ) : (
