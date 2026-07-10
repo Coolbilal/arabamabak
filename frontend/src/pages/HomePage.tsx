@@ -335,7 +335,8 @@ function PremiumAuctionSlider({
   intervalSec: number;
   loading: boolean;
 }) {
-  // Tüm ilan + banner'lar bir dizi, sonra 2'li gruplara (slide) bölünür
+  // Tüm ilan + banner'lar düz bir dizi (her biri = 1 slide)
+  // Masaüstünde 3 ilan yan yana görünür, sürüklendikçe kayar
   const items = useMemo(() => {
     type Item = { type: 'vehicle' | 'ad'; payload: BannerVehicle | AdBannerItem; key: string };
     const list: Item[] = [];
@@ -344,7 +345,6 @@ function PremiumAuctionSlider({
     let adCursor = 0;
     vehList.forEach((v, i) => {
       list.push({ type: 'vehicle', payload: v, key: `v-${v.id}` });
-      // her 3 ilandan sonra 1 banner karıştır
       if ((i + 1) % 3 === 0 && adCursor < adList.length) {
         const ad = adList[adCursor++];
         list.push({ type: 'ad', payload: ad, key: `a-${ad.id}` });
@@ -353,27 +353,26 @@ function PremiumAuctionSlider({
     if (adCursor === 0 && adList.length > 0) {
       list.push({ type: 'ad', payload: adList[0], key: `a-${adList[0].id}` });
     }
-    // 2'li gruplara böl (her grup = 1 slide)
-    const slides: Item[][] = [];
-    for (let i = 0; i < list.length; i += 2) {
-      slides.push(list.slice(i, i + 2));
-    }
-    return slides;
+    return list;
   }, [vehicles, ads]);
 
   const slideCount = items.length;
   const [idx, setIdx] = useState(0);
 
-  // Ekran boyutuna göre mobilde tek, masaüstünde 2'li gösterim
-  const [isMobile, setIsMobile] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.innerWidth < 768 : false,
+  // Masaüstünde 3 ilan yan yana, 3'ü birden kayar
+  // Mobilde 1 ilan tam boy
+  const [windowWidth, setWindowWidth] = useState<number>(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 1280,
   );
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768);
+    const onResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
-  const stepPercent = isMobile ? 100 : 50;
+  // stepPercent: 1 ilanın container'ın yüzde kaçını kapladığını gösterir
+  const isMobile = windowWidth < 768;
+  const stepPercent = isMobile ? 100 : 33.333; // 1 ilan tam / 3 ilan / 3
+  const widthClass = isMobile ? 'w-full' : 'w-1/3'; // her zaman w-1/3 masaüstünde
 
   // Sürükle-bırak state
   const [dragStartX, setDragStartX] = useState<number | null>(null);
@@ -440,18 +439,13 @@ function PremiumAuctionSlider({
           className={cn('flex', !isDragging && 'transition-transform duration-700 ease-in-out')}
           style={{ transform: `translateX(calc(-${idx * stepPercent}% + ${dragDx}px))` }}
         >
-          {items.map((slide, i) => (
-            <div key={`slide-${i}`} className="w-full md:w-1/2 flex-shrink-0 px-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {slide.map((s) =>
-                  s.type === 'ad' ? (
-                    <AdBannerCard key={s.key} banner={s.payload as AdBannerItem} />
-                  ) : (
-                    <PremiumAuctionCard key={s.key} v={s.payload as BannerVehicle} />
-                  ),
-                )}
-                {slide.length === 1 && <div className="hidden md:block" />}
-              </div>
+          {items.map((s) => (
+            <div key={s.key} className={cn(widthClass, 'flex-shrink-0 px-2')}>
+              {s.type === 'ad' ? (
+                <AdBannerCard banner={s.payload as AdBannerItem} />
+              ) : (
+                <PremiumAuctionCard v={s.payload as BannerVehicle} />
+              )}
             </div>
           ))}
         </div>
