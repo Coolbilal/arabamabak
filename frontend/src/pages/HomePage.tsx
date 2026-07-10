@@ -519,7 +519,7 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
   const cover = v.images?.[0]?.url;
   const a = (v as any).auction;
   const startAt = a?.start_at ? new Date(a.start_at).getTime() : null;
-  const openingBid = a?.opening_price ?? a?.starting_price ?? v.price;
+  const startingPrice = a?.starting_price ?? v.price;
   const [remaining, setRemaining] = useState<number | null>(() =>
     startAt ? Math.max(0, startAt - Date.now()) : null,
   );
@@ -535,66 +535,47 @@ function PremiumAuctionCard({ v }: { v: BannerVehicle }) {
   return (
     <Link
       to={`/ilan/${v.id}`}
-      className="group card overflow-hidden transition hover:shadow-md h-full"
+      className="group relative block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md h-full"
     >
-      <div className="relative aspect-[16/10] w-full bg-slate-100">
+      <div className="aspect-[16/9] w-full bg-slate-100 relative">
         {cover ? (
           <img src={cover} alt={v.title} className="h-full w-full object-cover transition group-hover:scale-105" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-slate-300">
-            <Car className="h-12 w-12" />
-          </div>
-        )}
-
-        {/* Sol üst: rozetler */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
-          <span className="badge bg-amber-500 text-white inline-flex items-center gap-1 shadow-lg shadow-amber-500/30">
-            <Star className="h-3 w-3 fill-current" /> PREMIUM
-          </span>
-          <span className="badge bg-amber-100 text-amber-800 inline-flex items-center gap-1">
-            YAKINDA
-          </span>
-        </div>
-
-        {/* Sağ alt: kronometre */}
-        {remaining !== null && (
-          <div className="absolute bottom-2 right-2 z-10">
-            <div className="relative">
-              <div className="absolute inset-0 bg-rose-300/70 blur-md animate-pulse rounded-md" />
-              <span className="relative inline-flex items-center gap-1 rounded-md bg-rose-100/95 px-2.5 py-1 text-xs font-extrabold text-rose-700 shadow-lg shadow-rose-300/40 ring-1 ring-rose-200/80 tabular-nums backdrop-blur-sm">
-                <Clock className="h-3 w-3 text-rose-600" />
-                {formatRemaining(remaining)}
-              </span>
-            </div>
+            <Car className="h-16 w-16" />
           </div>
         )}
       </div>
-
-      <div className="p-3 space-y-1.5">
-        <div className="text-xs text-slate-500">
+      <div className="absolute top-3 left-3 flex items-center gap-2">
+        <span className="badge bg-amber-500 text-white inline-flex items-center gap-1 shadow-lg shadow-amber-500/30">
+          <Star className="h-3 w-3 fill-current" /> PREMIUM
+        </span>
+        <span className="badge bg-red-600 text-white shadow-lg shadow-red-600/30">AÇIK ARTTIRMA</span>
+      </div>
+      {remaining !== null && (
+        <div className="absolute top-3 right-3 z-10">
+          <div className="relative">
+            <div className="absolute inset-0 bg-rose-300/70 blur-md animate-pulse rounded-full" />
+            <span className="relative inline-flex items-center gap-1 rounded-full bg-rose-100/95 px-3 py-1 text-sm font-extrabold text-rose-700 shadow-lg shadow-rose-300/40 ring-2 ring-rose-200/80 tabular-nums backdrop-blur-sm">
+              <Clock className="h-3.5 w-3.5 text-rose-600" />
+              {formatRemaining(remaining)}
+            </span>
+          </div>
+        </div>
+      )}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 text-white">
+        <div className="text-sm opacity-90">
           {v.brand?.name ?? 'Marka'} {v.model?.name ? `· ${v.model.name}` : ''} · {v.year}
         </div>
-        <div className="line-clamp-1 text-sm font-semibold text-slate-900">{v.title}</div>
-        <div className="grid grid-cols-2 gap-1 text-xs text-slate-600 pt-1">
-          <Spec icon={<Settings2 className="h-3 w-3" />}>{formatKm(v.km)}</Spec>
-          <Spec icon={<Fuel className="h-3 w-3" />}>{String(v.fuel ?? '-')}</Spec>
-          <Spec icon={<Palette className="h-3 w-3" />}>{v.color ?? '-'}</Spec>
-          <Spec icon={<MapPin className="h-3 w-3" />}>{v.city ?? '-'}</Spec>
-        </div>
-
-        <div className="mt-2 border-t border-slate-100 pt-2 flex items-center justify-between">
+        <div className="text-base font-bold leading-tight line-clamp-1">{v.title}</div>
+        <div className="mt-1 flex items-center justify-between gap-2">
           <div>
-            <div className="text-[11px] text-slate-500 uppercase tracking-wide">Açılış Fiyatı</div>
-            <div className="text-base font-extrabold text-brand-600">{formatPrice(openingBid)}</div>
+            <div className="text-[10px] uppercase tracking-wider text-amber-300/90">Açılış Fiyatı</div>
+            <div className="text-xl font-extrabold text-amber-300">{formatPrice(startingPrice)}</div>
           </div>
-          <div className="text-right">
-            <div className="text-[11px] text-slate-500">Başlangıç</div>
-            <div className="text-xs font-medium text-slate-700">
-              {startAt
-                ? new Date(startAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })
-                : '—'}
-            </div>
-          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-xs">
+            <Gavel className="h-3.5 w-3.5" /> Yaklaşıyor
+          </span>
         </div>
       </div>
     </Link>
