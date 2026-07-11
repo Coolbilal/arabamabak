@@ -174,8 +174,8 @@ export default function CreateListingPage() {
     }
   }
 
-  // Cüzdan bakiyesini düş
-  async function deductWallet(amount: number): Promise<boolean> {
+  // Cüzdan bakiyesini düş (ilan INSERT olduktan SONRA, gerçek vehicle_id ile)
+  async function deductWallet(amount: number, vehicleId: string): Promise<boolean> {
     if (!user) {
       setError('Giriş yapmalısınız');
       return false;
@@ -183,7 +183,7 @@ export default function CreateListingPage() {
     const { error: rpcErr } = await supabase.rpc('deduct_wallet_for_listing', {
       p_user_id: user.id,
       p_amount: amount,
-      p_vehicle_id: '00000000-0000-0000-0000-000000000000',
+      p_vehicle_id: vehicleId,
       p_description: 'İlan verme ücreti (ön ödeme)',
     });
     if (rpcErr) {
@@ -193,21 +193,22 @@ export default function CreateListingPage() {
     return true;
   }
 
+  // Yönlendirme için state (useEffect içinde navigate)
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+  useEffect(() => {
+    if (shouldRedirect) {
+      navigate('/profil/ilanlarim');
+      setShouldRedirect(false);
+    }
+  }, [shouldRedirect, navigate]);
+
   async function submitListing(currentUser: any) {
     if (!currentUser) return;
     setSubmitting(true);
     setError(null);
     setSuccess(null);
     try {
-      // Ücretli ilan ise cüzdan kontrolü
-      if (isAuction && paymentMethod === 'wallet') {
-        const ok = await deductWallet(fee);
-        if (!ok) {
-          setSubmitting(false);
-          return;
-        }
-      }
-
+      // ÖNCE ilanı INSERT et
       const payload: any = {
         seller_id: currentUser.id,
         vehicle_type: form.vehicle_type,
@@ -240,6 +241,17 @@ export default function CreateListingPage() {
       if (insertErr) throw insertErr;
       if (!data) throw new Error('İlan eklendi ama veri dönmedi');
 
+      // INSERT sonrası cüzdan düş (gerçek vehicle_id ile)
+      if (isAuction && paymentMethod === 'wallet') {
+        const ok = await deductWallet(fee, data.id);
+        if (!ok) {
+          // Cüzdan düşmedi, ilanı sil (rollback)
+          await supabase.from('vehicles').delete().eq('id', data.id);
+          setSubmitting(false);
+          return;
+        }
+      }
+
       // Fotoğrafları vehicle_images tablosuna ekle
       console.log('DEBUG form.images:', form.images, 'vehicle_id:', data.id);
       if (form.images && form.images.length > 0) {
@@ -263,10 +275,9 @@ export default function CreateListingPage() {
       setSuccess('İlanınız başarıyla oluşturuldu! İlan admin onayından sonra yayına alınacaktır.');
       setSubmitting(false);
 
-      // 4 saniye sonra Profil > İlanlarım sayfasına yönlendir
-      // (mesaj kullanıcıya yeterli süre görünür)
+      // 4 saniye sonra yönlendir (useEffect ile)
       setTimeout(() => {
-        navigate('/profil/ilanlarim');
+        setShouldRedirect(true);
       }, 4000);
     } catch (e: any) {
       setError(e.message || 'İlan eklenirken hata oluştu');
