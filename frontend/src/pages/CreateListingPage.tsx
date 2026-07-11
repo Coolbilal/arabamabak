@@ -208,7 +208,7 @@ export default function CreateListingPage() {
     setError(null);
     setSuccess(null);
     try {
-      // ÖNCE ilanı INSERT et
+      // ÖNCE ilanı INSERT et (RPC ile — RLS bypass)
       const payload: any = {
         seller_id: currentUser.id,
         vehicle_type: form.vehicle_type,
@@ -233,13 +233,12 @@ export default function CreateListingPage() {
         listing_type: form.listing_type,
         status: 'pending',
       };
-      const { data, error: insertErr } = await supabase
-        .from('vehicles')
-        .insert(payload)
-        .select()
-        .single();
-      if (insertErr) throw insertErr;
-      if (!data) throw new Error('İlan eklendi ama veri dönmedi');
+      const { data: vehicleId, error: rpcErr } = await supabase.rpc('submit_vehicle_listing', {
+        p_payload: payload,
+      });
+      if (rpcErr) throw rpcErr;
+      if (!vehicleId) throw new Error('İlan eklendi ama veri dönmedi');
+      const data = { id: vehicleId };
 
       // INSERT sonrası cüzdan düş (gerçek vehicle_id ile)
       if (isAuction && paymentMethod === 'wallet') {
