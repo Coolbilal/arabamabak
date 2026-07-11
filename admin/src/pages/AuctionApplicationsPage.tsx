@@ -163,6 +163,7 @@ export default function AuctionApplicationsPage() {
   // ---- Onay + Slot seçimi ----
   const approveM = useMutation({
     mutationFn: async ({ row, slotId }: { row: AppRow; slotId: string | null }) => {
+      // admin_users'dan admin id al
       const { data: adminRow, error: aErr } = await supabase
         .from('admin_users')
         .select('id')
@@ -170,71 +171,16 @@ export default function AuctionApplicationsPage() {
         .eq('is_active', true)
         .maybeSingle();
       if (aErr) throw aErr;
-      const now = new Date().toISOString();
+      const adminId = adminRow?.id;
 
-      // 1) vehicle onayla
-      const { error: vErr } = await supabase.from('vehicles').update({
-        status: 'active' as ListingStatus,
-        approved_at: now,
-        approved_by: adminRow?.id ?? null,
-        published_at: now,
-        rejection_reason: null,
-      }).eq('id', row.id);
-      if (vErr) throw vErr;
-
-      // 2) Auction oluştur (varsa güncelle)
-      const existingAuction = Array.isArray(row.auction) ? (row.auction as any[])[0] : row.auction;
-      const { data: settings } = await supabase
-        .from('site_settings')
-        .select('auction_default_duration_minutes')
-        .eq('id', 1)
-        .maybeSingle();
-      const durationMinutes = Number(settings?.auction_default_duration_minutes ?? 30);
-      const opening = Number(row.price) || 0;
-
-      // Slot bilgilerini çek
-      let startAt: string | null = null;
-      let endAt: string | null = null;
-      if (slotId) {
-        const { data: slot } = await supabase
-          .from('auction_slots')
-          .select('slot_date, start_time, end_time')
-          .eq('id', slotId)
-          .maybeSingle();
-        if (slot) {
-          startAt = new Date(`${slot.slot_date}T${slot.start_time}`).toISOString();
-          endAt = new Date(new Date(startAt).getTime() + durationMinutes * 60_000).toISOString();
-        }
-      }
-
-      if (existingAuction?.id) {
-        // Mevcut auction'ı güncelle (slot atanmamış ise)
-        const update: any = {};
-        if (slotId) {
-          update.slot_id = slotId;
-          update.start_at = startAt;
-          update.end_at = endAt;
-          update.duration_minutes = durationMinutes;
-        }
-        if (Object.keys(update).length > 0) {
-          const { error } = await supabase.from('auctions').update(update).eq('id', existingAuction.id);
-          if (error) throw error;
-        }
-      } else {
-        // Yeni auction oluştur
-        const { error: aInsErr } = await supabase.from('auctions').insert({
-          vehicle_id: row.id,
-          opening_price: opening,
-          current_price: opening,
-          bid_increment: 100,
-          slot_id: slotId,
-          start_at: startAt,
-          end_at: endAt,
-          duration_minutes: durationMinutes,
-          status: 'scheduled',
-        });
-        if (aInsErr) throw aInsErr;
-      }
+      // RPC çağır (RLS bypass, service role gibi çalışır)
+      const { data, error } = await supabase.rpc('admin_approve_application', {
+        p_vehicle_id: row.id,
+        p_slot_id: slotId,
+        p_admin_id: adminId,
+      });
+      if (error) throw error;
+      return data;
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['auction-applications'] });
