@@ -120,6 +120,15 @@ export default function CreateListingPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
 
+  // Yönlendirme için state + useEffect (hooks kuralı: tüm hooks'lar return'den önce)
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+  useEffect(() => {
+    if (shouldRedirect) {
+      navigate('/profil/ilanlarim');
+      setShouldRedirect(false);
+    }
+  }, [shouldRedirect, navigate]);
+
   // Test amaçlı cüzdan bakiyesi (production'da Supabase'den çekilecek)
   const [walletBalance] = useState(500);
 
@@ -192,15 +201,6 @@ export default function CreateListingPage() {
     }
     return true;
   }
-
-  // Yönlendirme için state (useEffect içinde navigate)
-  const [shouldRedirect, setShouldRedirect] = useState(false);
-  useEffect(() => {
-    if (shouldRedirect) {
-      navigate('/profil/ilanlarim');
-      setShouldRedirect(false);
-    }
-  }, [shouldRedirect, navigate]);
 
   async function submitListing(currentUser: any) {
     if (!currentUser) return;
