@@ -1,16 +1,52 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { SiteSettings } from '../lib/types';
-import { Building2, Phone, Mail, ShieldCheck, FileText, TrendingUp, Car } from 'lucide-react';
+import { Building2, Phone, Mail, Search, ShieldCheck, FileText, TrendingUp, Car } from 'lucide-react';
 
 export default function Footer() {
+  const navigate = useNavigate();
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [searchNo, setSearchNo] = useState('');
+  const [searchErr, setSearchErr] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+
   useEffect(() => {
     supabase.from('site_settings').select('*').eq('id', 1).maybeSingle().then(({ data }) => {
       if (data) setSettings(data as unknown as SiteSettings);
     });
   }, []);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchErr(null);
+    const q = searchNo.trim().toUpperCase();
+    if (!q) {
+      setSearchErr('İlan no girin');
+      return;
+    }
+    setSearching(true);
+    try {
+      // Sadece aktif ilanlar arasında ara
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('id, listing_no, status')
+        .eq('listing_no', q)
+        .eq('status', 'active')
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setSearchErr('İlan bulunamadı veya pasif durumda');
+        return;
+      }
+      navigate(`/ilan/${data.id}`);
+      setSearchNo('');
+    } catch (err: any) {
+      setSearchErr(err?.message ?? 'Arama hatası');
+    } finally {
+      setSearching(false);
+    }
+  };
 
   return (
     <footer className="mt-12 border-t border-slate-200 bg-slate-900 text-slate-300">
@@ -78,6 +114,35 @@ export default function Footer() {
               </a>
             )}
           </div>
+        </div>
+      </div>
+      <div className="border-t border-slate-800 py-6">
+        <div className="mx-auto max-w-7xl px-4">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <label className="text-sm font-semibold text-white whitespace-nowrap flex items-center gap-2">
+              <Search className="h-4 w-4" /> İlan No ile Ara:
+            </label>
+            <input
+              type="text"
+              value={searchNo}
+              onChange={(e) => { setSearchNo(e.target.value); setSearchErr(null); }}
+              placeholder="ARB-2026-000001"
+              className="flex-1 rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+            />
+            <button
+              type="submit"
+              disabled={searching}
+              className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-amber-400 disabled:opacity-50"
+            >
+              {searching ? 'Aranıyor...' : 'Ara'}
+            </button>
+            {searchErr && (
+              <span className="text-xs text-rose-400 sm:ml-2">{searchErr}</span>
+            )}
+          </form>
+          <p className="mt-2 text-[11px] text-slate-500">
+            Sadece aktif ilanlar aranır. Pasif/biten ilanlar görüntülenmez.
+          </p>
         </div>
       </div>
       <div className="border-t border-slate-800 py-4">
