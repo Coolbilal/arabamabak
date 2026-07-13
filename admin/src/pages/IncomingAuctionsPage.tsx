@@ -279,8 +279,9 @@ function SlotReassignModal({
   const assign = useMutation({
     mutationFn: async (slotId: string | null) => {
       const slot = slotId ? (slotsQ.data ?? []).find((s: any) => s.id === slotId) as any : null;
+      // Türkiye saati (UTC+3) olarak parse et
       const startAt = slot
-        ? new Date(`${slot.slot_date}T${slot.start_time}`).toISOString()
+        ? new Date(`${slot.slot_date}T${slot.start_time}+03:00`).toISOString()
         : null;
       const { error } = await supabase.from('auctions').update({
         slot_id: slotId,
