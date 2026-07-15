@@ -26,6 +26,7 @@ interface Banner {
 }
 
 const POSITIONS = [
+  { value: 'header_top', label: 'Header Üstü (Ortalı Banner)' },
   { value: 'hero_inline', label: 'Hero Slider (İlan arası)' },
   { value: 'side_left', label: 'Sol Yan' },
   { value: 'side_right', label: 'Sağ Yan' },
