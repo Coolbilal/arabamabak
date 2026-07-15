@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { SoldStamp } from '../components/SoldStamp';
 import { cn, formatDate, formatDateOnly, formatKm, formatPrice, pad, timeUntil } from '../lib/utils';
 import CountdownTimer from '../components/CountdownTimer';
-import AuctionStartBanner from '../components/AuctionStartBanner';
 import type {
   Auction,
   Bid,
