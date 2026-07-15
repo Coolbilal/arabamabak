@@ -64,18 +64,20 @@ export default function HeaderTopAdBanner() {
     })();
   };
 
-  // Banner görseli — otomatik ölçeklenir, link tıklanabilir
+  // Banner görseli — sayfanın tamamını kaplar (mx-auto max-w-7xl ile header ile aynı hizada)
+  // Header'ın kendi container'ı max-w-7xl, biz de aynısını kullanıyoruz (px-4 ile aynı hizada)
+  // max-h-24 = 96px yükseklik sınırı, object-contain = oranı koruyarak sığdır
   const img = (
     <img
       src={banner.image_url}
       alt={banner.title}
-      className="block w-full h-auto max-h-24 object-contain"
+      className="block w-full h-auto max-h-24 object-contain rounded-md"
     />
   );
 
   return (
     <div className="w-full bg-slate-50 border-b border-slate-200">
-      <div className="mx-auto max-w-[95%] py-2">
+      <div className="mx-auto max-w-7xl px-4 py-2">
         {banner.link_url ? (
           <a
             href={banner.link_url}
