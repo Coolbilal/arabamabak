@@ -81,8 +81,6 @@ export default function HeaderTopAdBanner() {
         {banner.link_url ? (
           <a
             href={banner.link_url}
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={handleClick}
             className="block"
           >
