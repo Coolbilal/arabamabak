@@ -77,8 +77,8 @@ export default function HeaderTopAdBanner() {
 
   return (
     <div className="w-full bg-slate-50 border-b border-slate-200">
-      <div className="mx-auto w-[95%] py-1">
-        <div className="aspect-[16/2.5] max-h-14">
+      <div className="w-full py-1">
+        <div className="aspect-[16/2.5] max-h-14 w-full">
           {banner.link_url ? (
             <a
               href={banner.link_url}
