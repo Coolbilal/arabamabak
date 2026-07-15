@@ -64,31 +64,33 @@ export default function HeaderTopAdBanner() {
     })();
   };
 
-  // Banner görseli — sayfanın en solundan en sağına kadar yatay uzanır
-  // Header satırından (max-w-7xl = 1280px) biraz daha dar olabilir (örn: %90-95)
-  // max-h-24 = 96px yükseklik sınırı, object-cover = alanı tamamen kaplar (kırpılabilir)
+  // Banner görseli — sabit oran, header'dan 8px daha kısa (56px = 1.48 cm)
+  // Sayfa genişliğinin %95'i, object-cover = alanı tamamen kaplar
+  // aspect-[16/2.5] = 1280:200 oran — her banner aynı kutuya sığar
   const img = (
     <img
       src={banner.image_url}
       alt={banner.title}
-      className="block w-full h-auto max-h-24 object-cover rounded-md"
+      className="block w-full h-full max-h-14 object-cover rounded-md"
     />
   );
 
   return (
     <div className="w-full bg-slate-50 border-b border-slate-200">
-      <div className="mx-auto w-[95%] py-2">
-        {banner.link_url ? (
-          <a
-            href={banner.link_url}
-            onClick={handleClick}
-            className="block"
-          >
-            {img}
-          </a>
-        ) : (
-          img
-        )}
+      <div className="mx-auto w-[95%] py-1">
+        <div className="aspect-[16/2.5] max-h-14">
+          {banner.link_url ? (
+            <a
+              href={banner.link_url}
+              onClick={handleClick}
+              className="block w-full h-full"
+            >
+              {img}
+            </a>
+          ) : (
+            img
+          )}
+        </div>
       </div>
     </div>
   );
