@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { SoldStamp } from '../components/SoldStamp';
-import { cn, formatDate, formatDateOnly, formatKm, formatPrice, timeUntil } from '../lib/utils';
+import { cn, formatDate, formatDateOnly, formatKm, formatPrice, pad, timeUntil } from '../lib/utils';
 import CountdownTimer from '../components/CountdownTimer';
+import AuctionStartBanner from '../components/AuctionStartBanner';
 import type {
   Auction,
   Bid,
@@ -93,9 +94,7 @@ export default function VehicleDetailPage() {
       await supabase
         .from('vehicles')
         .update({ view_count: currentCount + 1 })
-        .eq('id', id)
-        .select('view_count')
-        .single();
+        .eq('id', id);
     })();
     return () => {
       cancelled = true;
@@ -157,33 +156,28 @@ export default function VehicleDetailPage() {
     },
   });
 
-  // Realtime bids + auction + seat changes
-  const realtimeAuctionId = vehicle.data?.auction?.id;
+  // Realtime bids
   useEffect(() => {
-    const auctionId = realtimeAuctionId;
+    const auctionId = vehicle.data?.auction?.id;
     if (!auctionId) return;
     const channel = supabase
-      .channel(`auction-live-${auctionId}`)
+      .channel(`bids-${auctionId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bids', filter: `auction_id=eq.${auctionId}` },
         () => {
           queryClient.invalidateQueries({ queryKey: ['bids', auctionId] });
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'auction_seat_holds', filter: `auction_id=eq.${auctionId}` },
-        () => {
-          if (user) queryClient.invalidateQueries({ queryKey: ['my-seat', auctionId, user.id] });
-          queryClient.invalidateQueries({ queryKey: ['seat-count', auctionId] });
+          queryClient.invalidateQueries({ queryKey: qcKey });
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [realtimeAuctionId]);
+  }, [vehicle.data?.auction?.id, queryClient, qcKey]);
+
+  // Banner + otomatik tetikleme AuctionStartBanner componentinde
+  const bannerAuction = vehicle.data?.auction ?? null;
 
   const startConversation = useMutation({
     mutationFn: async () => {
@@ -233,6 +227,8 @@ export default function VehicleDetailPage() {
       </div>
     );
   }
+
+  // Banner state'i artık 182'de (erken return'den önce) tanımlı
   if (!vehicle.data) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-10 text-center text-slate-500">İlan bulunamadı.</div>
@@ -240,30 +236,21 @@ export default function VehicleDetailPage() {
   }
 
   const v = vehicle.data;
-  const auction = v.auction;
+  const auction = bannerAuction; // geriye dönük uyumluluk
   const isOwnListing = user?.id === v.seller_id;
-
-  // Auto-reveal RPC çağrısı kaldırıldı — Supabase trigger ile yapılacak
-
-  // İletişim sadece onaylanmış kazanan kullanıcıya açılır
-  // Açık arttırma süresince (live/scheduled) HERKES İÇİN GİZLİ
-  const isAuctionActive = auction?.status === 'live' || auction?.status === 'scheduled';
-  const isApprovedWinner = Boolean(
-    auction?.winner_id === user?.id &&
-    (auction?.contact_reveal_approved_at || auction?.seller_confirmed) &&
-    !auction?.seller_rejected_at
-  );
   const contactHiddenForUser =
     !!auction &&
     v.contact_hidden &&
-    (isAuctionActive || !isApprovedWinner) &&
-    v.contact_revealed_to !== user?.id;
+    v.contact_revealed_to !== user?.id &&
+    !(auction.winner_id && auction.winner_id === user?.id);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <Link to="/" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-3">
         <ChevronLeft className="h-4 w-4" /> Geri
       </Link>
+
+      <AuctionStartBanner auction={bannerAuction} qcKey={qcKey} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
         {/* Gallery + Content */}
@@ -345,10 +332,6 @@ export default function VehicleDetailPage() {
             />
           )}
 
-          {auction && isOwnListing && (auction.status === 'sold_pending_confirmation' || (auction.status === 'ended' && auction.winning_bid_id && !auction.seller_confirmed)) && (
-            <SellerApprovalPanel auction={auction} bids={bids.data ?? []} />
-          )}
-
           {!auction && (
             <div className="card p-5">
               <div className="text-xs text-slate-500">Fiyat</div>
@@ -362,37 +345,14 @@ export default function VehicleDetailPage() {
           <div className="card p-5 space-y-3">
             <h3 className="font-semibold text-slate-900">Satıcı</h3>
             {contactHiddenForUser ? (
-              <div className="space-y-1.5 text-sm">
-                <div className="font-semibold text-slate-900">
-                  {v.seller?.full_name || 'İsimsiz Satıcı'}
-                </div>
-                <div className="relative rounded-lg border-2 border-dashed border-amber-300 bg-gradient-to-br from-amber-50 to-amber-100 p-4 text-center">
-                  <div className="select-none blur-sm">
-                    <div className="flex items-center gap-2 text-slate-700">
-                      <Phone className="h-4 w-4" /> 05XX XXX XX XX
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-700 mt-1">
-                      <Mail className="h-4 w-4" /> xxx@xxx.com
-                    </div>
-                  </div>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <AlertCircle className="h-5 w-5 text-amber-700 mb-1" />
-                    <div className="text-xs font-semibold text-amber-900">
-                      İletişim Bilgileri Gizli
-                    </div>
-                    <div className="text-[10px] text-amber-700 mt-0.5">
-                      Son teklif sahibine açılır
-                    </div>
-                  </div>
-                </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <AlertCircle className="inline h-4 w-4 mr-1" />
+                Açık arttırmayı kazandığınızda iletişim bilgileri açılır.
               </div>
             ) : (
               <div className="space-y-1.5 text-sm">
-                <div className="font-semibold text-slate-900 flex items-center gap-2">
+                <div className="font-semibold text-slate-900">
                   {v.seller?.full_name || 'İsimsiz Satıcı'}
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                    <CheckCircle2 className="h-3 w-3" /> İLETİŞİM AÇIK
-                  </span>
                 </div>
                 {v.seller?.phone && (
                   <a
@@ -651,7 +611,6 @@ function SpecRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 }
 
 /* ---------------- Auction panel ---------------- */
-/* ---------------- Auction panel ---------------- */
 
 function AuctionPanel({
   auction,
@@ -675,147 +634,30 @@ function AuctionPanel({
   const [bidAmount, setBidAmount] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showAllBids, setShowAllBids] = useState(false);
-  const [pulse, setPulse] = useState(false);
-  const [lastBidId, setLastBidId] = useState<string | null>(null);
 
-  // Site ayarları (min artış yüzdesi için)
-  const siteSettings = useQuery({
-    queryKey: ['site-settings'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('site_settings')
-        .select('min_bid_increase, max_bid_increase')
-        .eq('id', 1)
-        .maybeSingle();
-      if (error) throw error;
-      return data as { min_bid_increase?: number; max_bid_increase?: number } | null;
-    },
-    staleTime: 60_000,
-  });
-
-  const minIncrease = Number(siteSettings.data?.min_bid_increase ?? 1000);
-  const maxIncrease = Number(siteSettings.data?.max_bid_increase ?? 50000);
-  const minNextBid = Number(auction.current_price) + minIncrease;
-  const maxNextBid = Number(auction.current_price) + maxIncrease;
-
-  const wallet = useQuery({
-    queryKey: ['wallet', user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('wallet_balance')
-        .eq('id', user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data?.wallet_balance ?? 0;
-    },
-  });
-
-  const mySeat = useQuery({
-    queryKey: ['my-seat', auction.id, user?.id],
-    enabled: !!user && !!auction.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('auction_seat_holds')
-        .select('id, status, amount, bid_id, created_at')
-        .eq('auction_id', auction.id)
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data as { id: string; status: string; amount: number; bid_id: string | null; created_at?: string } | null;
-    },
-  });
-
-  const seatCount = useQuery({
-    queryKey: ['seat-count', auction.id],
-    enabled: !!auction.id,
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('auction_seat_holds')
-        .select('id', { count: 'exact', head: true })
-        .eq('auction_id', auction.id)
-        .eq('status', 'holding');
-      if (error) throw error;
-      return count ?? 0;
-    },
-  });
-
-  // Yeni teklif geldi mi? (animasyon için)
-  const topBidId = bids[0]?.id;
-  useEffect(() => {
-    if (!topBidId) return;
-    if (topBidId !== lastBidId) {
-      setLastBidId(topBidId);
-      setPulse(true);
-      const t = setTimeout(() => setPulse(false), 1500);
-      return () => clearTimeout(t);
-    }
-  }, [topBidId, lastBidId]);
-
-  const isAtTable = mySeat.data?.status === 'holding';
-  const isWinningBidder = Boolean(
-    isAtTable && auction.winning_bid_id && bids[0]?.id === auction.winning_bid_id &&
-    bids[0]?.bidder?.id === user?.id
-  );
-
-  const joinTable = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.rpc('join_table', {
-        p_auction_id: auction.id,
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-seat', auction.id] });
-      queryClient.invalidateQueries({ queryKey: ['seat-count', auction.id] });
-      queryClient.invalidateQueries({ queryKey: ['wallet', user?.id] });
-      setSuccess('Masaya oturdunuz!');
-      setTimeout(() => setSuccess(null), 3000);
-    },
-    onError: (e: Error) => setError(e.message),
-  });
-
-  const leaveTable = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.rpc('leave_table', {
-        p_auction_id: auction.id,
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-seat', auction.id] });
-      queryClient.invalidateQueries({ queryKey: ['seat-count', auction.id] });
-      queryClient.invalidateQueries({ queryKey: ['wallet', user?.id] });
-      setSuccess('Masadan ayrildiniz.');
-      setTimeout(() => setSuccess(null), 3000);
-    },
-    onError: (e: Error) => setError(e.message),
-  });
+  const minNextBid = Number(auction.current_price) + Number(auction.bid_increment);
 
   const placeBid = useMutation({
     mutationFn: async (amount: number) => {
-      if (!user) throw new Error('Teklif vermek icin giris yapmalisiniz');
-      if (!isAtTable) throw new Error('Teklif vermek icin masaya oturmali siniz');
-      const { data, error } = await supabase.rpc('place_bid', {
-        p_auction_id: auction.id,
-        p_amount: amount,
-      });
+      if (!user) throw new Error('Teklif vermek için giriş yapmalısınız');
+      if (isOwn) throw new Error('Kendi ilanınıza teklif veremezsiniz');
+      if (auction.status !== 'live') throw new Error('Bu açık arttırma şu anda aktif değil');
+      if (amount < minNextBid) {
+        throw new Error(
+          `Teklif en az ${formatPrice(minNextBid)} olmalıdır`,
+        );
+      }
+      const { error } = await supabase
+        .from('bids')
+        .insert({ auction_id: auction.id, bidder_id: user.id, amount });
       if (error) throw error;
-      return data;
     },
     onSuccess: () => {
       setError(null);
-      setSuccess('Teklifiniz basariyla kaydedildi!');
+      setSuccess('Teklifiniz başarıyla kaydedildi!');
       setBidAmount('');
       queryClient.invalidateQueries({ queryKey: ['bids', auction.id] });
       queryClient.invalidateQueries({ queryKey: ['vehicle', auction.vehicle_id] });
-      queryClient.invalidateQueries({ queryKey: ['my-seat', auction.id] });
       setTimeout(() => setSuccess(null), 4000);
     },
     onError: (e: Error) => setError(e.message),
@@ -825,56 +667,35 @@ function AuctionPanel({
   const isLive = auction.status === 'live';
   const isScheduled = auction.status === 'scheduled';
   const isCancelled = auction.status === 'cancelled';
-  const tStart = useMemo(() => (auction.start_at ? timeUntil(auction.start_at) : null), [auction.start_at]);
-  // 2 dakika kala veya süre geldi/geçtiyse (henüz live olmamışsa) banner göster
-  const isStartingSoon = isScheduled && tStart && tStart.total <= 120;
-  const isEnded = auction.status === 'ended' || auction.status === 'sold_pending_confirmation' ||
-    (auction.status as string) === 'sold' ||
-    (isLive && t !== null && t.total <= 0);
-
-  const maskName = (fullName: string | null | undefined): string => {
-    if (!fullName) return 'Kullanici';
-    const parts = fullName.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0];
-    const first = parts[0];
-    const last = parts[parts.length - 1];
-    return first + ' ' + last.charAt(0) + '.';
-  };
+  const isEnded = auction.status === 'ended' || (isLive && t !== null && t.total <= 0);
 
   return (
     <div className="card overflow-hidden">
       <div className="bg-gradient-to-r from-red-600 to-red-700 p-5 text-white">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold">Acik Arttirma</h3>
+          <h3 className="font-bold">Açık Arttırma</h3>
           <span
             className={cn(
               'badge',
               isLive ? 'bg-white text-red-700' : isScheduled ? 'bg-amber-300 text-amber-900' : 'bg-slate-200 text-slate-700',
             )}
           >
-            {isLive ? 'CANLI' : isScheduled ? 'PLANLANDI' : isEnded ? 'SATILDI' : 'IPTAL'}
+            {isLive ? 'CANLI' : isScheduled ? 'PLANLANDI' : 'SONA ERDİ'}
           </span>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <div className="text-[11px] uppercase opacity-80">Acilis Fiyati</div>
+            <div className="text-[11px] uppercase opacity-80">Açılış Fiyatı</div>
             <div className="text-lg font-bold">{formatPrice(auction.opening_price)}</div>
           </div>
           <div>
             <div className="text-[11px] uppercase opacity-80">Son Teklif</div>
-            <div
-              className={cn(
-                'text-lg font-bold transition-all duration-500',
-                pulse && 'animate-pulse text-yellow-200 drop-shadow-[0_0_8px_rgba(250,204,21,0.9)] scale-110',
-              )}
-            >
-              {formatPrice(auction.current_price)}
-            </div>
+            <div className="text-lg font-bold">{formatPrice(auction.current_price)}</div>
           </div>
         </div>
         <div className="mt-3">
           <div className="text-[11px] uppercase opacity-80 mb-1">
-            {isLive ? 'Mezat Bitisine' : isScheduled ? 'Baslangica' : 'Sure Doldu'}
+            {isLive ? 'Mezat Bitişine' : isScheduled ? 'Başlangıca' : 'Süre Doldu'}
           </div>
           {isLive ? (
             <CountdownTimer
@@ -891,7 +712,7 @@ function AuctionPanel({
               format="hmsm"
             />
           ) : (
-            <div className="text-2xl font-bold">Sure Doldu</div>
+            <div className="text-2xl font-bold">⏱ Süre Doldu</div>
           )}
         </div>
       </div>
@@ -899,108 +720,35 @@ function AuctionPanel({
       <div className="p-5 space-y-4">
         {isScheduled && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            Bu acik arttirma henuz baslamadi. Baslangic: {formatDate(auction.start_at)}
-          </div>
-        )}
-        {isStartingSoon && (
-          <div className="rounded-lg border-2 border-rose-400 bg-gradient-to-r from-rose-500 to-red-600 p-4 text-white shadow-lg animate-pulse">
-            <div className="flex items-center gap-2 font-bold text-base">
-              <span className="inline-block h-3 w-3 rounded-full bg-white animate-ping" />
-              AÇIK ARTTIRMA BAŞLIYOR!
-            </div>
-            <div className="text-sm mt-1 opacity-90">
-              {tStart && tStart.total > 0
-                ? `${tStart.total} saniye içinde masaya oturabilirsiniz`
-                : 'Süre geldi! Sayfa otomatik canlı moda geçecek.'}
-            </div>
+            Bu açık arttırma henüz başlamadı. Başlangıç: {formatDate(auction.start_at)}
           </div>
         )}
         {isEnded && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
             <div className="font-bold text-base flex items-center gap-1">
-              <CheckCircle2 className="h-4 w-4" />
-              {auction.status === 'sold_pending_confirmation' ? 'Onay Bekleniyor...' : 'Bu arac satildi!'}
+              <CheckCircle2 className="h-4 w-4" /> Bu araç satıldı!
             </div>
             <div className="mt-1">
-              <strong>Satis Fiyati:</strong> {formatPrice((auction as any).final_price || auction.current_price)}
+              <strong>Satış Fiyatı:</strong> {formatPrice((auction as any).final_price || auction.current_price)}
             </div>
-            {auction.status === 'sold_pending_confirmation' && (
-              <div className="text-xs mt-1">İlan sahibi onayı bekleniyor. 5 saniye içinde otomatik onaylanacak.</div>
-            )}
-            {auction.status !== 'sold_pending_confirmation' && auction.winner_id && (
+            {auction.winner_id && (
               <div className="text-xs mt-1">Kazanan belirlendi.</div>
             )}
           </div>
         )}
         {isCancelled && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            Bu acik arttirma iptal edildi.
+            Bu açık arttırma iptal edildi.
           </div>
         )}
 
-        {!isEnded && !isCancelled && user && !isOwn && (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">Masa:</span>
-                <span className="inline-flex items-center gap-1 text-slate-700">
-                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  {seatCount.data ?? 0} kisi oturuyor
-                </span>
-              </div>
-              {wallet.data !== undefined && (
-                <span className="text-xs text-slate-600">
-                  Cuzdan: <strong>{formatPrice(wallet.data)}</strong>
-                </span>
-              )}
-            </div>
-            {isAtTable ? (
-              <button
-                type="button"
-                onClick={() => leaveTable.mutate()}
-                disabled={leaveTable.isPending || isWinningBidder}
-                className={cn(
-                  'w-full rounded-lg px-4 py-2 text-sm font-semibold transition',
-                  isWinningBidder
-                    ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                    : 'bg-red-100 text-red-700 hover:bg-red-200',
-                )}
-              >
-                {leaveTable.isPending ? (
-                  <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
-                ) : null}
-                {isWinningBidder ? 'Son teklif sahibisiniz - masada kalmalisiniz' : 'Masadan Ayril'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => joinTable.mutate()}
-                disabled={joinTable.isPending || !isLive}
-                className={cn(
-                  'w-full rounded-lg px-4 py-2 text-sm font-semibold transition',
-                  (wallet.data ?? 0) < Number(auction.seat_hold_fee)
-                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700',
-                )}
-              >
-                {joinTable.isPending ? (
-                  <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
-                ) : null}
-                {(wallet.data ?? 0) < (auction.seat_hold_fee ?? 0)
-                  ? 'Cuzdana Para Yukle (Modul: ' + formatPrice(auction.seat_hold_fee ?? 0) + ')'
-                  : 'Masaya Otur (' + formatPrice(auction.seat_hold_fee ?? 0) + ' bloke)'}
-              </button>
-            )}
-          </div>
-        )}
-
-        {!isOwn && isLive && user && isAtTable && (
+        {!isOwn && isLive && user && (
           <form
             onSubmit={(e) => {
               e.preventDefault();
               const v = parseFloat(bidAmount.replace(/\./g, '').replace(',', '.'));
               if (Number.isNaN(v) || v <= 0) {
-                setError('Gecerli bir tutar girin');
+                setError('Geçerli bir tutar girin');
                 return;
               }
               placeBid.mutate(v);
@@ -1015,12 +763,11 @@ function AuctionPanel({
                 type="number"
                 inputMode="decimal"
                 min={minNextBid}
-                max={maxNextBid}
-                step={100}
+                step={auction.bid_increment}
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 className="input flex-1"
-                placeholder={`${minNextBid} - ${maxNextBid}`}
+                placeholder={String(minNextBid)}
                 required
               />
               <button
@@ -1036,25 +783,9 @@ function AuctionPanel({
                 Teklif Ver
               </button>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>Min: <strong className="text-emerald-700">{formatPrice(minNextBid)}</strong> · Max: <strong className="text-rose-700">{formatPrice(maxNextBid)}</strong></span>
-            </div>
-            <div className="flex gap-2">
-              {[1000, 5000, 10000].map((inc) => {
-                const suggested = Number(auction.current_price) + inc;
-                const final = Math.min(Math.max(suggested, minNextBid), maxNextBid);
-                return (
-                  <button
-                    key={inc}
-                    type="button"
-                    onClick={() => setBidAmount(String(final))}
-                    className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-brand-300"
-                  >
-                    +{formatPrice(inc)}
-                  </button>
-                );
-              })}
-            </div>
+            <p className="text-xs text-slate-500">
+              Artış: {formatPrice(auction.bid_increment)} · Adım: {pad(auction.bid_increment, 0)}
+            </p>
           </form>
         )}
 
@@ -1063,19 +794,13 @@ function AuctionPanel({
             to={`/giris?next=${encodeURIComponent(window.location.pathname)}`}
             className="btn-primary w-full justify-center"
           >
-            Teklif vermek icin giris yapin
+            Teklif vermek için giriş yapın
           </Link>
         )}
 
         {isOwn && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-            Bu sizin ilaniniz.
-          </div>
-        )}
-
-        {!isAtTable && !isOwn && isLive && user && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
-            Teklif verebilmek icin masaya oturmaniz ve modul ucreti ({formatPrice(auction.seat_hold_fee ?? 0)}) bloke edilmesi gerekir.
+            Bu sizin ilanınız.
           </div>
         )}
 
@@ -1090,17 +815,17 @@ function AuctionPanel({
           </div>
         )}
 
-        {contactHidden && !isWinningBidder && (
+        {contactHidden && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
             <AlertCircle className="inline h-4 w-4 mr-1" />
-            Iletisim bilgileri sadece kazanan teklif sahibine acilir.
+            Kazanan teklif verince iletişim bilgileri açılır.
           </div>
         )}
 
         <div className="border-t border-slate-200 pt-3">
           <div className="mb-2 flex items-center justify-between">
             <h4 className="text-sm font-semibold text-slate-900">
-              Son Teklifler ({auction.total_bids})
+              Teklif Geçmişi ({auction.total_bids})
             </h4>
             <button
               type="button"
@@ -1111,190 +836,36 @@ function AuctionPanel({
             </button>
           </div>
           {bidsLoading ? (
-            <p className="text-sm text-slate-500">Yukleniyor...</p>
+            <p className="text-sm text-slate-500">Yükleniyor…</p>
           ) : bids.length === 0 ? (
-            <p className="text-sm text-slate-500">Henuz teklif verilmedi.</p>
+            <p className="text-sm text-slate-500">Henüz teklif verilmedi.</p>
           ) : (
-            <>
-              <ul className="space-y-1.5">
-                {(showAllBids ? bids : bids.slice(0, 5)).map((b) => (
-                  <li
-                    key={b.id}
-                    className={cn(
-                      'flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm',
-                      b.is_winning && 'border-amber-200 bg-amber-50',
-                    )}
-                  >
-                    <div>
-                      <div className="font-semibold text-slate-800">
-                        {maskName(b.bidder?.full_name)}
-                      </div>
-                      <div className="text-[11px] text-slate-500">{formatDate(b.created_at)}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-brand-600">{formatPrice(b.amount)}</div>
-                      {b.is_winning && <span className="text-[10px] text-amber-700">EN YUKSEK</span>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              {bids.length > 5 && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllBids((v) => !v)}
-                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+              {bids.map((b) => (
+                <li
+                  key={b.id}
+                  className={cn(
+                    'flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm',
+                    b.is_winning && 'border-amber-200 bg-amber-50',
+                  )}
                 >
-                  {showAllBids ? '▲ Daha az goster' : '▼ Tum teklifleri gor (' + bids.length + ')'}
-                </button>
-              )}
-            </>
+                  <div>
+                    <div className="font-semibold text-slate-800">
+                      {b.bidder?.full_name || b.bidder?.email || 'Kullanıcı'}
+                    </div>
+                    <div className="text-[11px] text-slate-500">{formatDate(b.created_at)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-brand-600">{formatPrice(b.amount)}</div>
+                    {b.is_winning && <span className="text-[10px] text-amber-700">EN YÜKSEK</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
+        {/* Suppress unused listingPrice warning - kept for future reference */}
         <span className="hidden">{listingPrice}</span>
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- Seller Approval Panel (ilan sahibi onay) ---------------- */
-
-function SellerApprovalPanel({
-  auction,
-  bids,
-}: {
-  auction: Auction;
-  bids: BidWithBidder[];
-}) {
-  const queryClient = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const winningBid = bids.find((b) => b.id === auction.winning_bid_id);
-  const winnerProfile = winningBid?.bidder;
-
-  const approve = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.rpc('seller_approve_winner', {
-        p_auction_id: auction.id,
-        p_approve: true,
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vehicle', auction.vehicle_id] });
-      setSuccess('Kazanan onaylandı! İletişim bilgileri açıldı.');
-      setError(null);
-      setTimeout(() => setSuccess(null), 4000);
-    },
-    onError: (e: Error) => setError(e.message),
-  });
-
-  const reject = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.rpc('seller_approve_winner', {
-        p_auction_id: auction.id,
-        p_approve: false,
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vehicle', auction.vehicle_id] });
-      setSuccess('Kazanan reddedildi.');
-      setError(null);
-      setTimeout(() => setSuccess(null), 4000);
-    },
-    onError: (e: Error) => setError(e.message),
-  });
-
-  return (
-    <div className="card overflow-hidden border-2 border-amber-300">
-      <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 text-white">
-        <h3 className="font-bold flex items-center gap-2">
-          <AlertCircle className="h-5 w-5" />
-          Açık Arttırma Onayınızı Bekliyor
-        </h3>
-      </div>
-      <div className="p-5 space-y-4">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <div className="text-xs uppercase text-slate-500 mb-1">Son Teklif (Kazanan)</div>
-          <div className="text-2xl font-extrabold text-brand-600">
-            {formatPrice(auction.current_price)}
-          </div>
-          {winnerProfile && (
-            <div className="mt-2 text-sm">
-              <div className="font-semibold text-slate-800">
-                {winnerProfile.full_name || 'Kazanan'}
-              </div>
-            </div>
-          )}
-          <div className="text-[11px] text-slate-500 mt-2">
-            Mezat: {formatDate(auction.ended_at ?? auction.end_at)}
-          </div>
-        </div>
-
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-            <XCircle className="inline h-4 w-4 mr-1" /> {error}
-          </div>
-        )}
-        {success && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-700">
-            <CheckCircle2 className="inline h-4 w-4 mr-1" /> {success}
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm('Kazanan teklifi onaylıyor musunuz? Onaylarsanız iletişim bilgileriniz kazanan kullanıcıya açılır.')) {
-                approve.mutate();
-              }
-            }}
-            disabled={approve.isPending || Boolean(auction.seller_confirmed)}
-            className="rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
-          >
-            {approve.isPending ? (
-              <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
-            ) : (
-              <CheckCircle2 className="inline h-4 w-4 mr-1" />
-            )}
-            Onayla
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm('Kazanan teklifi reddediyor musunuz? İlan satışa kapatılacak ve blokeler çözülecek.')) {
-                reject.mutate();
-              }
-            }}
-            disabled={reject.isPending || Boolean(auction.seller_rejected_at)}
-            className="rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
-          >
-            {reject.isPending ? (
-              <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
-            ) : (
-              <XCircle className="inline h-4 w-4 mr-1" />
-            )}
-            Reddet
-          </button>
-        </div>
-
-        {auction.seller_confirmed && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-            <CheckCircle2 className="inline h-4 w-4 mr-1" />
-            Onaylandı: {formatDate(auction.seller_confirmed_at)}
-          </div>
-        )}
-
-        {auction.seller_rejected_at && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            <XCircle className="inline h-4 w-4 mr-1" />
-            Reddedildi: {formatDate(auction.seller_rejected_at)}
-          </div>
-        )}
       </div>
     </div>
   );
