@@ -249,8 +249,6 @@ export default function VehicleDetailPage() {
         <ChevronLeft className="h-4 w-4" /> Geri
       </Link>
 
-      <AuctionStartBanner auction={bannerAuction} qcKey={qcKey} />
-
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
         {/* Gallery + Content */}
         <div className="space-y-4">

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Megaphone } from 'lucide-react';
 
@@ -43,11 +42,13 @@ export default function HeaderTopAdBanner() {
     if (banner && impressionTracked !== banner.id) {
       setImpressionTracked(banner.id);
       // impression RPC yoksa sessizce yoksay
-      supabase.rpc('track_ad_impression', { p_banner_id: banner.id }).then(() => {
-        // başarılı
-      }).catch(() => {
-        // RPC yoksa yoksay
-      });
+      (async () => {
+        try {
+          await supabase.rpc('track_ad_impression', { p_banner_id: banner.id });
+        } catch {
+          // RPC yoksa yoksay
+        }
+      })();
     }
   }, [banner?.id, impressionTracked]);
 
@@ -56,11 +57,13 @@ export default function HeaderTopAdBanner() {
 
   // Tıklama handler
   const handleClick = () => {
-    supabase.rpc('track_ad_click', { p_banner_id: banner.id }).then(() => {
-      // başarılı
-    }).catch(() => {
-      // RPC yoksa yoksay
-    });
+    (async () => {
+      try {
+        await supabase.rpc('track_ad_click', { p_banner_id: banner.id });
+      } catch {
+        // RPC yoksa yoksay
+      }
+    })();
   };
 
   // İçerik — Link varsa link olarak, yoksa tıklanamaz
