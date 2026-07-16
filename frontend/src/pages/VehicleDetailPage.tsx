@@ -7,6 +7,8 @@ import { SoldStamp } from '../components/SoldStamp';
 import { cn, formatDate, formatDateOnly, formatKm, formatPrice, pad, timeUntil } from '../lib/utils';
 import CountdownTimer from '../components/CountdownTimer';
 import VehicleDetailAdBanner from '../components/VehicleDetailAdBanner';
+import Tabs from '../components/Tabs';
+import VehiclePaintDiagram from '../components/VehiclePaintDiagram';
 import type {
   Auction,
   Bid,
@@ -279,32 +281,53 @@ export default function VehicleDetailPage() {
               </span>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-              <SpecRow icon={<Calendar className="h-4 w-4" />} label="Yıl" value={String(v.year)} />
-              <SpecRow icon={<Settings2 className="h-4 w-4" />} label="KM" value={formatKm(v.km)} />
-              <SpecRow icon={<Fuel className="h-4 w-4" />} label="Yakıt" value={v.fuel} />
-              <SpecRow icon={<Settings2 className="h-4 w-4" />} label="Vites" value={v.transmission} />
-              <SpecRow icon={<Car className="h-4 w-4" />} label="Kasa" value={v.body} />
-              <SpecRow icon={<Palette className="h-4 w-4" />} label="Renk" value={v.color ?? '-'} />
-              <SpecRow icon={<MapPin className="h-4 w-4" />} label="Şehir" value={v.city} />
-              {v.district && <SpecRow icon={<MapPin className="h-4 w-4" />} label="İlçe" value={v.district} />}
-              <SpecRow
-                icon={<ShieldCheck className="h-4 w-4" />}
-                label="Hasar"
-                value={v.damage_record ? 'Var' : 'Yok'}
+            <div className="mt-4">
+              <Tabs
+                tabs={[
+                  {
+                    id: 'aciklama',
+                    label: 'Açıklama',
+                    content: (
+                      <div>
+                        <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-line">
+                          {v.description || 'Açıklama girilmemiş.'}
+                        </p>
+                        {v.damage_record && v.damage_detail && (
+                          <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
+                            <strong>Hasar Detayı:</strong> {v.damage_detail}
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'boya',
+                    label: 'Boya / Değişen',
+                    content: <VehiclePaintDiagram vehicleId={v.id} />,
+                  },
+                  {
+                    id: 'bilgiler',
+                    label: 'Araç Bilgileri',
+                    content: (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                        <SpecRow icon={<Calendar className="h-4 w-4" />} label="Yıl" value={String(v.year)} />
+                        <SpecRow icon={<Settings2 className="h-4 w-4" />} label="KM" value={formatKm(v.km)} />
+                        <SpecRow icon={<Fuel className="h-4 w-4" />} label="Yakıt" value={v.fuel} />
+                        <SpecRow icon={<Settings2 className="h-4 w-4" />} label="Vites" value={v.transmission} />
+                        <SpecRow icon={<Car className="h-4 w-4" />} label="Kasa" value={v.body} />
+                        <SpecRow icon={<Palette className="h-4 w-4" />} label="Renk" value={v.color ?? '-'} />
+                        <SpecRow icon={<MapPin className="h-4 w-4" />} label="Şehir" value={v.city} />
+                        {v.district && <SpecRow icon={<MapPin className="h-4 w-4" />} label="İlçe" value={v.district} />}
+                        <SpecRow
+                          icon={<ShieldCheck className="h-4 w-4" />}
+                          label="Hasar"
+                          value={v.damage_record ? 'Var' : 'Yok'}
+                        />
+                      </div>
+                    ),
+                  },
+                ]}
               />
-            </div>
-
-            <div className="mt-5">
-              <h3 className="font-semibold text-slate-900">Açıklama</h3>
-              <p className="mt-1 text-sm leading-relaxed text-slate-700 whitespace-pre-line">
-                {v.description || 'Açıklama girilmemiş.'}
-              </p>
-              {v.damage_record && v.damage_detail && (
-                <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
-                  <strong>Hasar Detayı:</strong> {v.damage_detail}
-                </div>
-              )}
             </div>
 
             <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-500">
