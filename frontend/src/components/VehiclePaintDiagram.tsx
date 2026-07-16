@@ -41,8 +41,6 @@ const STATUS_COLOR: Record<string, { bg: string; border: string; text: string; l
   none: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-500', label: 'Belirtilmemiş' },
 };
 
-const STATUS_PRIORITY: Record<string, number> = { original: 0, none: 1, painted: 2, changed: 3 };
-
 /**
  * İlan detay sayfasında gösterilen boya/değişen diyagramı.
  * Üstten görünüm (araba kuşbakışı).
