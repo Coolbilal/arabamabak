@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { SoldStamp } from '../components/SoldStamp';
 import { cn, formatDate, formatDateOnly, formatKm, formatPrice, pad, timeUntil } from '../lib/utils';
 import CountdownTimer from '../components/CountdownTimer';
+import VehicleDetailAdBanner from '../components/VehicleDetailAdBanner';
 import type {
   Auction,
   Bid,
@@ -421,6 +422,8 @@ export default function VehicleDetailPage() {
               </p>
             )}
           </div>
+
+          <VehicleDetailAdBanner />
 
           <div className="card p-4 text-xs text-slate-500 space-y-1">
             <div className="flex items-center gap-1.5">

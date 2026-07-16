@@ -27,7 +27,8 @@ interface Banner {
 
 const POSITIONS = [
   { value: 'modal_popup', label: 'Modal Popup (Sayfa Açılışı)' },
-  { value: 'header_top', label: 'Header Üstü (Ortalı Banner)' },
+  { value: 'header_top', label: 'Header Üstü (Sayfa Üstü Banner)' },
+  { value: 'vehicle_detail_inline', label: 'İlan Detay Sayfası (İletişim Altı)' },
   { value: 'hero_inline', label: 'Hero Slider (İlan arası)' },
   { value: 'side_left', label: 'Sol Yan' },
   { value: 'side_right', label: 'Sağ Yan' },
