@@ -100,6 +100,7 @@ export default function ModalAdBanner() {
   }
 
   function handleClick() {
+    if (!banner) return;
     (async () => {
       try {
         await supabase.rpc('track_ad_click', { p_banner_id: banner.id });
