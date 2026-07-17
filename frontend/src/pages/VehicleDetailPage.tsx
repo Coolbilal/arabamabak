@@ -168,8 +168,10 @@ export default function VehicleDetailPage() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bids', filter: `auction_id=eq.${auctionId}` },
         () => {
+          // Bids listesini yenile
           queryClient.invalidateQueries({ queryKey: ['bids', auctionId] });
-          queryClient.invalidateQueries({ queryKey: qcKey });
+          // Vehicle (auction.current_price) aktif olarak yeniden çek
+          queryClient.invalidateQueries({ queryKey: qcKey, refetchType: 'active' });
         },
       )
       .subscribe();
