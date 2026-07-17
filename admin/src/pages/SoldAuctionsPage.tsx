@@ -14,6 +14,7 @@ import {
 import { ListingReviewModal, type ReviewRow } from '../components/ListingReviewModal';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SoldStamp } from '../components/SoldStamp';
+import AuctionsTable from '../components/AuctionsTable';
 
 export default function SoldAuctionsPage() {
   const { hasPermission } = useAuth();
@@ -105,91 +106,25 @@ export default function SoldAuctionsPage() {
           Henüz satılan araç yok.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((row) => {
-            const v = row.vehicle;
-            const thumb = v?.images?.[0]?.url;
-            return (
-              <div key={row.id} className="card overflow-hidden border-2 border-emerald-200">
-                <div className="relative aspect-video bg-slate-100">
-                  {thumb ? (
-                    <img src={thumb} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center text-slate-300">
-                      <ImageOff className="h-8 w-8" />
-                    </div>
-                  )}
-                  <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" /> SATILDI
-                  </div>
-                  {v?.is_premium && (
-                    <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-amber-400 text-amber-900 text-xs font-semibold">
-                      Premium
-                    </div>
-                  )}
-                  <SoldStamp variant="full" />
-                </div>
-
-                <div className="p-3 space-y-2">
-                  <div className="font-bold text-slate-800 line-clamp-1">{v?.title}</div>
-                  <div className="text-xs text-slate-500">
-                    {v?.brand?.name} {v?.model?.name} • {v?.year}
-                  </div>
-
-                  <div className="border-t border-slate-100 pt-2">
-                    <div className="text-[10px] text-slate-500 uppercase">Satış Fiyatı (Son Teklif)</div>
-                    <div className="text-2xl font-extrabold text-emerald-600">
-                      {formatPrice(row.final_price ?? row.current_price)}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <div className="text-slate-500">Toplam Teklif</div>
-                      <div className="font-bold text-slate-800">{row.total_bids}</div>
-                    </div>
-                    <div>
-                      <div className="text-slate-500">Bitiş</div>
-                      <div className="font-bold text-slate-800">{formatDate(row.ended_at)}</div>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-slate-500 flex items-center gap-1">
-                    <Award className="h-3 w-3" /> Kazanan: {row.winner_id ? 'Belirlendi' : '—'}
-                  </div>
-                </div>
-
-                <div className="px-3 py-2 border-t border-slate-100 flex items-center justify-end gap-1">
-                  <button
-                    onClick={() => {
-                      if (v) setReviewing({
-                        ...v,
-                        brand: v.brand ?? null,
-                        model: v.model ?? null,
-                        engine_size: v.engine_size ?? null,
-                        images: v.images ?? [],
-                        seller: v.seller ?? null,
-                        auction: row,
-                      } as unknown as ReviewRow);
-                    }}
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" /> İncele
-                  </button>
-                  {canEdit && (
-                    <button
-                      onClick={() => setConfirmDelete(row)}
-                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Sil
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+        <AuctionsTable
+          rows={filtered}
+          loading={soldQ.isLoading}
+          variant="sold"
+          onView={(r) => {
+            const v = r.vehicle;
+            if (v) setReviewing({
+              ...v,
+              brand: v.brand ?? null,
+              model: v.model ?? null,
+              engine_size: v.engine_size ?? null,
+              images: v.images ?? [],
+              seller: v.seller ?? null,
+              auction: r,
+            } as unknown as ReviewRow);
+          }}
+          onDelete={canEdit ? (r) => setConfirmDelete(r) : undefined}
+        />
+      )
 
       {reviewing && (
         <ErrorBoundary>
