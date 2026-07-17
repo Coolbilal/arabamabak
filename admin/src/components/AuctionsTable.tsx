@@ -28,7 +28,6 @@ type Props = {
 
 const PAGE_SIZE = 20;
 
-// Türkçe geri sayım formatı
 function fmtCountdown(target: string | null | undefined): { txt: string; urgent: boolean; ended: boolean } {
   if (!target) return { txt: '—', urgent: false, ended: false };
   const ms = new Date(target).getTime() - Date.now();
@@ -69,7 +68,6 @@ export default function AuctionsTable({
 }: Props) {
   const qc = useQueryClient();
 
-  // Realtime: bids INSERT veya auctions UPDATE olunca invalidQueries
   useEffect(() => {
     if (!enableRealtime || variant !== 'live') return;
     const channel = supabase
@@ -94,7 +92,6 @@ export default function AuctionsTable({
   const [sortKey, setSortKey] = useState<string>('live_ends_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
-  // Sıralama — Marka/Model fallback: brand.name ?? model.name ?? ''
   const sorted = useMemo(() => {
     const copy = [...rows];
     copy.sort((a, b) => {
@@ -199,8 +196,7 @@ export default function AuctionsTable({
         key: 'last_bid', label: variant === 'live' ? 'Son Teklif' : 'Teklifler', sortable: false,
         render: (r) => {
           if (variant === 'live') {
-            // Son teklif tutarı: total_bids > 0 ise current_price (realtime), değilse opening_price
-            // current_price 0 veya null değilse onu göster, değilse opening_price, o da yoksa —
+            // current_price > 0 ise onu göster (son teklif), değilse opening_price, o da yoksa —
             const last = Number(r.current_price) > 0
               ? Number(r.current_price)
               : Number(r.opening_price) > 0
@@ -209,7 +205,7 @@ export default function AuctionsTable({
             return (
               <span className="inline-flex flex-col">
                 {last !== null ? (
-                  <span className="text-red-600 font-bold text-sm animate-pulse-once">
+                  <span className="text-red-600 font-bold text-sm">
                     {formatPrice(last)}
                   </span>
                 ) : (
