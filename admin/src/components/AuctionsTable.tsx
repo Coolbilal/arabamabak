@@ -202,13 +202,33 @@ export default function AuctionsTable({
         },
       },
       {
-        key: 'total_bids', label: variant === 'live' ? 'Teklif' : 'Teklifler', sortable: true,
-        render: (r) => (
-          <span className="inline-flex items-center gap-1 text-slate-700">
-            <Hammer className="h-3 w-3" />
-            {r.total_bids ?? 0}
-          </span>
-        ),
+        key: 'last_bid', label: variant === 'live' ? 'Son Teklif' : 'Teklifler', sortable: false,
+        render: (r) => {
+          if (variant === 'live') {
+            // Son teklif tutarı: total_bids > 0 ise current_price (realtime), değilse opening_price
+            const last = (r.total_bids ?? 0) > 0 ? Number(r.current_price) : null;
+            return (
+              <span className="inline-flex flex-col">
+                {last !== null ? (
+                  <span className="text-red-600 font-bold text-sm animate-pulse-once">
+                    {formatPrice(last)}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 text-xs">—</span>
+                )}
+                <span className="text-[10px] text-slate-500">
+                  <Hammer className="inline h-2.5 w-2.5" /> {r.total_bids ?? 0} teklif
+                </span>
+              </span>
+            );
+          }
+          return (
+            <span className="inline-flex items-center gap-1 text-slate-700">
+              <Hammer className="h-3 w-3" />
+              {r.total_bids ?? 0}
+            </span>
+          );
+        },
       },
       {
         key: 'actions', label: 'İşlemler', className: 'text-right',
