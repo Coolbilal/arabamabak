@@ -125,7 +125,7 @@ export default function SoldAuctionsPage() {
           }}
           onDelete={canEdit ? (r) => { setConfirmDelete(r); } : undefined}
         />
-      )
+      )}
 
       {reviewing && (
         <ErrorBoundary>

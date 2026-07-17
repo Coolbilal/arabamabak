@@ -141,7 +141,7 @@ export default function LiveAuctionsPage() {
           }}
           onCancel={canEdit ? (r) => { cancelM.mutate(r); } : undefined}
         />
-      )
+      )}
 
       {reviewing && (
         <ErrorBoundary>
