@@ -657,6 +657,8 @@ function AuctionPanel({
   const [bidAmount, setBidAmount] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [pulseLastBid, setPulseLastBid] = useState(false);
+  const [lastSeenBidId, setLastSeenBidId] = useState<string | null>(null);
 
   const minNextBid = Number(auction.current_price) + Number(auction.bid_increment);
 
@@ -687,6 +689,19 @@ function AuctionPanel({
   });
 
   const t = useMemo(() => (auction.end_at ? timeUntil(auction.end_at) : null), [auction.end_at]);
+
+  // Yeni teklif geldiğinde son teklif pulse animasyonu (3sn sarı uyarı)
+  useEffect(() => {
+    if (!bids || bids.length === 0) return;
+    const topBid = bids[0];
+    if (topBid && topBid.id !== lastSeenBidId) {
+      setLastSeenBidId(topBid.id);
+      setPulseLastBid(true);
+      const t = setTimeout(() => setPulseLastBid(false), 3000);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bids]);
   const isLive = auction.status === 'live';
   const isScheduled = auction.status === 'scheduled';
   const isCancelled = auction.status === 'cancelled';
@@ -713,7 +728,16 @@ function AuctionPanel({
           </div>
           <div>
             <div className="text-[11px] uppercase opacity-80">Son Teklif</div>
-            <div className="text-lg font-bold">{formatPrice(auction.current_price)}</div>
+            <div
+              className={cn(
+                'inline-block rounded px-2 py-1 text-lg font-bold transition-all duration-300',
+                pulseLastBid
+                  ? 'bg-yellow-300 text-red-900 ring-2 ring-yellow-400 animate-pulse'
+                  : 'text-white'
+              )}
+            >
+              {formatPrice(auction.current_price)}
+            </div>
           </div>
         </div>
         <div className="mt-3">
@@ -805,6 +829,19 @@ function AuctionPanel({
                 )}
                 Teklif Ver
               </button>
+            </div>
+            {/* Kolay teklif butonları */}
+            <div className="flex gap-2 pt-1">
+              {[1000, 5000, 10000].map((amount) => (
+                <button
+                  key={amount}
+                  type="button"
+                  onClick={() => setBidAmount(String(Number(auction.current_price) + amount))}
+                  className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition"
+                >
+                  +{amount.toLocaleString('tr-TR')} TL
+                </button>
+              ))}
             </div>
             <p className="text-xs text-slate-500">
               Artış: {formatPrice(auction.bid_increment)} · Adım: {pad(auction.bid_increment, 0)}
