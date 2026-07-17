@@ -1,3 +1,6 @@
+// --------------------------------------------------------------------------------
+// CACHE RESET: 2026-07-17 21:55:17.236518
+// --------------------------------------------------------------------------------
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -136,7 +139,7 @@ export default function LiveAuctionsPage() {
               auction: r,
             } as unknown as ReviewRow);
           }}
-          onCancel={canEdit ? (r) => cancelM.mutate(r) : undefined}
+          onCancel={canEdit ? (r) => { cancelM.mutate(r); } : undefined}
         />
       )
 

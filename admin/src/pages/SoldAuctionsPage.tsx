@@ -122,7 +122,7 @@ export default function SoldAuctionsPage() {
               auction: r,
             } as unknown as ReviewRow);
           }}
-          onDelete={canEdit ? (r) => setConfirmDelete(r) : undefined}
+          onDelete={canEdit ? (r) => { setConfirmDelete(r); } : undefined}
         />
       )
 
