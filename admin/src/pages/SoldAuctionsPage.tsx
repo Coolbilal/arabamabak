@@ -81,8 +81,7 @@ export default function SoldAuctionsPage() {
           'flex items-center gap-2 rounded-lg p-3 text-sm',
           actionMsg.kind === 'ok' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200',
         )}>
-          {actionMsg.kind === 'ok' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />)
-      )
+          {actionMsg.kind === 'ok' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
           {actionMsg.text}
         </div>
       )}
