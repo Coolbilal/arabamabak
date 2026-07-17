@@ -127,6 +127,7 @@ export default function LiveAuctionsPage() {
           rows={filtered}
           loading={liveQ.isLoading}
           variant="live"
+          enableRealtime
           onView={(r) => {
             const v = r.vehicle;
             if (v) setReviewing({

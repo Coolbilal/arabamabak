@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../lib/supabase';
 import {
   Eye, Ban, Trash2, ImageOff, ArrowUpDown, ChevronLeft, ChevronRight, Hammer,
 } from 'lucide-react';
@@ -24,13 +26,34 @@ type Props = {
   onDelete?: (row: AuctionFilterRow) => void;
   // Satır kapatma durumu (kırmızı çerçeve vs)
   variant?: 'live' | 'sold';
+  // Opsiyonel: realtime kanalı (live modda)
+  enableRealtime?: boolean;
 };
 
 const PAGE_SIZE = 20;
 
 export default function AuctionsTable({
-  rows, loading, showThumb = true, onView, onCancel, onDelete, variant = 'live',
+  rows, loading, showThumb = true, onView, onCancel, onDelete, variant = 'live', enableRealtime,
 }: Props) {
+  const qc = useQueryClient();
+  // Live modda bids INSERT olunca qcKey'i invalidate et
+  useEffect(() => {
+    if (!enableRealtime || variant !== 'live') return;
+    const channel = supabase
+      .channel('admin-auctions-bids')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'bids' },
+        () => {
+          qc.invalidateQueries({ queryKey: ['auctions-by-status'] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [enableRealtime, variant, qc]);
+
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<string>('live_ends_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
