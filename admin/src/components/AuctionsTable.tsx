@@ -174,19 +174,18 @@ export default function AuctionsTable({
       { key: 'year', label: 'Yıl', sortable: true, render: (r) => r.vehicle?.year ?? '—' },
       { key: 'km', label: 'KM', sortable: true, render: (r) => (r.vehicle?.km ?? 0).toLocaleString('tr-TR') },
       {
-        key: variant === 'sold' ? 'final_price' : 'opening_price',
-        label: variant === 'sold' ? 'Son Fiyat' : 'Açılış',
-        sortable: true,
-        render: (r) => <span className="text-slate-600">{formatPrice(variant === 'sold' ? (r.final_price ?? r.current_price) : r.opening_price)}</span>,
-      },
-      {
         key: variant === 'sold' ? 'ended_at' : 'current_price',
-        label: variant === 'sold' ? 'Bitiş' : 'Son Fiyat',
+        label: variant === 'sold' ? 'Bitiş' : 'Son Teklif',
         sortable: true,
         className: variant === 'live' ? 'font-bold text-red-600' : '',
         render: (r) => {
           if (variant === 'live') {
-            return <span className="text-red-600 font-bold">{formatPrice(r.current_price)}</span>;
+            return (
+              <span className="inline-flex flex-col">
+                <span className="text-xs text-slate-500 line-through">{formatPrice(r.opening_price)}</span>
+                <span className="text-red-600 font-bold">{formatPrice(r.current_price)}</span>
+              </span>
+            );
           }
           return r.ended_at ? new Date(r.ended_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
         },
@@ -197,7 +196,7 @@ export default function AuctionsTable({
         sortable: variant !== 'live',
         render: (r) => {
           if (variant === 'live') {
-            return <LiveCountdown target={r.live_ends_at ?? r.ends_at} />;
+            return <LiveCountdown target={r.live_ends_at ?? r.end_at} />;
           }
           return r.ended_at ? new Date(r.ended_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—';
         },
