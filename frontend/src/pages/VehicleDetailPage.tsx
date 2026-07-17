@@ -738,7 +738,7 @@ function AuctionPanel({
                   : 'text-white'
               )}
             >
-              {formatPrice(auction.current_price)}
+              {formatPrice(bids?.[0]?.amount ?? auction.current_price)}
             </div>
           </div>
         </div>
