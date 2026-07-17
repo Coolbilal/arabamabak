@@ -110,7 +110,6 @@ export default function AuctionsTable({
         case 'year': av = a.vehicle?.year ?? 0; bv = b.vehicle?.year ?? 0; break;
         case 'km': av = a.vehicle?.km ?? 0; bv = b.vehicle?.km ?? 0; break;
         case 'opening_price': av = Number(a.opening_price); bv = Number(b.opening_price); break;
-        case 'current_price': av = Number(a.current_price); bv = Number(b.current_price); break;
         case 'final_price': av = Number(a.final_price ?? a.current_price); bv = Number(b.final_price ?? b.current_price); break;
         case 'total_bids': av = a.total_bids ?? 0; bv = b.total_bids ?? 0; break;
         case 'live_ends_at': av = a.live_ends_at ?? ''; bv = b.live_ends_at ?? ''; break;
@@ -174,18 +173,13 @@ export default function AuctionsTable({
       { key: 'year', label: 'Yıl', sortable: true, render: (r) => r.vehicle?.year ?? '—' },
       { key: 'km', label: 'KM', sortable: true, render: (r) => (r.vehicle?.km ?? 0).toLocaleString('tr-TR') },
       {
-        key: variant === 'sold' ? 'ended_at' : 'current_price',
-        label: variant === 'sold' ? 'Bitiş' : 'Son Teklif',
+        key: variant === 'sold' ? 'ended_at' : 'opening_price',
+        label: variant === 'sold' ? 'Bitiş' : 'Açılış Fiyatı',
         sortable: true,
-        className: variant === 'live' ? 'font-bold text-red-600' : '',
+        className: 'text-slate-600',
         render: (r) => {
           if (variant === 'live') {
-            return (
-              <span className="inline-flex flex-col">
-                <span className="text-xs text-slate-500 line-through">{formatPrice(r.opening_price)}</span>
-                <span className="text-red-600 font-bold">{formatPrice(r.current_price)}</span>
-              </span>
-            );
+            return <span className="text-slate-700 font-medium">{formatPrice(r.opening_price)}</span>;
           }
           return r.ended_at ? new Date(r.ended_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
         },

@@ -96,7 +96,7 @@ export function useAuctionsByStatus(statuses: AuctionStatus[]) {
       }
       return rows;
     },
-    refetchInterval: 30_000, // otomatik geçişleri yakala
+    refetchInterval: 5_000, // otomatik geçişleri yakala
   });
 }
 
