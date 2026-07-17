@@ -52,7 +52,7 @@ type FullVehicle = Vehicle & {
   auction: Auction | null;
 };
 
-type BidWithBidder = Bid & { bidder: Pick<Profile, 'id' | 'full_name' | 'email'> | null };
+type BidWithBidder = Bid & { bidder: Pick<Profile, 'id' | 'full_name' | 'email' | 'city'> | null };
 
 export default function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -149,7 +149,7 @@ export default function VehicleDetailPage() {
       const auctionId = vehicle.data!.auction!.id;
       const { data, error } = await supabase
         .from('bids')
-        .select('*, bidder:profiles!bids_bidder_id_fkey(id, full_name, email)')
+        .select('*, bidder:profiles!bids_bidder_id_fkey(id, full_name, email, city)')
         .eq('auction_id', auctionId)
         .order('created_at', { ascending: false })
         .limit(20);
@@ -637,6 +637,35 @@ function SpecRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 
 /* ---------------- Auction panel ---------------- */
 
+// İsim maskeleme: "Mahmut Kul" → "Mahmut K."
+function maskName(fullName: string | null | undefined): string {
+  if (!fullName) return 'Kullanıcı';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  return first + ' ' + last.charAt(0) + '.';
+}
+
+// Türkçe şehir ismine hal eki: "Ankara" → "Ankara'dan", "İzmir" → "İzmir'den"
+function getAblativeSuffix(city: string): string {
+  if (!city) return "'DAN";
+  // Türkçe karakterleri normalize et (küçük harf)
+  const normalized = city.trim().toLocaleLowerCase('tr-TR');
+  // Sondaki sesli harf
+  const lastChar = normalized.charAt(normalized.length - 1);
+  const lastVowel = 'aeıioöuü';
+  const lastConsonant = normalized.charAt(normalized.length - 2);
+  // Sert ünsüz yumuşaması: p, ç, t, k, f, h, s, ş
+  const hardConsonants = ['p', 'ç', 't', 'k', 'f', 'h', 's', 'ş'];
+  const isLastVowel = lastVowel.includes(lastChar);
+  // Son sesli kalınsa (a, ı, o, u) → -dan, inceyse (e, i, ö, ü) → -den
+  const suffix = isLastVowel
+    ? (['a', 'ı', 'o', 'u'].includes(lastChar) ? "'DAN" : "'DEN")
+    : (hardConsonants.includes(lastConsonant) ? "'TAN" : "'DEN");
+  return suffix;
+}
+
 function AuctionPanel({
   auction,
   listingPrice,
@@ -661,6 +690,7 @@ function AuctionPanel({
   const [success, setSuccess] = useState<string | null>(null);
   const [pulseLastBid, setPulseLastBid] = useState(false);
   const [lastSeenBidId, setLastSeenBidId] = useState<string | null>(null);
+  const [showAllBids, setShowAllBids] = useState(false);
 
   const minNextBid = Number(auction.current_price) + Number(auction.bid_increment);
 
@@ -740,6 +770,16 @@ function AuctionPanel({
             >
               {formatPrice(bids?.[0]?.amount ?? auction.current_price)}
             </div>
+            {bids?.[0]?.bidder?.city && (
+              <div className="mt-1 text-[10px] font-medium uppercase tracking-wide">
+                <span className={cn(
+                  'transition-colors duration-300',
+                  pulseLastBid ? 'text-yellow-100' : 'text-amber-200'
+                )}>
+                  {bids[0].bidder.city.toUpperCase()}{getAblativeSuffix(bids[0].bidder.city)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
         <div className="mt-3">
@@ -909,30 +949,96 @@ function AuctionPanel({
           ) : bids.length === 0 ? (
             <p className="text-sm text-slate-500">Henüz teklif verilmedi.</p>
           ) : (
-            <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-              {bids.map((b) => (
-                <li
-                  key={b.id}
-                  className={cn(
-                    'flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm',
-                    b.is_winning && 'border-amber-200 bg-amber-50',
-                  )}
-                >
-                  <div>
-                    <div className="font-semibold text-slate-800">
-                      {b.bidder?.full_name || b.bidder?.email || 'Kullanıcı'}
+            <>
+              <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                {bids.slice(0, 3).map((b) => (
+                  <li
+                    key={b.id}
+                    className={cn(
+                      'flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm',
+                      b.is_winning && 'border-amber-200 bg-amber-50',
+                    )}
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-800">
+                        {b.bidder?.full_name
+                          ? maskName(b.bidder.full_name)
+                          : b.bidder?.email || 'Kullanıcı'}
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {b.bidder?.city ? `${b.bidder.city} · ` : ''}{formatDate(b.created_at)}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-slate-500">{formatDate(b.created_at)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-brand-600">{formatPrice(b.amount)}</div>
-                    {b.is_winning && <span className="text-[10px] text-amber-700">EN YÜKSEK</span>}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div className="text-right">
+                      <div className="font-bold text-brand-600">{formatPrice(b.amount)}</div>
+                      {b.is_winning && <span className="text-[10px] text-amber-700">EN YÜKSEK</span>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {bids.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllBids(true)}
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Tümünü Gör ({bids.length})
+                </button>
+              )}
+            </>
           )}
         </div>
+        {/* Tüm teklifler modal */}
+        {showAllBids && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setShowAllBids(false)}
+          >
+            <div
+              className="relative max-w-2xl w-full max-h-[80vh] bg-white rounded-lg shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+                <h3 className="font-bold text-slate-900">Tüm Teklifler ({bids.length})</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAllBids(false)}
+                  className="rounded-full p-1 hover:bg-slate-100"
+                  aria-label="Kapat"
+                >
+                  <X className="h-5 w-5 text-slate-700" />
+                </button>
+              </div>
+              <ul className="space-y-1.5 p-4 overflow-y-auto max-h-[60vh]">
+                {bids.map((b) => (
+                  <li
+                    key={b.id}
+                    className={cn(
+                      'flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm',
+                      b.is_winning && 'border-amber-200 bg-amber-50',
+                    )}
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-800">
+                        {b.bidder?.full_name
+                          ? maskName(b.bidder.full_name)
+                          : b.bidder?.email || 'Kullanıcı'}
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {b.bidder?.city ? `${b.bidder.city} · ` : ''}{formatDate(b.created_at)}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-brand-600">{formatPrice(b.amount)}</div>
+                      {b.is_winning && <span className="text-[10px] text-amber-700">EN YÜKSEK</span>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* Suppress unused listingPrice warning - kept for future reference */}
         <span className="hidden">{listingPrice}</span>
       </div>
