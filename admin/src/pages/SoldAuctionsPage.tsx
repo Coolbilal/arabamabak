@@ -123,9 +123,7 @@ export default function SoldAuctionsPage() {
             } as unknown as ReviewRow);
           }}
           onDelete={canEdit ? (r) => { setConfirmDelete(r); } : undefined}
-        />
-      )
-
+        />}
       {reviewing && (
         <ErrorBoundary>
           <ListingReviewModal

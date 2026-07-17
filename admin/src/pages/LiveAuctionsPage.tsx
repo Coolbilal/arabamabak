@@ -140,9 +140,7 @@ export default function LiveAuctionsPage() {
             } as unknown as ReviewRow);
           }}
           onCancel={canEdit ? (r) => { cancelM.mutate(r); } : undefined}
-        />
-      )
-
+        />}
       {reviewing && (
         <ErrorBoundary>
           <ListingReviewModal
