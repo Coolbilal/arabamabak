@@ -800,23 +800,30 @@ function AuctionPanel({
                 setError('Geçerli bir tutar girin');
                 return;
               }
+              // Frontend minimum kontrol — bids[0] (en yeni teklif) + bid_increment
+              const currentHighest = Number(bids?.[0]?.amount ?? auction.current_price);
+              const minAllowed = currentHighest + Number(auction.bid_increment);
+              if (v < minAllowed) {
+                setError(`Yeni teklif en az ${formatPrice(minAllowed)} olmalıdır (mevcut: ${formatPrice(currentHighest)})`);
+                return;
+              }
               placeBid.mutate(v);
             }}
             className="space-y-2"
           >
             <label className="text-xs font-semibold uppercase text-slate-500">
-              Teklif Ver (en az {formatPrice(minNextBid)})
+              Teklif Ver (en az {formatPrice(Number(bids?.[0]?.amount ?? auction.current_price) + Number(auction.bid_increment))})
             </label>
             <div className="flex gap-2">
               <input
                 type="number"
                 inputMode="decimal"
-                min={minNextBid}
+                min={Number(bids?.[0]?.amount ?? auction.current_price) + Number(auction.bid_increment)}
                 step={auction.bid_increment}
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 className="input flex-1"
-                placeholder={String(minNextBid)}
+                placeholder={String(Number(bids?.[0]?.amount ?? auction.current_price) + Number(auction.bid_increment))}
                 required
               />
               <button
@@ -838,7 +845,7 @@ function AuctionPanel({
                 <button
                   key={amount}
                   type="button"
-                  onClick={() => setBidAmount(String(Number(auction.current_price) + amount))}
+                  onClick={() => setBidAmount(String(Number(bids?.[0]?.amount ?? auction.current_price) + amount))}
                   className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition"
                 >
                   +{amount.toLocaleString('tr-TR')} TL
