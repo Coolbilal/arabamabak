@@ -901,11 +901,11 @@ function StepImages({ form, setField, userId }: any) {
       <p className="text-sm text-slate-500 mb-5">Aracın farklı açılardan dış (ön, arka, yan) ve iç (motor, konsol, koltuklar, bagaj) fotoğraflarının eklenmesi önerilir.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-        <label className="border-2 border-dashed border-red-300 bg-red-50/30 rounded-lg p-5 text-center cursor-pointer hover:border-red-500">
-          <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
-          <div className="text-3xl mb-1">📷</div>
-          <div className="font-semibold text-red-700">Fotoğraf Ekle</div>
-          <div className="text-xs text-slate-500">veya sürükle bırak</div>
+        <label className={cn("border-2 border-dashed border-red-300 bg-red-50/30 rounded-lg p-5 text-center cursor-pointer hover:border-red-500", uploading && "opacity-50 pointer-events-none")}>
+          <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} disabled={uploading} />
+          <div className="text-3xl mb-1">{uploading ? '⏳' : '📷'}</div>
+          <div className="font-semibold text-red-700">{uploading ? 'Yükleniyor...' : 'Fotoğraf Ekle'}</div>
+          <div className="text-xs text-slate-500">{form.images.length}/15 yüklendi</div>
         </label>
         <button type="button" className="border rounded-lg p-5 text-center">
           <div className="text-3xl mb-1">📱</div>
