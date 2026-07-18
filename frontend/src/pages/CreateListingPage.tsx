@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Car, Bike, Upload, X, Check, Wallet, CreditCard, Building2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Car, Bike, Upload, X, Check } from 'lucide-react';
 import { supabase, BUCKETS } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -15,6 +15,8 @@ type FuelType = 'benzin' | 'dizel' | 'lpg' | 'elektrik' | 'hibrit';
 type TransmissionType = 'manuel' | 'otomatik' | 'yarı_otomatik';
 type ListingType = 'free' | 'auction' | 'premium_auction';
 type SubVehicleType = 'motorsiklet' | 'utv' | 'atv';
+// (artık kullanılmıyor ama type tanımı kalsın ileride gerekirse)
+void (null as unknown as SubVehicleType);
 type PaymentMethod = 'wallet' | 'card' | 'bank' | null;
 
 interface ListingForm {
@@ -134,12 +136,6 @@ const TRANSMISSION_TYPES: { value: TransmissionType; label: string }[] = [
   { value: 'yarı_otomatik', label: 'Yarı Otomatik' },
 ];
 
-const SUB_VEHICLE_TYPES: { value: SubVehicleType; label: string }[] = [
-  { value: 'motorsiklet', label: 'Motosiklet' },
-  { value: 'utv', label: 'UTV' },
-  { value: 'atv', label: 'ATV' },
-];
-
 // ==================== MAIN COMPONENT ====================
 export default function CreateListingPage() {
   const { user } = useAuth();
@@ -171,7 +167,6 @@ export default function CreateListingPage() {
   const isAuction = form.listing_type === 'auction' || form.listing_type === 'premium_auction';
   const fee = form.listing_type === 'premium_auction' ? 200 : 100;
 
-  const engineSizesQuery = useEngineSizes();
   const citiesQuery = useCities();
   const districtsQuery = useDistricts(form.city);
 
@@ -388,20 +383,7 @@ export default function CreateListingPage() {
       </div>
 
       {/* Ödeme Modal'ları */}
-      {paymentMethod === 'card' && (
-        <CardPaymentModal
-          fee={fee}
-          onCancel={() => setPaymentMethod(null)}
-          onSuccess={() => { if (user) submitListing(user); }}
-        />
-      )}
-      {paymentMethod === 'bank' && (
-        <BankTransferModal
-          fee={fee}
-          onCancel={() => setPaymentMethod(null)}
-          onSuccess={() => { if (user) submitListing(user); }}
-        />
-      )}
+      {/* Ödeme modal'ları ileride eklenecek (iyzico/PayTR entegrasyonu sonrası) */}
 
       <div className="mt-4 flex justify-between">
         <button onClick={prevStep} disabled={step === 0} className="btn-ghost disabled:opacity-30">
