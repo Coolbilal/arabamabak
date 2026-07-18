@@ -4,29 +4,37 @@ import { cn } from '../lib/utils';
 
 export type PaintStatus = 'none' | 'original' | 'painted' | 'local_painted' | 'changed' | 'repaired';
 
-const PARTS: { code: string; label: string }[] = [
-  { code: 'front_bumper', label: 'Ön Tampon' },
-  { code: 'hood', label: 'Kaput' },
-  { code: 'left_front_fender', label: 'Sol Ön Çamurluk' },
-  { code: 'left_front_door', label: 'Sol Ön Kapı' },
-  { code: 'left_rear_door', label: 'Sol Arka Kapı' },
-  { code: 'left_rear_fender', label: 'Sol Arka Çamurluk' },
-  { code: 'right_front_fender', label: 'Sağ Ön Çamurluk' },
-  { code: 'right_front_door', label: 'Sağ Ön Kapı' },
-  { code: 'right_rear_door', label: 'Sağ Arka Kapı' },
-  { code: 'right_rear_fender', label: 'Sağ Arka Çamurluk' },
-  { code: 'roof', label: 'Tavan' },
-  { code: 'trunk', label: 'Bagaj Kapağı' },
-  { code: 'rear_bumper', label: 'Arka Tampon' },
+const PARTS: { code: string; label: string; x: number; y: number; w: number; h: number }[] = [
+  // Ön tampon (en üst)
+  { code: 'front_bumper', label: 'Ön Tampon', x: 20, y: 5, w: 60, h: 12 },
+  // Kaput (ön orta)
+  { code: 'hood', label: 'Kaput', x: 30, y: 17, w: 40, h: 18 },
+  // Sol taraf (üstten bakınca sol = görüntüde sağ)
+  // Önce sol taraf (görüntüdeki sol taraf)
+  { code: 'left_front_fender', label: 'Sol Ön Çamurluk', x: 5, y: 17, w: 12, h: 15 },
+  { code: 'left_front_door', label: 'Sol Ön Kapı', x: 5, y: 32, w: 12, h: 16 },
+  { code: 'left_rear_door', label: 'Sol Arka Kapı', x: 5, y: 48, w: 12, h: 16 },
+  { code: 'left_rear_fender', label: 'Sol Arka Çamurluk', x: 5, y: 64, w: 12, h: 14 },
+  // Sağ taraf (görüntüdeki sağ taraf)
+  { code: 'right_front_fender', label: 'Sağ Ön Çamurluk', x: 83, y: 17, w: 12, h: 15 },
+  { code: 'right_front_door', label: 'Sağ Ön Kapı', x: 83, y: 32, w: 12, h: 16 },
+  { code: 'right_rear_door', label: 'Sağ Arka Kapı', x: 83, y: 48, w: 12, h: 16 },
+  { code: 'right_rear_fender', label: 'Sağ Arka Çamurluk', x: 83, y: 64, w: 12, h: 14 },
+  // Tavan (orta)
+  { code: 'roof', label: 'Tavan', x: 30, y: 35, w: 40, h: 30 },
+  // Bagaj
+  { code: 'trunk', label: 'Bagaj Kapağı', x: 30, y: 65, w: 40, h: 18 },
+  // Arka tampon (en alt)
+  { code: 'rear_bumper', label: 'Arka Tampon', x: 20, y: 83, w: 60, h: 12 },
 ];
 
 const STATUS_META: Record<PaintStatus, { label: string; color: string; pattern?: string }> = {
-  none: { label: 'Belirtilmemiş', color: '#e5e7eb' },
-  original: { label: 'Orijinal', color: '#10b981' },
-  painted: { label: 'Boyanmış', color: '#facc15' },
-  local_painted: { label: 'Lokal Boyanmış', color: '#facc15', pattern: 'diagonal-stripes' },
-  changed: { label: 'Değişmiş', color: '#ef4444' },
-  repaired: { label: 'Tamir', color: '#3b82f6' },
+  none: { label: 'Belirtilmemiş', color: 'rgba(0,0,0,0)' },
+  original: { label: 'Orijinal', color: 'rgba(16, 185, 129, 0.55)' },
+  painted: { label: 'Boyanmış', color: 'rgba(250, 204, 21, 0.65)' },
+  local_painted: { label: 'Lokal Boyanmış', color: 'rgba(250, 204, 21, 0.65)' },
+  changed: { label: 'Değişmiş', color: 'rgba(239, 68, 68, 0.65)' },
+  repaired: { label: 'Tamir', color: 'rgba(59, 130, 246, 0.65)' },
 };
 
 type Props = {
@@ -62,16 +70,6 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
 
   return (
     <div>
-      {/* SVG defs — pattern'ler */}
-      <svg width="0" height="0" className="absolute" style={{ position: 'absolute' }}>
-        <defs>
-          <pattern id="diagonal-stripes" patternUnits="userSpaceOnUse" width="6" height="6">
-            <rect width="6" height="6" fill="#facc15" />
-            <path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="#a16207" strokeWidth="1.5" />
-          </pattern>
-        </defs>
-      </svg>
-
       <div className="flex items-center justify-between mb-4">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -93,127 +91,42 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[480px_1fr] gap-6">
-        {/* Araba şekli — üstten görünüm (sahibinden benzeri) */}
-        <div ref={diagramRef} className="relative" onClick={() => setActivePart(null)}>
-          <svg viewBox="0 0 480 480" className="w-full h-auto select-none" style={{ maxWidth: 480 }}>
-            {/* ============== ANA GÖVDE (ortada) ============== */}
-            {/* Kaput (ön — yukarı) */}
-            <PartClickable
-              code="hood" label="Kaput"
-              d="M 145,80 Q 145,60 165,55 L 315,55 Q 335,60 335,80 L 335,150 L 145,150 Z"
-              status={value['hood']}
-              onClick={handlePartClick}
-            />
+        {/* Araba şekli (PNG + hotspot overlay) */}
+        <div
+          ref={diagramRef}
+          className="relative w-full max-w-[480px] aspect-square"
+          onClick={() => setActivePart(null)}
+        >
+          {/* Arka planda araba görseli */}
+          <img
+            src="/car-diagram.png"
+            alt="Araç diyagramı"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            draggable={false}
+          />
 
-            {/* Tavan (orta) */}
-            <PartClickable
-              code="roof" label="Tavan"
-              d="M 160,150 L 320,150 L 330,260 L 150,260 Z"
-              status={value['roof']}
-              onClick={handlePartClick}
-            />
-
-            {/* Bagaj (arka — aşağı) */}
-            <PartClickable
-              code="trunk" label="Bagaj Kapağı"
-              d="M 145,260 L 335,260 L 335,330 Q 335,350 315,355 L 165,355 Q 145,350 145,330 Z"
-              status={value['trunk']}
-              onClick={handlePartClick}
-            />
-
-            {/* Ön Tampon (en yukarı) */}
-            <PartClickable
-              code="front_bumper" label="Ön Tampon"
-              d="M 130,40 L 350,40 Q 360,40 360,50 L 360,75 Q 360,85 350,85 L 130,85 Q 120,85 120,75 L 120,50 Q 120,40 130,40 Z"
-              status={value['front_bumper']}
-              onClick={handlePartClick}
-            />
-
-            {/* Arka Tampon (en aşağı) */}
-            <PartClickable
-              code="rear_bumper" label="Arka Tampon"
-              d="M 130,355 L 350,355 Q 360,355 360,365 L 360,395 Q 360,405 350,405 L 130,405 Q 120,405 120,395 L 120,365 Q 120,355 130,355 Z"
-              status={value['rear_bumper']}
-              onClick={handlePartClick}
-            />
-
-            {/* ============== SOL TARAF ============== */}
-            {/* Sol Ön Çamurluk (sol üst) */}
-            <PartClickable
-              code="left_front_fender" label="Sol Ön Çamurluk"
-              d="M 50,90 Q 50,60 80,55 L 110,55 Q 130,70 130,90 L 130,150 L 50,150 Z"
-              status={value['left_front_fender']}
-              onClick={handlePartClick}
-            />
-
-            {/* Sol Ön Kapı */}
-            <PartClickable
-              code="left_front_door" label="Sol Ön Kapı"
-              d="M 50,150 L 130,150 L 130,210 L 50,210 Z"
-              status={value['left_front_door']}
-              onClick={handlePartClick}
-            />
-
-            {/* Sol Arka Kapı */}
-            <PartClickable
-              code="left_rear_door" label="Sol Arka Kapı"
-              d="M 50,210 L 130,210 L 130,270 L 50,270 Z"
-              status={value['left_rear_door']}
-              onClick={handlePartClick}
-            />
-
-            {/* Sol Arka Çamurluk */}
-            <PartClickable
-              code="left_rear_fender" label="Sol Arka Çamurluk"
-              d="M 50,270 L 130,270 L 130,330 Q 130,355 110,360 L 80,365 Q 50,360 50,330 Z"
-              status={value['left_rear_fender']}
-              onClick={handlePartClick}
-            />
-
-            {/* ============== SAĞ TARAF ============== */}
-            {/* Sağ Ön Çamurluk */}
-            <PartClickable
-              code="right_front_fender" label="Sağ Ön Çamurluk"
-              d="M 350,90 Q 350,60 320,55 L 290,55 Q 270,70 270,90 L 270,150 L 350,150 Z"
-              status={value['right_front_fender']}
-              onClick={handlePartClick}
-            />
-
-            {/* Sağ Ön Kapı */}
-            <PartClickable
-              code="right_front_door" label="Sağ Ön Kapı"
-              d="M 350,150 L 270,150 L 270,210 L 350,210 Z"
-              status={value['right_front_door']}
-              onClick={handlePartClick}
-            />
-
-            {/* Sağ Arka Kapı */}
-            <PartClickable
-              code="right_rear_door" label="Sağ Arka Kapı"
-              d="M 350,210 L 270,210 L 270,270 L 350,270 Z"
-              status={value['right_rear_door']}
-              onClick={handlePartClick}
-            />
-
-            {/* Sağ Arka Çamurluk */}
-            <PartClickable
-              code="right_rear_fender" label="Sağ Arka Çamurluk"
-              d="M 350,270 L 270,270 L 270,330 Q 270,355 290,360 L 320,365 Q 350,360 350,330 Z"
-              status={value['right_rear_fender']}
-              onClick={handlePartClick}
-            />
-
-            {/* ============== ÖN/ARKA CAMLAR (görsel için) ============== */}
-            {/* Ön cam (kaputun üstünde, tavanın alt kısmında) */}
-            <path d="M 165,85 L 315,85 L 320,150 L 160,150 Z" fill="#bae6fd" opacity="0.4" />
-            {/* Arka cam */}
-            <path d="M 160,260 L 320,260 L 315,325 L 165,325 Z" fill="#bae6fd" opacity="0.4" />
-            {/* Yan camlar (sadece görsel) */}
-            <path d="M 130,160 L 270,160 L 270,200 L 130,200 Z" fill="#bae6fd" opacity="0.3" />
-            <path d="M 130,220 L 270,220 L 270,260 L 130,260 Z" fill="#bae6fd" opacity="0.3" />
-
-            {/* Etiketler (ok işaretleri için referans) */}
-          </svg>
+          {/* Tıklanabilir hotspot overlay (yüzde koordinatlar) */}
+          {PARTS.map((part) => {
+            const status = value[part.code] ?? 'none';
+            const meta = STATUS_META[status];
+            return (
+              <button
+                key={part.code}
+                type="button"
+                title={part.label}
+                onClick={(e) => handlePartClick(part.code, e)}
+                className="absolute hover:bg-white/20 transition cursor-pointer"
+                style={{
+                  left: `${part.x}%`,
+                  top: `${part.y}%`,
+                  width: `${part.w}%`,
+                  height: `${part.h}%`,
+                  background: status !== 'none' ? meta.color : 'transparent',
+                  border: status !== 'none' ? `2px solid ${meta.color.replace('0.55', '1').replace('0.65', '1')}` : 'none',
+                }}
+              />
+            );
+          })}
 
           {/* Popup — parça seçici */}
           {activePart && popupPos && (
@@ -231,11 +144,11 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
         <div>
           <h3 className="text-sm font-bold text-slate-700 mb-3">Renk Lejantı</h3>
           <div className="space-y-2 mb-4">
-            {Object.entries(STATUS_META).map(([key, meta]) => (
+            {Object.entries(STATUS_META).filter(([k]) => k !== 'none').map(([key, meta]) => (
               <div key={key} className="flex items-center gap-2 text-sm">
                 <span
-                  className="h-4 w-4 rounded-full inline-block border border-slate-300 shrink-0"
-                  style={{ background: meta.pattern ? `url(#${meta.pattern})` : meta.color }}
+                  className="h-4 w-4 rounded inline-block border border-slate-300 shrink-0"
+                  style={{ background: meta.color.replace(/[^,]+(?=\))/, '0.8') }}
                 />
                 <span>{meta.label}</span>
               </div>
@@ -259,34 +172,6 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
         />
       )}
     </div>
-  );
-}
-
-function PartClickable({
-  code, label, d, status, onClick,
-}: {
-  code: string; label: string;
-  d: string;
-  status?: PaintStatus;
-  onClick: (code: string, e: React.MouseEvent) => void;
-}) {
-  const meta = STATUS_META[status ?? 'none'];
-  const fill = status && status !== 'none'
-    ? (meta.pattern ? `url(#${meta.pattern})` : meta.color)
-    : '#cbd5e1';
-  const opacity = status && status !== 'none' ? 0.7 : 0.35;
-  return (
-    <g style={{ cursor: 'pointer' }} onClick={(e) => onClick(code, e)}>
-      <title>{label}</title>
-      <path
-        d={d}
-        fill={fill}
-        fillOpacity={opacity}
-        stroke="#94a3b8"
-        strokeWidth="1.5"
-        className="transition-all"
-      />
-    </g>
   );
 }
 
@@ -327,7 +212,7 @@ function PartStatusPopup({
         </button>
       </div>
       <div className="py-1">
-        {Object.entries(STATUS_META).map(([key, meta]) => {
+        {Object.entries(STATUS_META).filter(([k]) => k !== 'none').map(([key, meta]) => {
           const selected = current === key;
           return (
             <button
@@ -340,10 +225,8 @@ function PartStatusPopup({
               )}
             >
               <span
-                className="h-3 w-3 rounded-full shrink-0 border border-slate-300"
-                style={{
-                  background: meta.pattern ? `url(#${meta.pattern})` : meta.color,
-                }}
+                className="h-3 w-3 rounded shrink-0 border border-slate-300"
+                style={{ background: meta.color.replace(/[^,]+(?=\))/, '0.8') }}
               />
               <span className="text-sm flex-1">{meta.label}</span>
               {selected && <Check className="h-4 w-4 text-red-600" />}
@@ -400,7 +283,8 @@ function PartsListModal({
                         onChange={(e) => onChange({ ...value, [p.code]: e.target.value as PaintStatus })}
                         className="border rounded px-2 py-1 text-sm"
                       >
-                        {Object.entries(STATUS_META).map(([key, m]) => (
+                        <option value="none">Belirtilmemiş</option>
+                        {Object.entries(STATUS_META).filter(([k]) => k !== 'none').map(([key, m]) => (
                           <option key={key} value={key}>{m.label}</option>
                         ))}
                       </select>
