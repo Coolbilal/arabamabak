@@ -60,16 +60,6 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
     onChange(next);
   }
 
-  function fillFor(status: PaintStatus | undefined) {
-    const s = status ?? 'none';
-    const meta = STATUS_META[s];
-    return s !== 'none' && meta.pattern ? `url(#${meta.pattern})` : meta.color;
-  }
-  function opacityFor(status: PaintStatus | undefined) {
-    const s = status ?? 'none';
-    return s !== 'none' ? 0.7 : 0.4;
-  }
-
   return (
     <div>
       {/* SVG defs — pattern'ler */}
