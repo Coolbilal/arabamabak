@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, Check, Car, Fuel, Calendar, Cog, Tag, Layers, X } from 'lucide-react';
+import { ChevronRight, Check, Fuel, Calendar, Cog, Tag, Layers, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 
@@ -7,19 +7,6 @@ type Brand = { id: string; name: string; logo_url?: string | null };
 type Model = { id: string; name: string; brand_id: string };
 type Engine = { id: string; name: string; displacement_cc?: number | null; power_hp?: number | null; model_id: string };
 type SubModel = { id: string; name: string; model_id: string };
-
-const CATEGORIES = [
-  { code: 'otomobil', label: 'Otomobil', icon: '🚗' },
-  { code: 'arazi_suv_pickup', label: 'Arazi, SUV, Pick-up', icon: '🚙' },
-  { code: 'motosiklet', label: 'Motosiklet', icon: '🏍️' },
-  { code: 'minivan_panelvan', label: 'Minivan & Panelvan', icon: '🚐' },
-  { code: 'ticari', label: 'Ticari Araçlar', icon: '🚚' },
-  { code: 'hasarli', label: 'Hasarlı Araçlar', icon: '⚠️' },
-  { code: 'yedek_parca', label: 'Yedek Parça, Aksesuar', icon: '🔧' },
-  { code: 'traktor', label: 'Traktör', icon: '🚜' },
-  { code: 'tarim', label: 'Tarım & İş Makineleri', icon: '🌾' },
-  { code: 'klasik', label: 'Klasik Araçlar', icon: '🏛️' },
-];
 
 const FUEL_TYPES = [
   { code: 'dizel', label: 'Dizel' },
