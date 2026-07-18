@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Check } from 'lucide-react';
+import { X, Check, List } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export type PaintStatus = 'none' | 'original' | 'painted' | 'local_painted' | 'changed';
+export type PaintStatus = 'none' | 'original' | 'painted' | 'local_painted' | 'changed' | 'repaired';
 
 const PARTS: { code: string; label: string }[] = [
   { code: 'front_bumper', label: 'Ön Tampon' },
@@ -20,12 +20,14 @@ const PARTS: { code: string; label: string }[] = [
   { code: 'rear_bumper', label: 'Arka Tampon' },
 ];
 
-const STATUS_META: Record<PaintStatus, { label: string; color: string; textColor: string }> = {
-  none: { label: 'Belirtilmemiş', color: '#e5e7eb', textColor: '#6b7280' },
-  original: { label: 'Orijinal', color: '#10b981', textColor: '#065f46' },
-  painted: { label: 'Boyanmış', color: '#f59e0b', textColor: '#92400e' },
-  local_painted: { label: 'Lokal Boyanmış', color: '#f59e0b', textColor: '#92400e' },
-  changed: { label: 'Değişmiş', color: '#ef4444', textColor: '#991b1b' },
+// Renkler (farklı görsel): Belirtilmemiş=gri, Orijinal=yeşil, Boyanmış=sarı, Lokal Boyanmış=sarı(çizgili), Değişmiş=kırmızı, Tamir=mavi
+const STATUS_META: Record<PaintStatus, { label: string; color: string; pattern?: string }> = {
+  none: { label: 'Belirtilmemiş', color: '#e5e7eb' },
+  original: { label: 'Orijinal', color: '#10b981' },
+  painted: { label: 'Boyanmış', color: '#facc15' },
+  local_painted: { label: 'Lokal Boyanmış', color: '#facc15', pattern: 'diagonal-stripes' },
+  changed: { label: 'Değişmiş', color: '#ef4444' },
+  repaired: { label: 'Tamir', color: '#3b82f6' },
 };
 
 type Props = {
@@ -36,6 +38,7 @@ type Props = {
 export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
   const [activePart, setActivePart] = useState<string | null>(null);
   const [popupPos, setPopupPos] = useState<{ x: number; y: number } | null>(null);
+  const [showList, setShowList] = useState(false);
   const diagramRef = useRef<HTMLDivElement>(null);
 
   function handlePartClick(code: string, e: React.MouseEvent) {
@@ -52,7 +55,6 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
     setActivePart(null);
   }
 
-  // Tümü orijinal
   function setAllOriginal() {
     const next: Record<string, PaintStatus> = {};
     PARTS.forEach((p) => { next[p.code] = 'original'; });
@@ -60,219 +62,208 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
-      {/* Araba şekli (üstten görünüm) */}
-      <div ref={diagramRef} className="relative" onClick={() => setActivePart(null)}>
-        <svg viewBox="0 0 280 380" className="w-full h-auto select-none" style={{ maxWidth: 280 }}>
-          {/* Arka plan — araba silüeti */}
-          <defs>
-            <linearGradient id="bodyGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor="#f1f5f9" />
-              <stop offset="1" stopColor="#e2e8f0" />
-            </linearGradient>
-          </defs>
+    <div>
+      {/* SVG defs — pattern'ler */}
+      <svg width="0" height="0" className="absolute" style={{ position: 'absolute' }}>
+        <defs>
+          <pattern id="diagonal-stripes" patternUnits="userSpaceOnUse" width="6" height="6">
+            <rect width="6" height="6" fill="#facc15" />
+            <path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="#a16207" strokeWidth="1.5" />
+          </pattern>
+        </defs>
+      </svg>
 
-          {/* Ana gövde */}
-          <rect x="40" y="100" width="200" height="180" rx="30" fill="url(#bodyGrad)" stroke="#cbd5e1" strokeWidth="2" />
-          {/* Ön kısım (kaput bölgesi) */}
-          <rect x="80" y="40" width="120" height="80" rx="20" fill="url(#bodyGrad)" stroke="#cbd5e1" strokeWidth="2" />
-          {/* Arka kısım (bagaj bölgesi) */}
-          <rect x="80" y="260" width="120" height="80" rx="20" fill="url(#bodyGrad)" stroke="#cbd5e1" strokeWidth="2" />
-          {/* Ön tampon */}
-          <rect x="40" y="20" width="200" height="20" rx="10" fill="url(#bodyGrad)" stroke="#cbd5e1" strokeWidth="2" />
-          {/* Arka tampon */}
-          <rect x="40" y="340" width="200" height="20" rx="10" fill="url(#bodyGrad)" stroke="#cbd5e1" strokeWidth="2" />
+      <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6">
+        {/* Araba şekli (üstten görünüm) */}
+        <div ref={diagramRef} className="relative" onClick={() => setActivePart(null)}>
+          <svg viewBox="0 0 260 400" className="w-full h-auto select-none" style={{ maxWidth: 260 }}>
+            {/* Gövde ana hat */}
+            <path
+              d="M 60,80 L 200,80 L 220,120 L 220,200 L 220,280 L 200,320 L 60,320 L 40,280 L 40,200 L 40,120 Z"
+              fill="#f8fafc"
+              stroke="#cbd5e1"
+              strokeWidth="2"
+            />
 
-          {/* Camlar (ön/orta/arka) */}
-          <rect x="100" y="60" width="80" height="40" rx="8" fill="#bae6fd" opacity="0.5" />
-          <rect x="60" y="120" width="160" height="60" rx="10" fill="#bae6fd" opacity="0.5" />
-          <rect x="100" y="280" width="80" height="40" rx="8" fill="#bae6fd" opacity="0.5" />
+            {/* Ön Tampon (en alt kısım) */}
+            <PartClickable
+              code="front_bumper" label="Ön Tampon"
+              d="M 40,120 L 220,120 L 220,140 L 40,140 Z"
+              status={value['front_bumper']}
+              onClick={handlePartClick}
+            />
+            {/* Kaput */}
+            <PartClickable
+              code="hood" label="Kaput"
+              d="M 60,80 L 200,80 L 220,120 L 40,120 Z"
+              status={value['hood']}
+              onClick={handlePartClick}
+            />
+            {/* Tavan */}
+            <PartClickable
+              code="roof" label="Tavan"
+              d="M 40,140 L 220,140 L 220,260 L 40,260 Z"
+              status={value['roof']}
+              onClick={handlePartClick}
+            />
+            {/* Bagaj Kapağı */}
+            <PartClickable
+              code="trunk" label="Bagaj Kapağı"
+              d="M 40,260 L 220,260 L 200,320 L 60,320 Z"
+              status={value['trunk']}
+              onClick={handlePartClick}
+            />
+            {/* Arka Tampon (en üst kısım) */}
+            <PartClickable
+              code="rear_bumper" label="Arka Tampon"
+              d="M 40,260 L 220,260 L 220,280 L 40,280 Z"
+              status={value['rear_bumper']}
+              onClick={handlePartClick}
+            />
 
-          {/* Tekerlekler */}
-          <circle cx="65" cy="100" r="14" fill="#475569" />
-          <circle cx="215" cy="100" r="14" fill="#475569" />
-          <circle cx="65" cy="280" r="14" fill="#475569" />
-          <circle cx="215" cy="280" r="14" fill="#475569" />
+            {/* Sol taraf (col 0) — Çamurluk ve Kapılar */}
+            <PartClickable
+              code="left_front_fender" label="Sol Ön Çamurluk"
+              d="M 40,140 L 60,140 L 60,180 L 40,180 Z"
+              status={value['left_front_fender']}
+              onClick={handlePartClick}
+            />
+            <PartClickable
+              code="left_front_door" label="Sol Ön Kapı"
+              d="M 40,180 L 60,180 L 60,220 L 40,220 Z"
+              status={value['left_front_door']}
+              onClick={handlePartClick}
+            />
+            <PartClickable
+              code="left_rear_door" label="Sol Arka Kapı"
+              d="M 40,220 L 60,220 L 60,260 L 40,260 Z"
+              status={value['left_rear_door']}
+              onClick={handlePartClick}
+            />
+            <PartClickable
+              code="left_rear_fender" label="Sol Arka Çamurluk"
+              d="M 40,260 L 60,260 L 60,300 L 40,300 Z"
+              status={value['left_rear_fender']}
+              onClick={handlePartClick}
+            />
 
-          {/* Tıklanabilir parçalar — tüm parçaları kapsayan şeffaf rect'ler */}
-          {/* Ön Tampon (front_bumper) */}
-          <PartClickable
-            code="front_bumper" label="Ön Tampon"
-            x={40} y={20} w={200} h={20}
-            status={value['front_bumper']}
-            onClick={handlePartClick}
-          />
-          {/* Kaput (hood) */}
-          <PartClickable
-            code="hood" label="Kaput"
-            x={80} y={40} w={120} h={80}
-            status={value['hood']}
-            onClick={handlePartClick}
-          />
-          {/* Tavan (roof) */}
-          <PartClickable
-            code="roof" label="Tavan"
-            x={40} y={120} w={200} h={80}
-            status={value['roof']}
-            onClick={handlePartClick}
-          />
-          {/* Bagaj (trunk) */}
-          <PartClickable
-            code="trunk" label="Bagaj Kapağı"
-            x={80} y={260} w={120} h={80}
-            status={value['trunk']}
-            onClick={handlePartClick}
-          />
-          {/* Arka Tampon (rear_bumper) */}
-          <PartClickable
-            code="rear_bumper" label="Arka Tampon"
-            x={40} y={340} w={200} h={20}
-            status={value['rear_bumper']}
-            onClick={handlePartClick}
-          />
-          {/* Sol Ön Çamurluk */}
-          <PartClickable
-            code="left_front_fender" label="Sol Ön Çamurluk"
-            x={40} y={100} w={40} h={20}
-            status={value['left_front_fender']}
-            onClick={handlePartClick}
-          />
-          {/* Sol Ön Kapı */}
-          <PartClickable
-            code="left_front_door" label="Sol Ön Kapı"
-            x={40} y={140} w={20} h={40}
-            status={value['left_front_door']}
-            onClick={handlePartClick}
-          />
-          {/* Sol Arka Kapı */}
-          <PartClickable
-            code="left_rear_door" label="Sol Arka Kapı"
-            x={40} y={200} w={20} h={40}
-            status={value['left_rear_door']}
-            onClick={handlePartClick}
-          />
-          {/* Sol Arka Çamurluk */}
-          <PartClickable
-            code="left_rear_fender" label="Sol Arka Çamurluk"
-            x={40} y={260} w={40} h={20}
-            status={value['left_rear_fender']}
-            onClick={handlePartClick}
-          />
-          {/* Sağ Ön Çamurluk */}
-          <PartClickable
-            code="right_front_fender" label="Sağ Ön Çamurluk"
-            x={200} y={100} w={40} h={20}
-            status={value['right_front_fender']}
-            onClick={handlePartClick}
-          />
-          {/* Sağ Ön Kapı */}
-          <PartClickable
-            code="right_front_door" label="Sağ Ön Kapı"
-            x={220} y={140} w={20} h={40}
-            status={value['right_front_door']}
-            onClick={handlePartClick}
-          />
-          {/* Sağ Arka Kapı */}
-          <PartClickable
-            code="right_rear_door" label="Sağ Arka Kapı"
-            x={220} y={200} w={20} h={40}
-            status={value['right_rear_door']}
-            onClick={handlePartClick}
-          />
-          {/* Sağ Arka Çamurluk */}
-          <PartClickable
-            code="right_rear_fender" label="Sağ Arka Çamurluk"
-            x={200} y={260} w={40} h={20}
-            status={value['right_rear_fender']}
-            onClick={handlePartClick}
-          />
-        </svg>
+            {/* Sağ taraf (col 3) */}
+            <PartClickable
+              code="right_front_fender" label="Sağ Ön Çamurluk"
+              d="M 200,140 L 220,140 L 220,180 L 200,180 Z"
+              status={value['right_front_fender']}
+              onClick={handlePartClick}
+            />
+            <PartClickable
+              code="right_front_door" label="Sağ Ön Kapı"
+              d="M 200,180 L 220,180 L 220,220 L 200,220 Z"
+              status={value['right_front_door']}
+              onClick={handlePartClick}
+            />
+            <PartClickable
+              code="right_rear_door" label="Sağ Arka Kapı"
+              d="M 200,220 L 220,220 L 220,260 L 200,260 Z"
+              status={value['right_rear_door']}
+              onClick={handlePartClick}
+            />
+            <PartClickable
+              code="right_rear_fender" label="Sağ Arka Çamurluk"
+              d="M 200,260 L 220,260 L 220,300 L 200,300 Z"
+              status={value['right_rear_fender']}
+              onClick={handlePartClick}
+            />
+          </svg>
 
-        {/* Popup — parça seçici */}
-        {activePart && popupPos && (
-          <PartStatusPopup
-            code={activePart}
-            current={value[activePart] ?? 'none'}
-            onSelect={(s) => setStatus(activePart, s)}
-            onClose={() => setActivePart(null)}
-            pos={popupPos}
-          />
-        )}
-      </div>
-
-      {/* Sağ taraf — Lejant + Özet */}
-      <div>
-        <label className="flex items-center gap-2 cursor-pointer mb-4">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-emerald-600"
-            checked={PARTS.every((p) => value[p.code] === 'original')}
-            onChange={(e) => e.target.checked ? setAllOriginal() : onChange({})}
-          />
-          <span className="text-sm font-semibold">Tamamı Orijinal</span>
-        </label>
-
-        <h3 className="text-sm font-bold text-slate-700 mb-2">Renk Lejantı</h3>
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          {Object.entries(STATUS_META).map(([key, meta]) => (
-            <div key={key} className="flex items-center gap-2 text-xs">
-              <span className="h-4 w-4 rounded-full inline-block" style={{ background: meta.color }} />
-              <span>{meta.label}</span>
-            </div>
-          ))}
+          {/* Popup — parça seçici */}
+          {activePart && popupPos && (
+            <PartStatusPopup
+              code={activePart}
+              current={value[activePart] ?? 'none'}
+              onSelect={(s) => setStatus(activePart, s)}
+              onClose={() => setActivePart(null)}
+              pos={popupPos}
+            />
+          )}
         </div>
 
-        <p className="text-sm text-slate-600 mb-4">
-          Parça durumunu belirtmek için araç görseli üzerinde ilgili parçaya tıklamalısın.
-        </p>
+        {/* Sağ taraf — Kontroller */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-emerald-600"
+                checked={PARTS.every((p) => value[p.code] === 'original')}
+                onChange={(e) => e.target.checked ? setAllOriginal() : onChange({})}
+              />
+              <span className="text-sm font-semibold">Tamamı Orijinal</span>
+            </label>
 
-        <h3 className="text-sm font-bold text-slate-700 mb-2">Parça Listesi</h3>
-        <div className="space-y-1 max-h-80 overflow-y-auto">
-          {PARTS.map((p) => {
-            const status = value[p.code] ?? 'none';
-            const meta = STATUS_META[status];
-            return (
-              <button
-                key={p.code}
-                type="button"
-                onClick={() => setStatus(p.code, status === 'none' ? 'original' : 'none')}
-                className="w-full flex items-center gap-2 p-2 rounded hover:bg-slate-50 text-left"
-              >
+            <button
+              type="button"
+              onClick={() => setShowList(true)}
+              className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-700 font-semibold"
+            >
+              <List className="h-4 w-4" /> Parça Listesi
+            </button>
+          </div>
+
+          <h3 className="text-sm font-bold text-slate-700 mb-2">Renk Lejantı</h3>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {Object.entries(STATUS_META).map(([key, meta]) => (
+              <div key={key} className="flex items-center gap-2 text-xs">
                 <span
-                  className="h-3 w-3 rounded-full shrink-0"
-                  style={{ background: meta.color }}
+                  className="h-4 w-4 rounded-full inline-block border border-slate-300"
+                  style={{
+                    background: meta.pattern ? `url(#${meta.pattern})` : meta.color,
+                  }}
                 />
-                <span className="text-sm flex-1">{p.label}</span>
-                <span className="text-xs text-slate-500" style={{ color: meta.textColor }}>{meta.label}</span>
-              </button>
-            );
-          })}
+                <span>{meta.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-sm text-slate-600">
+            Parça durumunu belirtmek için araç görseli üzerinde ilgili parçaya tıklamalısın.
+          </p>
         </div>
       </div>
+
+      {/* Parça Listesi Modal */}
+      {showList && (
+        <PartsListModal
+          value={value}
+          onChange={onChange}
+          onClose={() => setShowList(false)}
+        />
+      )}
     </div>
   );
 }
 
 function PartClickable({
-  code, label, x, y, w, h, status, onClick,
+  code, label, d, status, onClick,
 }: {
   code: string; label: string;
-  x: number; y: number; w: number; h: number;
+  d: string;
   status?: PaintStatus;
   onClick: (code: string, e: React.MouseEvent) => void;
 }) {
   const meta = STATUS_META[status ?? 'none'];
+  const fill = status && status !== 'none'
+    ? (meta.pattern ? `url(#${meta.pattern})` : meta.color)
+    : '#f1f5f9';
+  const opacity = status && status !== 'none' ? 0.7 : 0.3;
   return (
     <g style={{ cursor: 'pointer' }} onClick={(e) => onClick(code, e)}>
       <title>{label}</title>
-      <rect
-        x={x} y={y} width={w} height={h}
-        fill={status && status !== 'none' ? meta.color : 'transparent'}
-        fillOpacity={status && status !== 'none' ? 0.6 : 0}
-        stroke={status && status !== 'none' ? meta.color : '#cbd5e1'}
-        strokeWidth={status && status !== 'none' ? 2 : 1}
-        strokeDasharray={status && status !== 'none' ? '0' : '4 2'}
-        className="transition-all hover:fill-slate-100"
+      <path
+        d={d}
+        fill={fill}
+        fillOpacity={opacity}
+        stroke="#cbd5e1"
+        strokeWidth="1.5"
+        className="transition-all hover:fill-slate-200"
       />
     </g>
   );
@@ -302,10 +293,10 @@ function PartStatusPopup({
   return (
     <div
       ref={popupRef}
-      className="absolute z-20 bg-white rounded-lg shadow-2xl border border-slate-200 w-56"
+      className="absolute z-20 bg-white rounded-lg shadow-2xl border border-slate-200 w-60"
       style={{
-        left: Math.min(Math.max(pos.x - 112, 0), 280 - 224),
-        top: Math.max(pos.y - 220, 0),
+        left: Math.min(Math.max(pos.x - 120, 0), 260 - 240),
+        top: Math.max(pos.y - 240, 0),
       }}
     >
       <div className="flex items-center justify-between p-3 border-b bg-slate-50 rounded-t-lg">
@@ -327,12 +318,84 @@ function PartStatusPopup({
                 selected && 'bg-red-50'
               )}
             >
-              <span className="h-3 w-3 rounded-full shrink-0" style={{ background: meta.color }} />
+              <span
+                className="h-3 w-3 rounded-full shrink-0 border border-slate-300"
+                style={{
+                  background: meta.pattern ? `url(#${meta.pattern})` : meta.color,
+                }}
+              />
               <span className="text-sm flex-1">{meta.label}</span>
               {selected && <Check className="h-4 w-4 text-red-600" />}
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function PartsListModal({
+  value, onChange, onClose,
+}: {
+  value: Record<string, PaintStatus>;
+  onChange: (v: Record<string, PaintStatus>) => void;
+  onClose: () => void;
+}) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div ref={modalRef} className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="font-bold text-lg">Parça Listesi</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="text-left p-2 font-semibold">Parça</th>
+                <th className="text-left p-2 font-semibold">Durum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PARTS.map((p) => {
+                const status = value[p.code] ?? 'none';
+                const meta = STATUS_META[status];
+                return (
+                  <tr key={p.code} className="border-b">
+                    <td className="p-2 font-medium">{p.label}</td>
+                    <td className="p-2">
+                      <select
+                        value={status}
+                        onChange={(e) => onChange({ ...value, [p.code]: e.target.value as PaintStatus })}
+                        className="border rounded px-2 py-1 text-sm"
+                      >
+                        {Object.entries(STATUS_META).map(([key, m]) => (
+                          <option key={key} value={key}>{m.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="border-t p-3 text-right">
+          <button onClick={onClose} className="px-4 py-2 rounded bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
+            Tamam
+          </button>
+        </div>
       </div>
     </div>
   );
