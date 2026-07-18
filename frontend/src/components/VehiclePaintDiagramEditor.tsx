@@ -370,7 +370,7 @@ function PartsListModal({
             <tbody>
               {PARTS.map((p) => {
                 const status = value[p.code] ?? 'none';
-                const meta = STATUS_META[status];
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 return (
                   <tr key={p.code} className="border-b">
                     <td className="p-2 font-medium">{p.label}</td>
