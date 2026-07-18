@@ -6,13 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { useCities, useDistricts } from '../lib/useLocationData';
 import VehicleCascadeWizard, { type CascadeValue } from '../components/VehicleCascadeWizard';
-import {
-  useBrands,
-  useModels,
-  useEngineSizes,
-  useMotorcycleBrands,
-  useMotorcycleModels,
-} from '../lib/hooks/useVehicleData';
+import { useEngineSizes } from '../lib/hooks/useVehicleData';
 
 // ==================== TYPES ====================
 type VehicleType = 'otomobil' | 'suv_pickup' | 'elektrikli' | 'minivan_panelvan' | 'ticari' | 'motorsiklet_utv_atv';
@@ -238,9 +232,6 @@ export default function CreateListingPage() {
         title: form.title,
         description: form.description,
         price: parseFloat(form.price),
-        year: parseInt(form.year),
-        sub_model: cascade.subModel?.name ?? null,
-        engine_size_label: cascade.engine?.name ?? null,
         km: parseInt(form.km),
         fuel: form.fuel,
         transmission: form.transmission,
