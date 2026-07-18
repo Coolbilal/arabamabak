@@ -40,6 +40,28 @@ interface ListingForm {
   title: string;
   price: string;
   listing_type: ListingType;
+  // Yeni alanlar (Migration 55)
+  vehicle_condition: '' | 'sifir' | 'ikinci_el';
+  plate_number: string;
+  plate_country: string;
+  garanti_durumu: '' | 'var' | 'yok' | 'bitmis';
+  ilk_sahibi: boolean | null;
+  takasa_uygun: boolean | null;
+  tramer_durumu: '' | 'bilinmiyor' | 'yok' | 'var' | 'agir_hasarli';
+  tramer_tutari: string;
+  sub_model: string;
+  engine_size_label: string;
+  fuel_type_label: string;
+  // Donanım (opsiyonel - JSON array olarak)
+  equipment: {
+    interior: string[];
+    entertainment: string[];
+    safety: string[];
+    exterior: string[];
+  };
+  // İletişim
+  contact_preference: '' | 'phone_message' | 'phone_only' | 'message_only';
+  contact_phone: string;
 }
 
 const INITIAL_FORM: ListingForm = {
@@ -65,6 +87,20 @@ const INITIAL_FORM: ListingForm = {
   title: '',
   price: '',
   listing_type: 'free',
+  vehicle_condition: '',
+  plate_number: '',
+  plate_country: 'TR',
+  garanti_durumu: '',
+  ilk_sahibi: null,
+  takasa_uygun: null,
+  tramer_durumu: '',
+  tramer_tutari: '',
+  sub_model: '',
+  engine_size_label: '',
+  fuel_type_label: '',
+  equipment: { interior: [], entertainment: [], safety: [], exterior: [] },
+  contact_preference: '',
+  contact_phone: '',
 };
 
 const VEHICLE_TYPES: { value: VehicleType; label: string; icon: any; desc: string }[] = [
@@ -174,15 +210,11 @@ export default function CreateListingPage() {
     switch (step) {
       case 0: return !!form.vehicle_type;
       case 1: return !!cascade.brand && !!cascade.model;
-      case 2: return !!form.engine_size_id;
-      case 3: {
-        if (!form.year || !form.km) return false;
-        if (isMotorcycle) return !!form.sub_type && !!form.color;
-        return !!form.body && !!form.color;
-      }
-      case 4: return form.damage_record ? !!form.damage_detail : true;
+      case 2: return !!form.price && !!form.km && !!form.color && !!form.vehicle_condition && !!form.title && !!form.plate_number;
+      case 3: return true; // Detaylar opsiyonel
+      case 4: return true; // Boya opsiyonel
       case 5: return form.images.length > 0;
-      case 6: return !!form.city && !!form.district && !!form.title && !!form.price;
+      case 6: return !!form.city && !!form.district && !!form.contact_preference;
       case 7: {
         if (form.listing_type === 'free') return true;
         return !!paymentMethod;
@@ -347,14 +379,12 @@ export default function CreateListingPage() {
       <div className="mt-6 bg-white rounded-xl p-6 shadow-sm border border-slate-200">
         {step === 0 && <StepType form={form} setField={setField} />}
         {step === 1 && <VehicleCascadeWizard value={cascade} onChange={setCascade} />}
-        {step === 2 && <StepEngine form={form} setField={setField} engines={engineSizesQuery.data} />}
-        {step === 3 && (isMotorcycle
-          ? <StepMotorcycleSpecs form={form} setField={setField} />
-          : <StepCarSpecs form={form} setField={setField} />)}
-        {step === 4 && <StepCondition form={form} setField={setField} />}
+        {step === 2 && <StepListingInfo form={form} setField={setField} />}
+        {step === 3 && <StepDetails form={form} setField={setField} />}
+        {step === 4 && <StepPaintCondition form={form} setField={setField} />}
         {step === 5 && <StepImages form={form} setField={setField} userId={user.id} />}
-        {step === 6 && <StepLocation form={form} setField={setField} cities={citiesQuery.data} districts={districtsQuery.data} />}
-        {step === 7 && <StepPublish form={form} setField={setField} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} walletBalance={walletBalance} fee={fee} />}
+        {step === 6 && <StepLocationContact form={form} setField={setField} cities={citiesQuery.data} districts={districtsQuery.data} />}
+        {step === 7 && <StepPublishType form={form} setField={setField} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} walletBalance={walletBalance} fee={fee} />}
       </div>
 
       {/* Ödeme Modal'ları */}
@@ -393,7 +423,7 @@ export default function CreateListingPage() {
 
 // ==================== PROGRESS BAR ====================
 function ProgressBar({ step }: { step: number }) {
-  const steps = ['Tip', 'Marka', 'Motor', 'Teknik', 'Hasar', 'Foto', 'Konum', 'Yayın'];
+  const steps = ['Tip', 'Seçim', 'Bilgi', 'Detay', 'Boya', 'Foto', 'Konum', 'Yayın'];
   return (
     <div className="flex gap-1">
       {steps.map((label, i) => (
@@ -438,23 +468,6 @@ function StepType({ form, setField }: any) {
 
 // ==================== STEP 2: BRAND & MODEL ====================
 // ==================== STEP 3: ENGINE ====================
-function StepEngine({ form, setField, engines }: any) {
-  if (!engines) return <div className="text-slate-500">Motor seçenekleri yükleniyor...</div>;
-  return (
-    <div>
-      <h2 className="text-xl font-extrabold mb-1">Motor Hacmi</h2>
-      <p className="text-sm text-slate-500 mb-5">Aracınızın motor hacmini seçin</p>
-      <div>
-        <select className="input" value={form.engine_size_id} onChange={e => setField('engine_size_id', e.target.value)}>
-          <option value="">Motor hacmi seçin</option>
-          {engines.map((e: any) => <option key={e.id} value={e.id}>{e.displacement}</option>)}
-        </select>
-      </div>
-    </div>
-  );
-}
-
-// ==================== STEP 4A: CAR SPECS ====================
 function StepCarSpecs({ form, setField }: any) {
   return (
     <div>
@@ -498,81 +511,6 @@ function StepCarSpecs({ form, setField }: any) {
 }
 
 // ==================== STEP 4B: MOTORCYCLE SPECS ====================
-function StepMotorcycleSpecs({ form, setField }: any) {
-  return (
-    <div>
-      <h2 className="text-xl font-extrabold mb-1">Teknik Özellikler</h2>
-      <p className="text-sm text-slate-500 mb-5">Motosiklet / UTV / ATV bilgileri</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Tip *</label>
-          <select className="input mt-1" value={form.sub_type} onChange={e => setField('sub_type', e.target.value)}>
-            <option value="">Tip seçin</option>
-            {SUB_VEHICLE_TYPES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Yıl *</label>
-          <input type="number" min={1950} max={new Date().getFullYear()} className="input mt-1" value={form.year} onChange={e => setField('year', e.target.value)} />
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">KM *</label>
-          <input type="number" min={0} className="input mt-1" value={form.km} onChange={e => setField('km', e.target.value)} />
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Yakıt *</label>
-          <select className="input mt-1" value={form.fuel} onChange={e => setField('fuel', e.target.value)}>
-            <option value="benzin">Benzin</option>
-            <option value="elektrik">Elektrik</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Vites *</label>
-          <select className="input mt-1" value={form.transmission} onChange={e => setField('transmission', e.target.value)}>
-            {TRANSMISSION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Renk *</label>
-          <input className="input mt-1" value={form.color} onChange={e => setField('color', e.target.value)} placeholder="Kırmızı, Siyah..." />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ==================== STEP 5: CONDITION ====================
-function StepCondition({ form, setField }: any) {
-  return (
-    <div>
-      <h2 className="text-xl font-extrabold mb-1">Hasar & Açıklama</h2>
-      <p className="text-sm text-slate-500 mb-5">Aracınızın durumu hakkında bilgi</p>
-      <div className="space-y-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={form.damage_record} onChange={e => setField('damage_record', e.target.checked)} className="h-4 w-4" />
-          <span className="text-sm font-medium">Hasar kaydı var</span>
-        </label>
-        {form.damage_record && (
-          <textarea className="input" rows={3} value={form.damage_detail} onChange={e => setField('damage_detail', e.target.value)} placeholder="Hasar detayını açıklayın..." />
-        )}
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={form.disabled_plate} onChange={e => setField('disabled_plate', e.target.checked)} className="h-4 w-4" />
-          <span className="text-sm font-medium">Engelli plakalı</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={form.exchange_accepted} onChange={e => setField('exchange_accepted', e.target.checked)} className="h-4 w-4" />
-          <span className="text-sm font-medium">Takas kabul ediyorum</span>
-        </label>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Açıklama</label>
-          <textarea className="input mt-1" rows={5} value={form.description} onChange={e => setField('description', e.target.value)} placeholder="Aracınız hakkında detaylı bilgi verin..." />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ==================== STEP 6: IMAGES ====================
 function StepImages({ form, setField, userId }: any) {
   const [uploading, setUploading] = useState(false);
 
@@ -628,354 +566,535 @@ function StepImages({ form, setField, userId }: any) {
 }
 
 // ==================== STEP 7: LOCATION ====================
-function StepLocation({ form, setField, cities, districts }: any) {
-  if (!cities) return <div className="text-slate-500">Şehirler yükleniyor...</div>;
+
+// ==================== BANK TRANSFER MODAL ====================
+
+
+// ==================== STEP 2: İLAN BİLGİLERİ (YENİ) ====================
+function StepListingInfo({ form, setField }: any) {
   return (
     <div>
-      <h2 className="text-xl font-extrabold mb-1">Konum & Başlık</h2>
-      <p className="text-sm text-slate-500 mb-5">Aracınızın konumu ve ilan başlığı</p>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold uppercase text-slate-500">İl *</label>
-            <select className="input mt-1" value={form.city} onChange={e => setField('city', e.target.value)}>
-              <option value="">İl seçin</option>
-              {cities.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold uppercase text-slate-500">İlçe *</label>
-            <select className="input mt-1" value={form.district} onChange={e => setField('district', e.target.value)} disabled={!form.city}>
-              <option value="">{form.city ? 'İlçe seçin' : 'Önce il seçin'}</option>
-              {districts?.map((d: any) => <option key={d.id} value={d.name}>{d.name}</option>)}
-            </select>
+      <h2 className="text-xl font-extrabold mb-1">İlan Bilgileri</h2>
+      <p className="text-sm text-slate-500 mb-5">Aracınızın temel bilgileri</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Fiyat *</label>
+          <div className="relative mt-1">
+            <input
+              type="number"
+              min="0"
+              className="input pr-12"
+              value={form.price}
+              onChange={(e) => setField('price', e.target.value)}
+              placeholder="0"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">TL</span>
           </div>
         </div>
+
         <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">İlan Başlığı *</label>
-          <input className="input mt-1" value={form.title} onChange={e => setField('title', e.target.value)} placeholder="Örn: 2020 BMW 320i M Sport Hatasız Boyasız" />
+          <label className="text-xs font-semibold uppercase text-slate-500">Kilometre *</label>
+          <div className="relative mt-1">
+            <input
+              type="number"
+              min="0"
+              className="input pr-12"
+              value={form.km}
+              onChange={(e) => setField('km', e.target.value)}
+              placeholder="0"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">KM</span>
+          </div>
         </div>
+
         <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Fiyat (TL) *</label>
-          <input type="number" min={0} className="input mt-1" value={form.price} onChange={e => setField('price', e.target.value)} placeholder="500000" />
+          <label className="text-xs font-semibold uppercase text-slate-500">Renk *</label>
+          <select
+            className="input mt-1"
+            value={form.color}
+            onChange={(e) => setField('color', e.target.value)}
+          >
+            <option value="">Seçiniz</option>
+            <option>Siyah</option>
+            <option>Beyaz</option>
+            <option>Gri</option>
+            <option>Gri (Açık)</option>
+            <option>Gri (Koyu)</option>
+            <option>Gümüş</option>
+            <option>Lacivert</option>
+            <option>Mavi</option>
+            <option>Kırmızı</option>
+            <option>Bordo</option>
+            <option>Yeşil</option>
+            <option>Yeşil (Açık)</option>
+            <option>Sarı</option>
+            <option>Turuncu</option>
+            <option>Mor</option>
+            <option>Kahverengi</option>
+            <option>Bej</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Araç Durumu *</label>
+          <select
+            className="input mt-1"
+            value={form.vehicle_condition}
+            onChange={(e) => setField('vehicle_condition', e.target.value)}
+          >
+            <option value="">Seçiniz</option>
+            <option value="ikinci_el">İkinci El</option>
+            <option value="sifir">Sıfır</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Plaka */}
+      <div className="mt-4">
+        <label className="text-xs font-semibold uppercase text-slate-500 flex items-center gap-1">
+          Plaka *
+          <span className="text-red-600">*</span>
+        </label>
+        <div className="mt-1 flex gap-2">
+          <select
+            className="input w-32"
+            value={form.plate_country}
+            onChange={(e) => setField('plate_country', e.target.value)}
+          >
+            <option value="TR">TR</option>
+          </select>
+          <input
+            type="text"
+            className="input flex-1"
+            value={form.plate_number}
+            onChange={(e) => setField('plate_number', e.target.value.toUpperCase())}
+            placeholder="34 ABC 1234"
+            maxLength={10}
+          />
+        </div>
+        <p className="text-xs text-slate-500 mt-1">
+          EİDS (Elektronik İlan Doğrulama Sistemi) üzerinden satış yetkisi sorgulamak için zorunludur.
+        </p>
+      </div>
+
+      {/* İlan Başlığı */}
+      <div className="mt-4">
+        <label className="text-xs font-semibold uppercase text-slate-500">
+          İlan Başlığı *
+        </label>
+        <input
+          type="text"
+          className="input mt-1"
+          value={form.title}
+          onChange={(e) => setField('title', e.target.value)}
+          placeholder="Sahibinden Hyundai i20 Troy 1.2 DOHC Team 2011 Model"
+          maxLength={80}
+        />
+        <p className="text-xs text-slate-500 mt-1">{form.title.length} / 80 karakter</p>
+      </div>
+    </div>
+  );
+}
+
+// ==================== STEP 3: DETAYLAR (YENİ) ====================
+function StepDetails({ form, setField }: any) {
+  return (
+    <div>
+      <h2 className="text-xl font-extrabold mb-1">Detaylar</h2>
+      <p className="text-sm text-slate-500 mb-5">(Opsiyonel)</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Araç Türü</label>
+          <select className="input mt-1" defaultValue="bireysel">
+            <option value="bireysel">Bireysel</option>
+            <option value="kurumsal">Kurumsal</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Plaka Uyruğu</label>
+          <select className="input mt-1" defaultValue="TR">
+            <option value="TR">(TR) Türkiye</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Garanti Durumu</label>
+          <select
+            className="input mt-1"
+            value={form.garanti_durumu}
+            onChange={(e) => setField('garanti_durumu', e.target.value)}
+          >
+            <option value="">Seçiniz</option>
+            <option value="var">Var</option>
+            <option value="yok">Yok</option>
+            <option value="bitmis">Bitti</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Aracın İlk Sahibiyim</label>
+          <select
+            className="input mt-1"
+            value={form.ilk_sahibi === null ? '' : form.ilk_sahibi ? 'evet' : 'hayir'}
+            onChange={(e) => setField('ilk_sahibi', e.target.value === '' ? null : e.target.value === 'evet')}
+          >
+            <option value="">Seçiniz</option>
+            <option value="evet">İlk Sahibiyim</option>
+            <option value="hayir">İlk Sahibi Değilim</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Takasa Uygun</label>
+          <select
+            className="input mt-1"
+            value={form.takasa_uygun === null ? '' : form.takasa_uygun ? 'evet' : 'hayir'}
+            onChange={(e) => setField('takasa_uygun', e.target.value === '' ? null : e.target.value === 'evet')}
+          >
+            <option value="">Seçiniz</option>
+            <option value="evet">Evet</option>
+            <option value="hayir">Hayır</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Vites</label>
+          <select
+            className="input mt-1"
+            value={form.transmission}
+            onChange={(e) => setField('transmission', e.target.value)}
+          >
+            <option value="manuel">Manuel</option>
+            <option value="otomatik">Otomatik</option>
+            <option value="yarı_otomatik">Yarı Otomatik</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Kasa Tipi (otomobil ise) */}
+      {form.vehicle_type === 'otomobil' && (
+        <div className="mt-4">
+          <label className="text-xs font-semibold uppercase text-slate-500">Kasa Tipi</label>
+          <select
+            className="input mt-1"
+            value={form.body}
+            onChange={(e) => setField('body', e.target.value)}
+          >
+            <option value="">Seçiniz</option>
+            <option value="sedan">Sedan</option>
+            <option value="hatchback">Hatchback</option>
+            <option value="station wagon">Station Wagon</option>
+            <option value="coupe">Coupe</option>
+            <option value="cabrio">Cabrio</option>
+          </select>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== STEP 4: BOYA/DEĞİŞEN + TRAMER ====================
+function StepPaintCondition({ form, setField }: any) {
+  return (
+    <div>
+      <h2 className="text-xl font-extrabold mb-1">Boya, Değişen ve Tramer Bilgisi</h2>
+      <p className="text-sm text-slate-500 mb-5">(Opsiyonel) Neredeyse tüm alıcıların dikkat ettiği bu bilginin doğru ve eksiksiz belirtilmesi önerilir.</p>
+
+      {/* Boya/Değişen — kısa bilgilendirme */}
+      <div className="rounded-lg border p-4 mb-4 bg-slate-50">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="font-bold">Boya ve Değişen Bilgisi</h3>
+        </div>
+        <p className="text-sm text-slate-600">
+          İlan yayınlandıktan sonra, araç detay sayfasında boya/değişen diyagramını görebilirsiniz. Şimdilik
+          bu adımı atlayabilir veya <span className="font-semibold text-red-600">Tümü Orijinal</span> olarak işaretleyebilirsiniz.
+          Detaylı parça seçimi ilerleyen sürümlerde eklenecektir.
+        </p>
+        <label className="mt-3 flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" className="h-4 w-4" />
+          <span className="text-sm font-medium">Tümü Orijinal</span>
+        </label>
+      </div>
+
+      {/* Tramer */}
+      <div className="rounded-lg border p-4">
+        <h3 className="font-bold mb-3">Tramer Bilgisi</h3>
+        <div className="flex flex-wrap gap-4 mb-3">
+          {['bilinmiyor', 'yok', 'var', 'agir_hasarli'].map((opt) => (
+            <label key={opt} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="tramer_durumu"
+                value={opt}
+                checked={form.tramer_durumu === opt}
+                onChange={(e) => setField('tramer_durumu', e.target.value)}
+                className="h-4 w-4 accent-red-600"
+              />
+              <span className="text-sm">
+                {opt === 'bilinmiyor' && 'Bilmiyorum'}
+                {opt === 'yok' && 'Tramer Yok'}
+                {opt === 'var' && 'Tramer Var'}
+                {opt === 'agir_hasarli' && 'Ağır Hasarlı'}
+              </span>
+            </label>
+          ))}
+        </div>
+        {(form.tramer_durumu === 'var' || form.tramer_durumu === 'agir_hasarli') && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-500">Tramer Tutarı</label>
+            <div className="relative mt-1">
+              <input
+                type="number"
+                className="input pr-12"
+                value={form.tramer_tutari}
+                onChange={(e) => setField('tramer_tutari', e.target.value)}
+                placeholder="0"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">TL</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==================== STEP 6: ADRES + İLETİŞİM (YENİ) ====================
+function StepLocationContact({ form, setField, cities, districts }: any) {
+  return (
+    <div>
+      <h2 className="text-xl font-extrabold mb-1">Adres & İletişim</h2>
+      <p className="text-sm text-slate-500 mb-5">Aracınızın konumu ve iletişim tercihiniz</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">İl *</label>
+          <select
+            className="input mt-1"
+            value={form.city}
+            onChange={(e) => setField('city', e.target.value)}
+          >
+            <option value="">Seçiniz</option>
+            {(cities ?? []).map((c: any) => (
+              <option key={c.id ?? c.name} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">İlçe *</label>
+          <select
+            className="input mt-1"
+            value={form.district}
+            onChange={(e) => setField('district', e.target.value)}
+            disabled={!form.city}
+          >
+            <option value="">Seçiniz</option>
+            {(districts ?? []).map((d: any) => (
+              <option key={d.id ?? d.name} value={d.name}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Semt</label>
+          <input
+            type="text"
+            className="input mt-1"
+            placeholder="Opsiyonel"
+          />
+        </div>
+      </div>
+
+      <div className="border-t pt-4">
+        <h3 className="font-bold mb-3">İletişim Tercihi</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label className={cn(
+            'rounded-lg border-2 p-3 cursor-pointer flex items-center gap-3 transition',
+            form.contact_preference === 'phone_message' ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-slate-400'
+          )}>
+            <input
+              type="radio"
+              name="contact"
+              value="phone_message"
+              checked={form.contact_preference === 'phone_message'}
+              onChange={(e) => setField('contact_preference', e.target.value)}
+              className="h-4 w-4 accent-red-600"
+            />
+            <div>
+              <div className="font-semibold text-sm">Telefon + Mesaj</div>
+              <div className="text-xs text-slate-500">Telefon numaram ve mesaj ile ulaşılsın.</div>
+            </div>
+          </label>
+
+          <label className={cn(
+            'rounded-lg border-2 p-3 cursor-pointer flex items-center gap-3 transition',
+            form.contact_preference === 'phone_only' ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-slate-400'
+          )}>
+            <input
+              type="radio"
+              name="contact"
+              value="phone_only"
+              checked={form.contact_preference === 'phone_only'}
+              onChange={(e) => setField('contact_preference', e.target.value)}
+              className="h-4 w-4 accent-red-600"
+            />
+            <div>
+              <div className="font-semibold text-sm">Sadece Telefon</div>
+              <div className="text-xs text-slate-500">Yalnızca telefon numaram üzerinden ulaşılsın.</div>
+            </div>
+          </label>
+
+          <label className={cn(
+            'rounded-lg border-2 p-3 cursor-pointer flex items-center gap-3 transition',
+            form.contact_preference === 'message_only' ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-slate-400'
+          )}>
+            <input
+              type="radio"
+              name="contact"
+              value="message_only"
+              checked={form.contact_preference === 'message_only'}
+              onChange={(e) => setField('contact_preference', e.target.value)}
+              className="h-4 w-4 accent-red-600"
+            />
+            <div>
+              <div className="font-semibold text-sm">Sadece Mesaj</div>
+              <div className="text-xs text-slate-500">Sadece site üzerinden mesaj ile ulaşılsın.</div>
+            </div>
+          </label>
+        </div>
+
+        <div className="mt-4">
+          <label className="text-xs font-semibold uppercase text-slate-500">Telefon Numarası</label>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-sm text-slate-600">+90</span>
+            <input
+              type="tel"
+              className="input flex-1"
+              value={form.contact_phone}
+              onChange={(e) => setField('contact_phone', e.target.value)}
+              placeholder="5445146498"
+              maxLength={10}
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ==================== STEP 8: PUBLISH ====================
-function StepPublish({ form, setField, paymentMethod, setPaymentMethod, walletBalance, fee }: any) {
-  const isAuction = form.listing_type === 'auction' || form.listing_type === 'premium_auction';
+// ==================== STEP 7: İLAN TÜRÜ + YAYINLA (YENİ) ====================
+function StepPublishType({ form, setField, paymentMethod, setPaymentMethod, walletBalance, fee }: any) {
   return (
     <div>
-      <h2 className="text-xl font-extrabold mb-1">Yayın Tipi</h2>
+      <h2 className="text-xl font-extrabold mb-1">İlan Türü Seçimi</h2>
       <p className="text-sm text-slate-500 mb-5">İlanınızı nasıl yayınlamak istiyorsunuz?</p>
-      <div className="space-y-3">
-        <button
-          onClick={() => { setField('listing_type', 'free'); setPaymentMethod(null); }}
-          className={cn(
-            'w-full p-4 rounded-xl border-2 text-left transition',
-            form.listing_type === 'free' ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white'
-          )}
-        >
-          <div className="font-bold">Ücretsiz İlan</div>
-          <div className="text-sm text-slate-500 mt-1">Standart yayın, ücret yok</div>
-        </button>
-        <button
-          onClick={() => setField('listing_type', 'auction')}
-          className={cn(
-            'w-full p-4 rounded-xl border-2 text-left transition',
-            form.listing_type === 'auction' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'
-          )}
-        >
-          <div className="font-bold">Açık Arttırma</div>
-          <div className="text-sm text-slate-500 mt-1">Canlı açık arttırma, 100 TL ücret</div>
-        </button>
-        <button
-          onClick={() => setField('listing_type', 'premium_auction')}
-          className={cn(
-            'w-full p-4 rounded-xl border-2 text-left transition',
-            form.listing_type === 'premium_auction' ? 'border-purple-500 bg-purple-50' : 'border-slate-200 bg-white'
-          )}
-        >
-          <div className="font-bold">Premium Açık Arttırma</div>
-          <div className="text-sm text-slate-500 mt-1">Öne çıkan açık arttırma, 200 TL ücret</div>
-        </button>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label className={cn(
+          'rounded-xl border-2 p-5 cursor-pointer transition',
+          form.listing_type === 'auction' || form.listing_type === 'premium_auction'
+            ? 'border-red-500 bg-red-50'
+            : 'border-slate-200 hover:border-slate-400'
+        )}>
+          <input
+            type="radio"
+            name="listing_type"
+            value="auction"
+            checked={form.listing_type === 'auction'}
+            onChange={(e) => setField('listing_type', e.target.value)}
+            className="sr-only"
+          />
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl font-bold">🏷️</div>
+            <div>
+              <div className="font-bold text-base">Açık Arttırma İlanı Ver</div>
+              <div className="text-sm text-slate-600 mt-1">Aracınız açık arttırmaya çıkar, en yüksek teklifi veren kazanır.</div>
+              <div className="text-xs text-red-600 font-semibold mt-2">Ücret: {fee} TL</div>
+            </div>
+          </div>
+        </label>
+
+        <label className={cn(
+          'rounded-xl border-2 p-5 cursor-pointer transition',
+          form.listing_type === 'free' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-400'
+        )}>
+          <input
+            type="radio"
+            name="listing_type"
+            value="free"
+            checked={form.listing_type === 'free'}
+            onChange={(e) => setField('listing_type', e.target.value)}
+            className="sr-only"
+          />
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl font-bold">✓</div>
+            <div>
+              <div className="font-bold text-base">Ücretsiz İlan Ver</div>
+              <div className="text-sm text-slate-600 mt-1">Aracınız klasik ilan olarak yayınlanır, sabit fiyat ile satılır.</div>
+              <div className="text-xs text-emerald-600 font-semibold mt-2">Ücretsiz</div>
+            </div>
+          </div>
+        </label>
       </div>
 
-      {isAuction && (
-        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <h3 className="font-bold text-amber-900 mb-3">Ödeme Yöntemi ({fee} TL)</h3>
+      {/* Ödeme (auction seçildiyse) */}
+      {(form.listing_type === 'auction' || form.listing_type === 'premium_auction') && (
+        <div className="mt-6 rounded-xl border p-5 bg-slate-50">
+          <h3 className="font-bold mb-3">Ödeme Yöntemi</h3>
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setPaymentMethod('wallet')}
-              className={cn(
-                'w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition',
-                paymentMethod === 'wallet' ? 'border-amber-500 bg-white' : 'border-slate-200 bg-white hover:border-slate-300'
-              )}
-            >
-              <Wallet className="h-5 w-5 text-amber-600" />
-              <div className="flex-1">
-                <div className="font-semibold text-sm">Cüzdan</div>
-                <div className="text-xs text-slate-500">Bakiyenden otomatik düşer</div>
-              </div>
-              <div className="text-sm font-bold text-amber-600">{walletBalance} TL</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaymentMethod('card')}
-              className={cn(
-                'w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition',
-                paymentMethod === 'card' ? 'border-amber-500 bg-white' : 'border-slate-200 bg-white hover:border-slate-300'
-              )}
-            >
-              <CreditCard className="h-5 w-5 text-amber-600" />
-              <div>
-                <div className="font-semibold text-sm">Kredi / Banka Kartı</div>
-                <div className="text-xs text-slate-500">3D Secure ile güvenli ödeme</div>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaymentMethod('bank')}
-              className={cn(
-                'w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition',
-                paymentMethod === 'bank' ? 'border-amber-500 bg-white' : 'border-slate-200 bg-white hover:border-slate-300'
-              )}
-            >
-              <Building2 className="h-5 w-5 text-amber-600" />
-              <div>
-                <div className="font-semibold text-sm">Banka Havalesi / EFT</div>
-                <div className="text-xs text-slate-500">Dekont yükleyerek onay al</div>
-              </div>
-            </button>
+            <PaymentOption
+              value="wallet"
+              current={paymentMethod}
+              onSelect={setPaymentMethod}
+              label="Cüzdandan Öde"
+              detail={`Bakiye: ${walletBalance} TL ${walletBalance >= fee ? '✓' : '✗ Yetersiz'}`}
+            />
+            <PaymentOption
+              value="card"
+              current={paymentMethod}
+              onSelect={setPaymentMethod}
+              label="Kredi/Banka Kartı"
+              detail="iyzico güvencesiyle"
+            />
+            <PaymentOption
+              value="bank"
+              current={paymentMethod}
+              onSelect={setPaymentMethod}
+              label="Banka Havalesi / EFT"
+              detail="Onay sonrası aktif olur"
+            />
           </div>
         </div>
       )}
-
-      <div className="mt-6 p-4 bg-slate-50 rounded-lg text-sm text-slate-600">
-        <strong>Özet:</strong> {form.title || '(Başlık girilmedi)'} — {form.price ? `${form.price} TL` : '(Fiyat belirtilmedi)'}
-        <br />
-        {form.city && form.district && <span>{form.city} / {form.district}</span>}
-      </div>
     </div>
   );
 }
 
-// ==================== CARD PAYMENT MODAL ====================
-function CardPaymentModal({ fee, onCancel, onSuccess }: { fee: number; onCancel: () => void; onSuccess: () => void }) {
-  const [step, setStep] = useState<'card' | '3ds' | 'processing'>('card');
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvc, setCvc] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [otp, setOtp] = useState('');
-
-  function handleCardSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!cardNumber || !expiry || !cvc || !cardName) {
-      alert('Tüm alanları doldurun');
-      return;
-    }
-    setStep('3ds');
-  }
-
-  function handle3DSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (otp.length !== 6) {
-      alert('Lütfen 6 haneli SMS kodunu girin');
-      return;
-    }
-    setStep('processing');
-    setTimeout(() => {
-      onSuccess();
-    }, 2000);
-  }
-
+function PaymentOption({ value, current, onSelect, label, detail }: any) {
+  const selected = current === value;
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 to-slate-700 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-        {/* 3D Secure Bank Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
-                <span className="text-xs font-bold">3D</span>
-              </div>
-              <div>
-                <div className="text-sm font-semibold">3D Secure ile Güvenli Ödeme</div>
-                <div className="text-xs opacity-80">Verified by Visa • MasterCard SecureCode</div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-xs opacity-80">Toplam</div>
-              <div className="text-lg font-bold">{fee} TL</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Step 1: Kart Bilgileri */}
-        {step === 'card' && (
-          <form onSubmit={handleCardSubmit} className="p-6">
-            <h3 className="text-lg font-bold mb-4 text-slate-900">Kart Bilgileri</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold uppercase text-slate-500">Kart Üzerindeki İsim</label>
-                <input
-                  type="text"
-                  value={cardName}
-                  onChange={e => setCardName(e.target.value.toUpperCase())}
-                  className="input mt-1"
-                  placeholder="AD SOYAD"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase text-slate-500">Kart Numarası</label>
-                <input
-                  type="text"
-                  maxLength={19}
-                  value={cardNumber}
-                  onChange={e => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim())}
-                  className="input mt-1 font-mono"
-                  placeholder="0000 0000 0000 0000"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold uppercase text-slate-500">Son Kullanma</label>
-                  <input
-                    type="text"
-                    maxLength={5}
-                    value={expiry}
-                    onChange={e => setExpiry(e.target.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2'))}
-                    className="input mt-1 font-mono"
-                    placeholder="AA/YY"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase text-slate-500">CVC</label>
-                  <input
-                    type="text"
-                    maxLength={4}
-                    value={cvc}
-                    onChange={e => setCvc(e.target.value.replace(/\D/g, ''))}
-                    className="input mt-1 font-mono"
-                    placeholder="000"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 p-3 bg-slate-50 rounded-lg text-xs text-slate-500 flex items-start gap-2">
-              <div className="h-4 w-4 rounded-full bg-blue-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-bold">i</div>
-              <div>Devam ettiğinizde kartınızın bağlı olduğu bankanın güvenlik sayfasına yönlendirileceksiniz.</div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button type="button" onClick={onCancel} className="flex-1 btn-ghost">İptal</button>
-              <button type="submit" className="flex-1 btn-primary">Devam Et</button>
-            </div>
-          </form>
-        )}
-
-        {/* Step 2: 3D Secure OTP */}
-        {step === '3ds' && (
-          <form onSubmit={handle3DSubmit} className="p-6">
-            <div className="text-center mb-4">
-              <div className="h-16 w-16 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-3">
-                <span className="text-2xl">📱</span>
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">Telefonunuza Gelen Kodu Girin</h3>
-              <p className="text-sm text-slate-500 mt-1">3D Secure doğrulama için bankanıza kayıtlı telefon numarasına SMS gönderdik.</p>
-            </div>
-            <div>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otp}
-                onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-                className="input mt-1 text-center text-2xl font-mono tracking-widest"
-                placeholder="• • • • • •"
-                autoFocus
-              />
-              <div className="text-xs text-slate-500 text-center mt-2">Test: 123456 girin</div>
-            </div>
-            <div className="mt-4 p-3 bg-slate-50 rounded-lg text-xs text-slate-500">
-              <div className="flex justify-between">
-                <span>Kart:</span>
-                <span className="font-mono">{cardNumber || '****'}</span>
-              </div>
-              <div className="flex justify-between mt-1">
-                <span>Tutar:</span>
-                <span className="font-bold">{fee} TL</span>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button type="button" onClick={() => setStep('card')} className="flex-1 btn-ghost">Geri</button>
-              <button type="submit" className="flex-1 btn-primary">Doğrula ve Öde</button>
-            </div>
-          </form>
-        )}
-
-        {/* Step 3: Processing */}
-        {step === 'processing' && (
-          <div className="p-8 text-center">
-            <div className="h-16 w-16 mx-auto rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin mb-4" />
-            <h3 className="text-lg font-bold text-slate-900">Ödeme İşleniyor...</h3>
-            <p className="text-sm text-slate-500 mt-1">Lütfen bekleyin, işleminiz gerçekleştiriliyor.</p>
-          </div>
-        )}
+    <button
+      type="button"
+      onClick={() => onSelect(value)}
+      className={cn(
+        'w-full text-left p-3 rounded-lg border-2 flex items-center gap-3 transition',
+        selected ? 'border-red-500 bg-white' : 'border-slate-200 hover:border-slate-300'
+      )}
+    >
+      <div className={cn(
+        'h-5 w-5 rounded-full border-2 flex items-center justify-center',
+        selected ? 'border-red-600' : 'border-slate-300'
+      )}>
+        {selected && <div className="h-2.5 w-2.5 rounded-full bg-red-600" />}
       </div>
-    </div>
-  );
-}
-
-// ==================== BANK TRANSFER MODAL ====================
-function BankTransferModal({ fee, onCancel, onSuccess }: { fee: number; onCancel: () => void; onSuccess: () => void }) {
-  const [receipt, setReceipt] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!receipt) {
-      alert('Lütfen dekont yükleyin');
-      return;
-    }
-    setUploading(true);
-    setTimeout(() => {
-      setUploading(false);
-      onSuccess();
-    }, 1500);
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 max-w-md w-full">
-        <h3 className="text-lg font-bold mb-2">Banka Havalesi / EFT</h3>
-        <p className="text-sm text-slate-600 mb-3">Aşağıdaki IBAN'a <strong>{fee} TL</strong> yatırın ve dekontu yükleyin.</p>
-        <div className="bg-slate-50 p-3 rounded-lg mb-4 text-sm space-y-1">
-          <div><strong>Banka:</strong> Ziraat Bankası</div>
-          <div className="font-mono text-xs"><strong>IBAN:</strong> TR12 0001 0012 3456 7890 1234 56</div>
-          <div><strong>Alıcı:</strong> Arabamabak A.Ş.</div>
-          <div><strong>Tutar:</strong> {fee} TL</div>
-        </div>
-        <div className="mb-4">
-          <label className="text-xs font-semibold uppercase text-slate-500">Dekont Yükle *</label>
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={e => setReceipt(e.target.files?.[0] || null)}
-            className="input mt-1"
-          />
-        </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={onCancel} disabled={uploading} className="flex-1 btn-ghost disabled:opacity-50">İptal</button>
-          <button type="submit" disabled={uploading || !receipt} className="flex-1 btn-primary disabled:opacity-50">
-            {uploading ? 'Yükleniyor...' : 'Dekontu Yükle ve Yayınla'}
-          </button>
-        </div>
-      </form>
-    </div>
+      <div>
+        <div className="font-medium text-sm">{label}</div>
+        <div className="text-xs text-slate-500">{detail}</div>
+      </div>
+    </button>
   );
 }
