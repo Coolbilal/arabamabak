@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Check, AlertCircle } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export type PaintStatus = 'none' | 'original' | 'painted' | 'local_painted' | 'changed';
@@ -196,7 +196,6 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
             onSelect={(s) => setStatus(activePart, s)}
             onClose={() => setActivePart(null)}
             pos={popupPos}
-            containerRef={diagramRef}
           />
         )}
       </div>
@@ -280,13 +279,12 @@ function PartClickable({
 }
 
 function PartStatusPopup({
-  code, current, onSelect, onClose, pos, containerRef,
+  code, current, onSelect, onClose, pos,
 }: {
   code: string; current: PaintStatus;
   onSelect: (s: PaintStatus) => void;
   onClose: () => void;
   pos: { x: number; y: number };
-  containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const part = PARTS.find((p) => p.code === code);
   const popupRef = useRef<HTMLDivElement>(null);
