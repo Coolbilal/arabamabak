@@ -141,8 +141,6 @@ export default function CreateListingPage() {
   const isAuction = form.listing_type === 'auction' || form.listing_type === 'premium_auction';
   const fee = form.listing_type === 'premium_auction' ? 200 : 100;
 
-  const brandsQuery = isMotorcycle ? useMotorcycleBrands() : useBrands(form.vehicle_type);
-  const modelsQuery = isMotorcycle ? useMotorcycleModels(form.brand_id) : useModels(form.brand_id);
   const engineSizesQuery = useEngineSizes();
   const citiesQuery = useCities();
   const districtsQuery = useDistricts(form.city);
@@ -241,6 +239,8 @@ export default function CreateListingPage() {
         description: form.description,
         price: parseFloat(form.price),
         year: parseInt(form.year),
+        sub_model: cascade.subModel?.name ?? null,
+        engine_size_label: cascade.engine?.name ?? null,
         km: parseInt(form.km),
         fuel: form.fuel,
         transmission: form.transmission,
@@ -446,37 +446,6 @@ function StepType({ form, setField }: any) {
 }
 
 // ==================== STEP 2: BRAND & MODEL ====================
-function StepBrand({ form, setField, brands, models }: any) {
-  if (!brands) return <div className="text-slate-500">Markalar yükleniyor...</div>;
-  return (
-    <div>
-      <h2 className="text-xl font-extrabold mb-1">Marka & Model</h2>
-      <p className="text-sm text-slate-500 mb-5">Aracınızın marka ve modelini seçin</p>
-      <div className="space-y-4">
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Marka *</label>
-          <select className="input mt-1" value={form.brand_id} onChange={e => setField('brand_id', e.target.value)}>
-            <option value="">Marka seçin</option>
-            {brands.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">Model *</label>
-          <select
-            className="input mt-1"
-            value={form.model_id}
-            onChange={e => setField('model_id', e.target.value)}
-            disabled={!form.brand_id}
-          >
-            <option value="">{form.brand_id ? 'Model seçin' : 'Önce marka seçin'}</option>
-            {models?.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ==================== STEP 3: ENGINE ====================
 function StepEngine({ form, setField, engines }: any) {
   if (!engines) return <div className="text-slate-500">Motor seçenekleri yükleniyor...</div>;
