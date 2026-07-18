@@ -5,7 +5,7 @@ import {
   LayoutDashboard, ListChecks, ClipboardCheck, Settings,
   CreditCard, Shield, Store, Users, Wallet, Calendar, ChevronLeft, ChevronRight, LogOut, Car,
   Inbox, Clock, Play, CheckCircle2, Palette, Megaphone, Image, Building2,
-  CarFront, Banknote, ChevronDown, Briefcase,
+  CarFront, Banknote, ChevronDown, Briefcase, FileCheck, Activity,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -43,6 +43,8 @@ const ITEMS: Item[] = [
   { to: '/settings', label: 'Site Ayarları', icon: <Settings className="h-5 w-5" />, area: 'site_settings' },
   { to: '/site/tema', label: 'Tema', icon: <Palette className="h-5 w-5" />, area: 'site_settings' },
   { to: '/site/reklamlar', label: 'Reklamlar', icon: <Megaphone className="h-5 w-5" />, area: 'site_settings' },
+  { to: '/eids-settings', label: 'EİDS Yapılandırma', icon: <FileCheck className="h-5 w-5" />, area: 'site_settings' },
+  { to: '/eids-logs', label: 'EİDS Sorgu Logları', icon: <Activity className="h-5 w-5" />, area: 'site_settings' },
   { to: '/site/logolar', label: 'Logolar', icon: <Image className="h-5 w-5" />, area: 'site_settings' },
   { to: '/payment-methods', label: 'Ödeme Yöntemleri', icon: <CreditCard className="h-5 w-5" />, area: 'site_settings' },
   { to: '/authorization', label: 'Yetkilendirme', icon: <Shield className="h-5 w-5" />, area: 'authorization' },

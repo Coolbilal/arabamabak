@@ -10,6 +10,8 @@ import SoldAuctionsPage from './pages/SoldAuctionsPage';
 import FreeListingsPage from './pages/FreeListingsPage';
 import ExpertisePage from './pages/ExpertisePage';
 import SettingsPage from './pages/SettingsPage';
+import EidsSettingsPage from './pages/EidsSettingsPage';
+import EidsLogsPage from './pages/EidsLogsPage';
 import AuthorizationPage from './pages/AuthorizationPage';
 import DealershipsPage from './pages/DealershipsPage';
 import UsersPage from './pages/UsersPage';
@@ -43,6 +45,8 @@ export default function App() {
         <Route path="free-listings" element={<FreeListingsPage />} />
         <Route path="expertise" element={<ExpertisePage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="eids-settings" element={<EidsSettingsPage />} />
+        <Route path="eids-logs" element={<EidsLogsPage />} />
         <Route path="payment-methods" element={<PaymentMethodsPage />} />
         <Route path="pending-listings" element={<PendingListingsPage />} />
         <Route path="auction-applications" element={<AuctionApplicationsPage />} />
