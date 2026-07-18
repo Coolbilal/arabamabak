@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Car, Bike, Upload, X, Check } from 'lucide-react';
-import { supabase, BUCKETS } from '../lib/supabase';
+import { ChevronLeft, ChevronRight, Car, Bike, Check, X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { useCities, useDistricts } from '../lib/useLocationData';
@@ -112,28 +112,6 @@ const VEHICLE_TYPES: { value: VehicleType; label: string; icon: any; desc: strin
   { value: 'minivan_panelvan', label: 'Minivan / Panelvan', icon: Car, desc: 'Geniş iç hacimli araçlar' },
   { value: 'ticari', label: 'Ticari', icon: Car, desc: 'Kamyon, kamyonet, otobüs' },
   { value: 'motorsiklet_utv_atv', label: 'Motosiklet / UTV / ATV', icon: Bike, desc: 'Motor, UTV, ATV' },
-];
-
-const BODY_TYPES: { value: BodyType; label: string }[] = [
-  { value: 'sedan', label: 'Sedan' },
-  { value: 'hatchback', label: 'Hatchback' },
-  { value: 'station wagon', label: 'Station Wagon' },
-  { value: 'coupe', label: 'Coupe' },
-  { value: 'cabrio', label: 'Cabrio' },
-];
-
-const FUEL_TYPES: { value: FuelType; label: string }[] = [
-  { value: 'benzin', label: 'Benzin' },
-  { value: 'dizel', label: 'Dizel' },
-  { value: 'lpg', label: 'LPG & Benzin' },
-  { value: 'elektrik', label: 'Elektrik' },
-  { value: 'hibrit', label: 'Hibrit' },
-];
-
-const TRANSMISSION_TYPES: { value: TransmissionType; label: string }[] = [
-  { value: 'manuel', label: 'Manuel' },
-  { value: 'otomatik', label: 'Otomatik' },
-  { value: 'yarı_otomatik', label: 'Yarı Otomatik' },
 ];
 
 // ==================== MAIN COMPONENT ====================
@@ -749,5 +727,218 @@ function PaymentOption({ value, current, onSelect, label, detail }: any) {
         <div className="text-xs text-slate-500">{detail}</div>
       </div>
     </button>
+  );
+}
+
+// ==================== STEP 2: İLAN BİLGİLERİ (YENİ) ====================
+function StepListingInfo({ form, setField }: any) {
+  return (
+    <div>
+      <h2 className="text-xl font-extrabold mb-1">İlan Bilgileri</h2>
+      <p className="text-sm text-slate-500 mb-5">Aracınızın temel bilgileri</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Fiyat *</label>
+          <div className="relative mt-1">
+            <input type="number" min="0" className="input pr-12" value={form.price} onChange={(e) => setField('price', e.target.value)} placeholder="0" />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">TL</span>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Kilometre *</label>
+          <div className="relative mt-1">
+            <input type="number" min="0" className="input pr-12" value={form.km} onChange={(e) => setField('km', e.target.value)} placeholder="0" />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">KM</span>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Renk *</label>
+          <select className="input mt-1" value={form.color} onChange={(e) => setField('color', e.target.value)}>
+            <option value="">Seçiniz</option>
+            <option>Siyah</option><option>Beyaz</option><option>Gri</option><option>Gri (Açık)</option>
+            <option>Gri (Koyu)</option><option>Gümüş</option><option>Lacivert</option><option>Mavi</option>
+            <option>Kırmızı</option><option>Bordo</option><option>Yeşil</option><option>Yeşil (Açık)</option>
+            <option>Sarı</option><option>Turuncu</option><option>Mor</option><option>Kahverengi</option><option>Bej</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Araç Durumu *</label>
+          <select className="input mt-1" value={form.vehicle_condition} onChange={(e) => setField('vehicle_condition', e.target.value)}>
+            <option value="">Seçiniz</option>
+            <option value="ikinci_el">İkinci El</option>
+            <option value="sifir">Sıfır</option>
+          </select>
+        </div>
+      </div>
+      <div className="mt-4">
+        <label className="text-xs font-semibold uppercase text-slate-500">Plaka *</label>
+        <div className="mt-1 flex gap-2">
+          <select className="input w-32" value={form.plate_country} onChange={(e) => setField('plate_country', e.target.value)}>
+            <option value="TR">TR</option>
+          </select>
+          <input type="text" className="input flex-1" value={form.plate_number} onChange={(e) => setField('plate_number', e.target.value.toUpperCase())} placeholder="34 ABC 1234" maxLength={10} />
+        </div>
+        <p className="text-xs text-slate-500 mt-1">EİDS (Elektronik İlan Doğrulama Sistemi) üzerinden satış yetkisi sorgulamak için zorunludur.</p>
+      </div>
+      <div className="mt-4">
+        <label className="text-xs font-semibold uppercase text-slate-500">İlan Başlığı *</label>
+        <input type="text" className="input mt-1" value={form.title} onChange={(e) => setField('title', e.target.value)} placeholder="Sahibinden Hyundai i20 Troy 1.2 DOHC Team 2011 Model" maxLength={80} />
+        <p className="text-xs text-slate-500 mt-1">{form.title.length} / 80 karakter</p>
+      </div>
+    </div>
+  );
+}
+
+// ==================== STEP 3: DETAYLAR (YENİ) ====================
+function StepDetails({ form, setField }: any) {
+  return (
+    <div>
+      <h2 className="text-xl font-extrabold mb-1">Detaylar</h2>
+      <p className="text-sm text-slate-500 mb-5">(Opsiyonel)</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Araç Türü</label>
+          <select className="input mt-1" defaultValue="bireysel">
+            <option value="bireysel">Bireysel</option>
+            <option value="kurumsal">Kurumsal</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Plaka Uyruğu</label>
+          <select className="input mt-1" defaultValue="TR">
+            <option value="TR">(TR) Türkiye</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Garanti Durumu</label>
+          <select className="input mt-1" value={form.garanti_durumu} onChange={(e) => setField('garanti_durumu', e.target.value)}>
+            <option value="">Seçiniz</option>
+            <option value="var">Var</option>
+            <option value="yok">Yok</option>
+            <option value="bitmis">Bitti</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Aracın İlk Sahibiyim</label>
+          <select
+            className="input mt-1"
+            value={form.ilk_sahibi === null ? '' : form.ilk_sahibi ? 'evet' : 'hayir'}
+            onChange={(e) => setField('ilk_sahibi', e.target.value === '' ? null : e.target.value === 'evet')}
+          >
+            <option value="">Seçiniz</option>
+            <option value="evet">İlk Sahibiyim</option>
+            <option value="hayir">İlk Sahibi Değilim</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Takasa Uygun</label>
+          <select
+            className="input mt-1"
+            value={form.takasa_uygun === null ? '' : form.takasa_uygun ? 'evet' : 'hayir'}
+            onChange={(e) => setField('takasa_uygun', e.target.value === '' ? null : e.target.value === 'evet')}
+          >
+            <option value="">Seçiniz</option>
+            <option value="evet">Evet</option>
+            <option value="hayir">Hayır</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">Vites</label>
+          <select className="input mt-1" value={form.transmission} onChange={(e) => setField('transmission', e.target.value)}>
+            <option value="manuel">Manuel</option>
+            <option value="otomatik">Otomatik</option>
+            <option value="yarı_otomatik">Yarı Otomatik</option>
+          </select>
+        </div>
+      </div>
+      {form.vehicle_type === 'otomobil' && (
+        <div className="mt-4">
+          <label className="text-xs font-semibold uppercase text-slate-500">Kasa Tipi</label>
+          <select className="input mt-1" value={form.body} onChange={(e) => setField('body', e.target.value)}>
+            <option value="">Seçiniz</option>
+            <option value="sedan">Sedan</option>
+            <option value="hatchback">Hatchback</option>
+            <option value="station wagon">Station Wagon</option>
+            <option value="coupe">Coupe</option>
+            <option value="cabrio">Cabrio</option>
+          </select>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== STEP 5: FOTOĞRAFLAR (MEVCUT — DİL DEĞİŞTİ) ====================
+function StepImages({ form, setField, userId }: any) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFiles(filesList: FileList | null) {
+    if (!filesList || filesList.length === 0 || !userId) return;
+    setUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of Array.from(filesList).slice(0, 15 - form.images.length)) {
+        const ext = file.name.split('.').pop();
+        const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('vehicle-images').upload(path, file);
+        if (upErr) continue;
+        const { data: pub } = supabase.storage.from('vehicle-images').getPublicUrl(path);
+        if (pub?.publicUrl) urls.push(pub.publicUrl);
+      }
+      setField('images', [...form.images, ...urls]);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeImage(idx: number) {
+    setField('images', form.images.filter((_: any, i: number) => i !== idx));
+  }
+
+  return (
+    <div>
+      <h2 className="text-xl font-extrabold mb-1">Fotoğraflar</h2>
+      <p className="text-sm text-slate-500 mb-5">Aracın farklı açılardan dış (ön, arka, yan) ve iç (motor, konsol, koltuklar, bagaj) fotoğraflarının eklenmesi önerilir.</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <label className="border-2 border-dashed border-red-300 bg-red-50/30 rounded-lg p-5 text-center cursor-pointer hover:border-red-500">
+          <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+          <div className="text-3xl mb-1">📷</div>
+          <div className="font-semibold text-red-700">Fotoğraf Ekle</div>
+          <div className="text-xs text-slate-500">veya sürükle bırak</div>
+        </label>
+        <button type="button" className="border rounded-lg p-5 text-center">
+          <div className="text-3xl mb-1">📱</div>
+          <div className="font-semibold">Telefondan Ekle</div>
+          <div className="text-xs text-slate-500">Bildirim ile</div>
+        </button>
+        <button type="button" className="border rounded-lg p-5 text-center">
+          <div className="text-3xl mb-1">📲</div>
+          <div className="font-semibold">Telefondan Ekle</div>
+          <div className="text-xs text-slate-500">QR Kod ile</div>
+        </button>
+      </div>
+
+      <p className="text-sm text-slate-600 mb-3">Eklenen Fotoğraflar: <span className="font-bold">{form.images.length}</span> / 15</p>
+
+      {form.images.length > 0 && (
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mb-4">
+          {form.images.map((url: string, i: number) => (
+            <div key={i} className="relative group">
+              <img src={url} alt="" className="w-full h-24 object-cover rounded" />
+              <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* İlan Açıklaması */}
+      <div className="mt-6">
+        <label className="text-xs font-semibold uppercase text-slate-500">İlan Açıklaması</label>
+        <textarea className="input mt-1" rows={5} value={form.description} onChange={(e) => setField('description', e.target.value)} placeholder="Aracın ek özellikleri, satış ile ilgili özel şartlar ve durumlar ile ilgili bilgileri bu alana yazabilirsin." />
+      </div>
+    </div>
   );
 }
