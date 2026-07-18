@@ -5,6 +5,7 @@ import { supabase, BUCKETS } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { useCities, useDistricts } from '../lib/useLocationData';
+import VehicleCascadeWizard, { type CascadeValue } from '../components/VehicleCascadeWizard';
 import {
   useBrands,
   useModels,
@@ -119,6 +120,10 @@ export default function CreateListingPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
+  // Yeni cascade wizard state
+  const [cascade, setCascade] = useState<CascadeValue>({
+    category: null, year: null, fuel: null, brand: null, model: null, engine: null, subModel: null,
+  });
 
   // Yönlendirme için state + useEffect (hooks kuralı: tüm hooks'lar return'den önce)
   const [shouldRedirect, setShouldRedirect] = useState(false);
@@ -150,6 +155,17 @@ export default function CreateListingPage() {
     setForm(f => ({ ...f, brand_id: '', model_id: '', engine_size_id: '' }));
   }, [form.vehicle_type]);
 
+  // Cascade → Form senkronizasyonu
+  useEffect(() => {
+    setForm(f => ({
+      ...f,
+      brand_id: cascade.brand?.id ?? '',
+      model_id: cascade.model?.id ?? '',
+      year: cascade.year ? String(cascade.year) : f.year,
+      fuel: (cascade.fuel as FuelType) ?? f.fuel,
+    }));
+  }, [cascade.brand?.id, cascade.model?.id, cascade.year, cascade.fuel]);
+
   if (!user) {
     navigate('/giris?next=/ilan-ver');
     return null;
@@ -165,7 +181,7 @@ export default function CreateListingPage() {
   function canGoNext(): boolean {
     switch (step) {
       case 0: return !!form.vehicle_type;
-      case 1: return !!form.brand_id && !!form.model_id;
+      case 1: return !!cascade.brand && !!cascade.model;
       case 2: return !!form.engine_size_id;
       case 3: {
         if (!form.year || !form.km) return false;
@@ -213,6 +229,10 @@ export default function CreateListingPage() {
         seller_id: currentUser.id,
         vehicle_type: form.vehicle_type,
         brand_id: form.brand_id,
+        year: form.year ? Number(form.year) : null,
+        sub_model: cascade.subModel?.name ?? null,
+        engine_size_label: cascade.engine?.name ?? null,
+        fuel_type_label: cascade.fuel ?? null,
         model_id: form.model_id,
         engine_size_id: form.engine_size_id,
         city: form.city,
@@ -335,7 +355,7 @@ export default function CreateListingPage() {
 
       <div className="mt-6 bg-white rounded-xl p-6 shadow-sm border border-slate-200">
         {step === 0 && <StepType form={form} setField={setField} />}
-        {step === 1 && <StepBrand form={form} setField={setField} brands={brandsQuery.data} models={modelsQuery.data} />}
+        {step === 1 && <VehicleCascadeWizard value={cascade} onChange={setCascade} />}
         {step === 2 && <StepEngine form={form} setField={setField} engines={engineSizesQuery.data} />}
         {step === 3 && (isMotorcycle
           ? <StepMotorcycleSpecs form={form} setField={setField} />
