@@ -116,7 +116,7 @@ export default function CreateListingPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   // Yeni cascade wizard state
   const [cascade, setCascade] = useState<CascadeValue>({
-    category: null, year: null, fuel: null, brand: null, model: null, engine: null, subModel: null,
+    year: null, fuel: null, brand: null, model: null, engine: null, subModel: null,
   });
 
   // Yönlendirme için state + useEffect (hooks kuralı: tüm hooks'lar return'den önce)

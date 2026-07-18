@@ -33,7 +33,6 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: CURRENT_YEAR - 1989 }, (_, i) => CURRENT_YEAR - i);
 
 export type CascadeValue = {
-  category: string | null;
   year: number | null;
   fuel: string | null;
   brand: Brand | null;
@@ -57,9 +56,8 @@ export default function VehicleCascadeWizard({ value, onChange }: Props) {
   const [loadingEngines, setLoadingEngines] = useState(false);
   const [loadingSubModels, setLoadingSubModels] = useState(false);
 
-  // 1) Markalar (kategori seçilince veya başta)
+  // 1) Markalar (her zaman yükle, brand gerekince)
   useEffect(() => {
-    if (!value.category) return;
     setLoadingBrands(true);
     supabase
       .from('vehicle_brands')
@@ -69,7 +67,7 @@ export default function VehicleCascadeWizard({ value, onChange }: Props) {
         setBrands((data ?? []) as Brand[]);
         setLoadingBrands(false);
       });
-  }, [value.category]);
+  }, []);
 
   // 2) Modeller (marka seçilince)
   useEffect(() => {
@@ -129,9 +127,7 @@ export default function VehicleCascadeWizard({ value, onChange }: Props) {
   function pick<K extends keyof CascadeValue>(key: K, val: CascadeValue[K]) {
     // Sıralı reset: sonraki adımları sıfırla
     const reset: Partial<CascadeValue> = {};
-    if (key === 'category') {
-      reset.year = null; reset.fuel = null; reset.brand = null; reset.model = null; reset.engine = null; reset.subModel = null;
-    } else if (key === 'year') {
+    if (key === 'year') {
       reset.fuel = null; reset.brand = null; reset.model = null; reset.engine = null; reset.subModel = null;
     } else if (key === 'fuel') {
       reset.brand = null; reset.model = null; reset.engine = null; reset.subModel = null;
@@ -155,30 +151,8 @@ export default function VehicleCascadeWizard({ value, onChange }: Props) {
       {/* Breadcrumb */}
       <Breadcrumb value={value} onClear={(k) => pick(k, null)} />
 
-      {/* 1) Kategori */}
-      <Section icon={<Car className="h-4 w-4" />} title="Kategori" active={!value.category} done={!!value.category}>
-        {value.category ? (
-          <Pill onRemove={() => pick('category', null)}>
-            {CATEGORIES.find((c) => c.code === value.category)?.label}
-          </Pill>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.code}
-                onClick={() => pick('category', c.code)}
-                className="text-left p-3 rounded-lg border border-slate-200 hover:border-red-500 hover:bg-red-50 transition"
-              >
-                <div className="text-xl mb-1">{c.icon}</div>
-                <div className="text-sm font-medium text-slate-700">{c.label}</div>
-              </button>
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {/* 2) Yıl */}
-      {value.category && (
+      {/* 1) Yıl */}
+      {(
         <Section icon={<Calendar className="h-4 w-4" />} title="Yıl" active={!value.year} done={!!value.year}>
           {value.year ? (
             <Pill onRemove={() => pick('year', null)}>{value.year}</Pill>
@@ -334,9 +308,6 @@ export default function VehicleCascadeWizard({ value, onChange }: Props) {
 
 function Breadcrumb({ value, onClear }: { value: CascadeValue; onClear: (k: keyof CascadeValue) => void }) {
   const items: Array<{ label: string; onClick: () => void }> = [];
-  if (value.category) {
-    items.push({ label: CATEGORIES.find((c) => c.code === value.category)?.label ?? value.category, onClick: () => onClear('category') });
-  }
   if (value.year) {
     items.push({ label: String(value.year), onClick: () => onClear('year') });
   }
