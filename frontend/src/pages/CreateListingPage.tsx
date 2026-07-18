@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { useCities, useDistricts } from '../lib/useLocationData';
 import VehicleCascadeWizard, { type CascadeValue } from '../components/VehicleCascadeWizard';
+import VehiclePaintDiagramEditor, { type PaintStatus } from '../components/VehiclePaintDiagramEditor';
 
 
 // ==================== TYPES ====================
@@ -429,25 +430,16 @@ function StepType({ form, setField }: any) {
 // ==================== STEP 2: BRAND & MODEL ====================
 // ==================== STEP 3: ENGINE ====================
 function StepPaintCondition({ form, setField }: any) {
+  const [paint, setPaint] = useState<Record<string, PaintStatus>>({});
   return (
     <div>
       <h2 className="text-xl font-extrabold mb-1">Boya, Değişen ve Tramer Bilgisi</h2>
       <p className="text-sm text-slate-500 mb-5">(Opsiyonel) Neredeyse tüm alıcıların dikkat ettiği bu bilginin doğru ve eksiksiz belirtilmesi önerilir.</p>
 
-      {/* Boya/Değişen — kısa bilgilendirme */}
-      <div className="rounded-lg border p-4 mb-4 bg-slate-50">
-        <div className="flex items-center gap-2 mb-2">
-          <h3 className="font-bold">Boya ve Değişen Bilgisi</h3>
-        </div>
-        <p className="text-sm text-slate-600">
-          İlan yayınlandıktan sonra, araç detay sayfasında boya/değişen diyagramını görebilirsiniz. Şimdilik
-          bu adımı atlayabilir veya <span className="font-semibold text-red-600">Tümü Orijinal</span> olarak işaretleyebilirsiniz.
-          Detaylı parça seçimi ilerleyen sürümlerde eklenecektir.
-        </p>
-        <label className="mt-3 flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" className="h-4 w-4" />
-          <span className="text-sm font-medium">Tümü Orijinal</span>
-        </label>
+      {/* Boya/Değişen Diyagramı */}
+      <div className="rounded-lg border p-4 mb-4">
+        <h3 className="font-bold mb-3">Boya ve Değişen Bilgisi</h3>
+        <VehiclePaintDiagramEditor value={paint} onChange={setPaint} />
       </div>
 
       {/* Tramer */}
