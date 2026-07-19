@@ -1,21 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, List } from 'lucide-react';
-import CarDiagramSVG, { STATUS_META, DIAGRAM_PARTS, type PaintStatus } from './CarDiagramSVG';
+import { X } from 'lucide-react';
+import CarDiagramSVG from './CarDiagramSVG';
+
+type Status = 'original' | 'painted' | 'changed' | null;
 
 type Props = {
-  value: Record<string, PaintStatus>;
-  onChange: (v: Record<string, PaintStatus>) => void;
-  // dışarıdan setStatus için
-  showList?: boolean;
+  value: Record<string, Status>;
+  onChange: (v: Record<string, Status>) => void;
 };
 
-export default function VehiclePaintDiagramEditor({ value, onChange, showList: showListProp }: Props) {
-  const [showListInternal, setShowListInternal] = useState(false);
-  const showList = showListProp ?? showListInternal;
+const PARTS: { code: string; label: string }[] = [
+  { code: 'hood', label: 'Kaput' },
+  { code: 'roof', label: 'Tavan' },
+  { code: 'trunk', label: 'Bagaj' },
+  { code: 'leftDoor', label: 'Sol Kapı' },
+  { code: 'rightDoor', label: 'Sağ Kapı' },
+  { code: 'leftFender', label: 'Sol Çamurluk' },
+  { code: 'rightFender', label: 'Sağ Çamurluk' },
+];
+
+const COLORS: Record<string, string> = {
+  original: '#4CAF50',
+  painted: '#FFC107',
+  changed: '#F44336',
+};
+
+export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
+  const [showList, setShowList] = useState(false);
 
   function setAllOriginal() {
-    const next: Record<string, PaintStatus> = {};
-    DIAGRAM_PARTS.forEach((p) => { next[p.code] = 'original'; });
+    const next: Record<string, Status> = {};
+    PARTS.forEach((p) => { next[p.code] = 'original'; });
     onChange(next);
   }
 
@@ -30,64 +45,56 @@ export default function VehiclePaintDiagramEditor({ value, onChange, showList: s
           <input
             type="checkbox"
             className="h-4 w-4 accent-emerald-600"
-            checked={DIAGRAM_PARTS.every((p) => value[p.code] === 'original')}
+            checked={PARTS.every((p) => value[p.code] === 'original')}
             onChange={(e) => (e.target.checked ? setAllOriginal() : clearAll())}
           />
           <span className="text-sm font-semibold">Tamamı Orijinal</span>
         </label>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => (showListProp === undefined ? setShowListInternal(true) : null)}
-            className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-700 font-semibold"
-          >
-            <List className="h-4 w-4" /> Liste
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowList(true)}
+          className="text-sm text-red-600 hover:text-red-700 font-semibold"
+        >
+          Liste
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[600px_1fr] gap-6">
-        <div className="w-full max-w-[600px]">
-          <CarDiagramSVG value={value} onChange={onChange} width={600} />
+      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6">
+        <div className="w-full max-w-[300px]">
+          <CarDiagramSVG />
         </div>
 
         <div>
-          <h3 className="text-sm font-bold text-slate-700 mb-3">Renklerin Listesi</h3>
-          <div className="space-y-2 mb-4">
-            {Object.entries(STATUS_META).filter(([k]) => k !== 'none').map(([key, meta]) => (
-              <div key={key} className="flex items-center gap-2 text-sm">
-                <span
-                  className="h-4 w-4 rounded inline-block border border-slate-300 shrink-0"
-                  style={{ background: meta.color }}
-                />
-                <span>{meta.label}</span>
-              </div>
-            ))}
-          </div>
-          <div className="rounded-lg bg-slate-50 border p-3 mb-3">
-            <p className="text-sm text-slate-600">
-              <span className="font-semibold">İpucu:</span> Bir parçaya tıklayınca sırayla{' '}
-              <span className="text-emerald-700 font-semibold">Orijinal</span> →{' '}
-              <span className="text-yellow-700 font-semibold">Boyalı</span> →{' '}
-              <span className="text-amber-700 font-semibold">Lokal</span> →{' '}
-              <span className="text-red-700 font-semibold">Değişen</span> →{' '}
-              <span className="text-blue-700 font-semibold">Tamir</span> geçer.
+          <h3 className="text-sm font-bold text-slate-700 mb-3">Renk Açıklamaları</h3>
+          <div className="space-y-2">
+            <p className="flex items-center gap-2 text-sm">
+              <span className="h-4 w-4 rounded inline-block border border-slate-300" style={{ background: COLORS.original }} />
+              Orijinal
+            </p>
+            <p className="flex items-center gap-2 text-sm">
+              <span className="h-4 w-4 rounded inline-block border border-slate-300" style={{ background: COLORS.painted }} />
+              Boyalı
+            </p>
+            <p className="flex items-center gap-2 text-sm">
+              <span className="h-4 w-4 rounded inline-block border border-slate-300" style={{ background: COLORS.changed }} />
+              Değişmiş
             </p>
           </div>
         </div>
       </div>
 
-      {showList && <PartsListModal value={value} onChange={onChange} onClose={() => setShowListInternal(false)} />}
+      {showList && (
+        <PartsListModal value={value} onChange={onChange} onClose={() => setShowList(false)} />
+      )}
     </div>
   );
 }
 
 function PartsListModal({ value, onChange, onClose }: {
-  value: Record<string, PaintStatus>;
-  onChange: (v: Record<string, PaintStatus>) => void;
+  value: Record<string, Status>;
+  onChange: (v: Record<string, Status>) => void;
   onClose: () => void;
 }) {
-  void onChange; // used in select onChange
   const modalRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -116,21 +123,24 @@ function PartsListModal({ value, onChange, onClose }: {
               </tr>
             </thead>
             <tbody>
-              {DIAGRAM_PARTS.map((p) => {
-                const status = value[p.code] ?? 'none';
+              {PARTS.map((p) => {
+                const status = value[p.code] ?? null;
                 return (
                   <tr key={p.code} className="border-b">
                     <td className="p-2 font-medium">{p.label}</td>
                     <td className="p-2">
                       <select
-                        value={status}
-                        onChange={(e) => onChange({ ...value, [p.code]: e.target.value as PaintStatus })}
+                        value={status ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          onChange({ ...value, [p.code]: val === '' ? null : (val as Status) });
+                        }}
                         className="border rounded px-2 py-1 text-sm"
                       >
-                        <option value="none">Belirtilmemiş</option>
-                        {Object.entries(STATUS_META).filter(([k]) => k !== 'none').map(([key, m]) => (
-                          <option key={key} value={key}>{m.label}</option>
-                        ))}
+                        <option value="">Belirtilmemiş</option>
+                        <option value="original">Orijinal</option>
+                        <option value="painted">Boyalı</option>
+                        <option value="changed">Değişmiş</option>
                       </select>
                     </td>
                   </tr>
@@ -152,5 +162,4 @@ function PartsListModal({ value, onChange, onClose }: {
   );
 }
 
-// Re-export PaintStatus type for backwards compatibility
-export type { PaintStatus } from './CarDiagramSVG';
+export type PaintStatus = Status;
