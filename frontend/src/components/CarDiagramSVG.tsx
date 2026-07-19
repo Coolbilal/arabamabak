@@ -51,7 +51,7 @@ export default function CarDiagramSVG({ value, onChange, width = 500, readOnly =
       width={width}
       height={width * (1000 / 800)}
       className="select-none"
-      style={{{ maxWidth: '100%', height: 'auto' }}}
+      style={{ maxWidth: '100%', height: 'auto' }}
     >
       <defs>
         <pattern id="stripes-pattern" patternUnits="userSpaceOnUse" width="14" height="14" patternTransform="rotate(45)">
