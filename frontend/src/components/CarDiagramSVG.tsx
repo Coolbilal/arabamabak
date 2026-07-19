@@ -3,9 +3,7 @@ export default function CarDiagramSVG() {
     <div>
       <svg viewBox="0 0 500 900" xmlns="http://www.w3.org/2000/svg">
 
-        <style>
-          .part { stroke:#222; stroke-width:2; cursor:pointer; }
-        </style>
+        <style>{".part { stroke:#222; stroke-width:2; cursor:pointer; }"}</style>
 
         {/* OUTLINE - gerçek sedan silüeti (ön U + arka U + yan bombeli) */}
         <path d="M130 180 Q130 100 200 90 L300 90 Q370 100 370 180 L370 700 Q370 770 320 790 L300 810 Q250 830 200 810 L180 790 Q130 770 130 700 Z"
