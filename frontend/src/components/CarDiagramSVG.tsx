@@ -2,118 +2,59 @@ import { cn } from '../lib/utils';
 
 export type PaintStatus = 'none' | 'original' | 'painted' | 'local_painted' | 'changed' | 'repaired';
 
-// 13 parça - senin örnek PNG'ye uygun dik araba
-// Layout: dikey, ön üstte, arka altta
-// x: 0-200 sol çamurluk/kapı bölgesi
-// x: 200-600 orta gövde (tampon/kaput/tavan/bagaj/tampon)
-// x: 600-800 sağ çamurluk/kapı bölgesi
-// Tekerlekler x: 0-100 (sol) ve 700-800 (sağ)
+// 5 PARÇA - sedan araba, üstten görünüm
+// Senin isteğin: "5 parçaya ayır" - ön/arka/sağ/sol/tavan olarak 5 ana bölge
+// 1. ÖN: ön tampon + ön çamurluklar + kaput
+// 2. ARKA: bagaj + arka çamurluklar + arka tampon
+// 3. SOL: sol ön + sol arka kapı
+// 4. SAĞ: sağ ön + sağ arka kapı
+// 5. TAVAN: tavan + ön cam + arka cam
 //
-// y:
-//   20-110: ön tampon
-//   110-280: ön çamurluklar + kaput
-//   280-310: ön cam
-//   310-490: ön kapılar
-//   490-510: orta
-//   510-700: arka kapılar
-//   700-730: arka cam
-//   730-890: bagaj + arka çamurluk
-//   890-980: arka tampon
-//
-// NOT: Bu parçalar y ekseninde ÜST ÜSTE değil, her parça kendi bölgesinde
+// Şekil: gerçek sedan araba, tek parça gövde, kavisli hatlar
+// Layout (800x1000 viewBox):
+//   - Ön kısım: y 20-300 (ön tampon+ön çamurluk+kaput birleşik)
+//   - Sol/Sağ kapılar: y 300-720 (orta)
+//   - Arka kısım: y 720-980 (bagaj+arka çamurluk+arka tampon birleşik)
+//   - Tavan: ortada ayrı parça (y 300-720), kapıların üstünde görsel
+// Tekerlekler: 4 adet, dışarıda
 
 const PARTS: { code: string; label: string; d: string }[] = [
-  // === ÖN TAMPON (en üst, yatay ince, dalgalı alt dudak) ===
+  // === 1. ÖN KISIM (ön tampon + ön çamurluklar + kaput birleşik) ===
+  // Gerçek araba ön kısmı: ön tampon (alt, dalgalı), ön çamurluklar (yan, yarım ay), kaput (orta, yatay)
   {
-    code: 'front_bumper',
-    label: 'Ön Tampon',
-    // Üst kenar düz, alt kenar dalgalı (M şeklinde 3 çıkıntı)
-    d: 'M 220 20 L 580 20 Q 595 20 595 35 L 595 95 Q 595 110 580 110 L 545 110 Q 535 110 530 118 Q 525 130 510 130 Q 495 130 490 118 Q 485 110 475 110 L 405 110 Q 395 110 390 118 Q 385 130 370 130 Q 355 130 350 118 Q 345 110 335 110 L 220 110 Q 205 110 205 95 L 205 35 Q 205 20 220 20 Z',
+    code: 'front',
+    label: 'Ön Kısım',
+    d: 'M 220 20 L 580 20 Q 600 20 600 40 L 600 100 Q 600 115 585 115 Q 590 130 615 145 Q 670 175 685 220 Q 695 250 680 280 Q 655 305 615 305 Q 595 308 580 305 L 580 280 L 220 280 L 220 305 Q 205 308 185 305 Q 145 305 120 280 Q 105 250 115 220 Q 130 175 185 145 Q 210 130 215 115 Q 200 115 200 100 L 200 40 Q 200 20 220 20 Z',
   },
 
-  // === SOL ÖN ÇAMURLUK (yarım ay, tekerlek yuvası) ===
-  // Dış kenar yarım ay şeklinde dışa çıkık
+  // === 2. ARKA KISIM (bagaj + arka çamurluklar + arka tampon birleşik) ===
   {
-    code: 'left_front_fender',
-    label: 'Sol Ön Çamurluk',
-    d: 'M 205 110 Q 195 110 185 115 Q 130 130 110 165 Q 95 195 100 225 Q 105 250 130 270 Q 160 285 200 285 L 205 285 L 205 110 Z',
+    code: 'rear',
+    label: 'Arka Kısım',
+    d: 'M 220 980 L 580 980 Q 600 980 600 960 L 600 900 Q 600 885 585 885 Q 590 870 615 855 Q 670 825 685 780 Q 695 750 680 720 Q 655 695 615 695 Q 595 692 580 695 L 580 720 L 220 720 L 220 695 Q 205 692 185 695 Q 145 695 120 720 Q 105 750 115 780 Q 130 825 185 855 Q 210 870 215 885 Q 200 885 200 900 L 200 960 Q 200 980 220 980 Z',
   },
 
-  // === SAĞ ÖN ÇAMURLUK (aynalı) ===
+  // === 3. SOL TARAF (sol ön + sol arka kapı) ===
+  // Dikey dikdörtgen, yuvarlak köşeler, ortada pencere
   {
-    code: 'right_front_fender',
-    label: 'Sağ Ön Çamurluk',
-    d: 'M 595 110 Q 605 110 615 115 Q 670 130 690 165 Q 705 195 700 225 Q 695 250 670 270 Q 640 285 600 285 L 595 285 L 595 110 Z',
+    code: 'left_side',
+    label: 'Sol Taraf',
+    d: 'M 200 290 L 200 710 Q 200 720 195 720 L 165 720 Q 145 720 140 705 L 140 295 Q 145 280 165 280 L 195 280 Q 200 280 200 290 Z',
   },
 
-  // === KAPUT (orta üst, dikdörtgen, üst-alt bombeli) ===
+  // === 4. SAĞ TARAF (sağ ön + sağ arka kapı) ===
   {
-    code: 'hood',
-    label: 'Kaput',
-    d: 'M 250 110 Q 250 110 270 110 L 530 110 Q 550 110 550 110 L 550 280 L 250 280 Z',
+    code: 'right_side',
+    label: 'Sağ Taraf',
+    d: 'M 600 290 L 600 710 Q 600 720 605 720 L 635 720 Q 655 720 660 705 L 660 295 Q 655 280 635 280 L 605 280 Q 600 280 600 290 Z',
   },
 
-  // === SOL ÖN KAPI (orta-sol üst, dikdörtgen, üstte cam çıkıntısı) ===
-  {
-    code: 'left_front_door',
-    label: 'Sol Ön Kapı',
-    d: 'M 205 295 L 250 295 L 250 500 L 200 500 Q 175 495 165 480 L 165 320 Q 170 305 185 300 Z',
-  },
-
-  // === SAĞ ÖN KAPI ===
-  {
-    code: 'right_front_door',
-    label: 'Sağ Ön Kapı',
-    d: 'M 595 295 L 550 295 L 550 500 L 600 500 Q 625 495 635 480 L 635 320 Q 630 305 615 300 Z',
-  },
-
-  // === TAVAN (en orta, büyük dikdörtgen, hafif yuvarlak köşeler) ===
+  // === 5. TAVAN (tavan + ön cam + arka cam) ===
+  // Orta büyük dikdörtgen, hafif kavisli kenarlar, panoramik cam
   {
     code: 'roof',
     label: 'Tavan',
-    d: 'M 250 295 L 550 295 L 550 700 L 250 700 Z',
-  },
-
-  // === SOL ARKA KAPI ===
-  {
-    code: 'left_rear_door',
-    label: 'Sol Arka Kapı',
-    d: 'M 165 510 L 250 510 L 250 700 L 195 700 Q 170 695 160 680 L 160 530 Q 160 515 165 510 Z',
-  },
-
-  // === SAĞ ARKA KAPI ===
-  {
-    code: 'right_rear_door',
-    label: 'Sağ Arka Kapı',
-    d: 'M 635 510 L 550 510 L 550 700 L 605 700 Q 630 695 640 680 L 640 530 Q 640 515 635 510 Z',
-  },
-
-  // === SOL ARKA ÇAMURLUK (yarım ay) ===
-  {
-    code: 'left_rear_fender',
-    label: 'Sol Arka Çamurluk',
-    d: 'M 205 730 L 205 890 L 200 890 Q 160 885 130 870 Q 105 850 100 825 Q 95 800 110 770 Q 130 745 185 735 Q 195 730 205 730 Z',
-  },
-
-  // === SAĞ ARKA ÇAMURLUK ===
-  {
-    code: 'right_rear_fender',
-    label: 'Sağ Arka Çamurluk',
-    d: 'M 595 730 L 595 890 L 600 890 Q 640 885 670 870 Q 695 850 700 825 Q 705 800 690 770 Q 670 745 615 735 Q 605 730 595 730 Z',
-  },
-
-  // === BAGAJ (orta alt, dikdörtgen, hafif yuvarlak) ===
-  {
-    code: 'trunk',
-    label: 'Bagaj',
-    d: 'M 250 730 L 550 730 L 550 890 L 250 890 Z',
-  },
-
-  // === ARKA TAMPON (en alt, dalgalı üst dudak) ===
-  {
-    code: 'rear_bumper',
-    label: 'Arka Tampon',
-    d: 'M 220 890 L 580 890 Q 595 890 595 905 L 595 965 Q 595 980 580 980 L 545 980 Q 535 980 530 972 Q 525 960 510 960 Q 495 960 490 972 Q 485 980 475 980 L 405 980 Q 395 980 390 972 Q 385 960 370 960 Q 355 960 350 972 Q 345 980 335 980 L 220 980 Q 205 980 205 965 L 205 905 Q 205 890 220 890 Z',
+    d: 'M 220 290 L 580 290 L 580 710 L 220 710 Z',
   },
 ];
 
@@ -166,10 +107,10 @@ export default function CarDiagramSVG({ value, onChange, width = 500, readOnly =
       <ellipse cx="55" cy="200" rx="20" ry="32" fill="#475569" />
       <ellipse cx="745" cy="200" rx="40" ry="60" fill="#1e293b" />
       <ellipse cx="745" cy="200" rx="20" ry="32" fill="#475569" />
-      <ellipse cx="55" cy="810" rx="40" ry="60" fill="#1e293b" />
-      <ellipse cx="55" cy="810" rx="20" ry="32" fill="#475569" />
-      <ellipse cx="745" cy="810" rx="40" ry="60" fill="#1e293b" />
-      <ellipse cx="745" cy="810" rx="20" ry="32" fill="#475569" />
+      <ellipse cx="55" cy="800" rx="40" ry="60" fill="#1e293b" />
+      <ellipse cx="55" cy="800" rx="20" ry="32" fill="#475569" />
+      <ellipse cx="745" cy="800" rx="40" ry="60" fill="#1e293b" />
+      <ellipse cx="745" cy="800" rx="20" ry="32" fill="#475569" />
 
       {/* PARÇALAR */}
       {PARTS.map((part) => {
@@ -199,18 +140,16 @@ export default function CarDiagramSVG({ value, onChange, width = 500, readOnly =
       })}
 
       {/* CAMLAR (dekoratif) */}
-      {/* Ön cam (kaput-tavan arası, trapez) */}
-      <path d="M 260 280 L 290 295 L 510 295 L 540 280 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="2" pointerEvents="none" />
-      {/* Arka cam (tavan-bagaj arası) */}
-      <path d="M 260 700 L 290 715 L 510 715 L 540 700 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="2" pointerEvents="none" />
-      {/* Sol ön pencere (kapı üstü) */}
-      <path d="M 175 310 L 245 310 L 245 410 L 175 410 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" pointerEvents="none" />
-      {/* Sol arka pencere */}
-      <path d="M 170 525 L 245 525 L 245 625 L 170 625 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" pointerEvents="none" />
-      {/* Sağ ön pencere */}
-      <path d="M 625 310 L 555 310 L 555 410 L 625 410 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" pointerEvents="none" />
-      {/* Sağ arka pencere */}
-      <path d="M 630 525 L 555 525 L 555 625 L 630 625 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" pointerEvents="none" />
+      {/* Ön cam (tavan-ön kısım arası, trapez) */}
+      <path d="M 240 285 L 270 270 L 530 270 L 560 285 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="2" pointerEvents="none" />
+      {/* Arka cam (tavan-arka kısım arası) */}
+      <path d="M 240 715 L 270 730 L 530 730 L 560 715 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="2" pointerEvents="none" />
+      {/* Sol yan pencere (sol taraf parçası üstü) */}
+      <path d="M 155 310 L 200 310 L 200 410 L 155 410 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" pointerEvents="none" />
+      <path d="M 155 525 L 200 525 L 200 625 L 155 625 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" pointerEvents="none" />
+      {/* Sağ yan pencere */}
+      <path d="M 645 310 L 600 310 L 600 410 L 645 410 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" pointerEvents="none" />
+      <path d="M 645 525 L 600 525 L 600 625 L 645 625 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.5" pointerEvents="none" />
     </svg>
   );
 }
