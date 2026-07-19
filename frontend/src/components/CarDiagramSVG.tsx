@@ -3,38 +3,75 @@ export default function CarDiagramSVG() {
     <div>
       <svg viewBox="0 0 500 900" xmlns="http://www.w3.org/2000/svg">
 
-        <style>{".part { stroke:#222; stroke-width:2; cursor:pointer; }"}</style>
+        <style>{"{ .part { stroke:#222; stroke-width:2; cursor:pointer; } }"}</style>
 
-        {/* OUTLINE - gerçek sedan silüeti (ön U + arka U + yan bombeli) */}
-        <path d="M130 180 Q130 100 200 90 L300 90 Q370 100 370 180 L370 700 Q370 770 320 790 L300 810 Q250 830 200 810 L180 790 Q130 770 130 700 Z"
-              fill="#f5f5f5" stroke="#444" stroke-width="3"/>
+        {/* === GERÇEK SEDAN SİLÜETİ - ÜSTTEN GÖRÜNÜM === */}
+        {/* Ön tampon (U şeklinde, en altta) */}
+        <path className="part" d="M150 770 Q150 830 220 830 L280 830 Q350 830 350 770 L350 740 L150 740 Z" fill="#d0d0d0"/>
 
-        {/* HOOD - ön üst, bombeli */}
-        <path className="part" d="M160 200 Q160 130 230 130 L270 130 Q340 130 340 200 L340 280 Q250 320 160 280 Z" fill="#e0e0e0"/>
+        {/* Ön çamurluk - SOL (ön-sol yarım ay) */}
+        <path className="part" d="M120 220 Q120 170 170 160 L200 160 L200 290 Q150 290 130 260 Z" fill="#e0e0e0"/>
 
-        {/* ROOF - orta, büyük, parabolik */}
-        <path className="part" d="M160 290 Q160 280 175 280 L325 280 Q340 280 340 290 L340 460 Q250 480 160 460 Z" fill="#e0e0e0"/>
+        {/* Ön çamurluk - SAĞ (ön-sağ yarım ay) */}
+        <path className="part" d="M380 220 Q380 170 330 160 L300 160 L300 290 Q350 290 370 260 Z" fill="#e0e0e0"/>
 
-        {/* TRUNK - arka üst, bombeli */}
-        <path className="part" d="M160 470 Q160 470 175 470 L325 470 Q340 470 340 470 L340 600 Q250 640 160 600 Z" fill="#e0e0e0"/>
+        {/* Kaput (ön üst, bombeli) */}
+        <path className="part" d="M200 165 Q200 110 250 110 Q300 110 300 165 L300 290 L200 290 Z" fill="#e0e0e0"/>
 
-        {/* LEFT FENDER - sol ön çamurluk (ön sol yarım ay) */}
-        <path className="part" d="M120 200 Q120 170 150 170 L160 170 L160 290 Q130 290 120 250 Z" fill="#e0e0e0"/>
+        {/* Ön cam (parabolik) */}
+        <path d="M200 290 Q250 320 300 290 L300 320 Q250 340 200 320 Z" fill="#b8d4e8" stroke="#666" strokeWidth="1.5"/>
 
-        {/* RIGHT FENDER - sağ ön çamurluk (ön sağ yarım ay) */}
-        <path className="part" d="M380 200 Q380 170 350 170 L340 170 L340 290 Q370 290 380 250 Z" fill="#e0e0e0"/>
+        {/* Tavan (orta büyük) */}
+        <path className="part" d="M200 320 L300 320 L300 480 L200 480 Z" fill="#e0e0e0"/>
 
-        {/* LEFT DOOR - sol kapı (sol orta, dikey) */}
-        <path className="part" d="M120 300 L160 300 L160 460 Q130 460 120 430 Z" fill="#e0e0e0"/>
+        {/* Arka cam (parabolik) */}
+        <path d="M200 480 Q250 510 300 480 L300 510 Q250 530 200 510 Z" fill="#b8d4e8" stroke="#666" strokeWidth="1.5"/>
 
-        {/* RIGHT DOOR - sağ kapı (sağ orta, dikey) */}
-        <path className="part" d="M380 300 L340 300 L340 460 Q370 460 380 430 Z" fill="#e0e0e0"/>
+        {/* Bagaj (arka üst) */}
+        <path className="part" d="M200 510 L300 510 L300 620 Q300 670 250 670 Q200 670 200 620 Z" fill="#e0e0e0"/>
 
-        {/* WHEELS - 4 tekerlek (yarım daire dışarıda) */}
-        <ellipse cx="130" cy="730" rx="30" ry="40" fill="#222"/>
-        <ellipse cx="370" cy="730" rx="30" ry="40" fill="#222"/>
-        <ellipse cx="130" cy="280" rx="25" ry="35" fill="#222"/>
-        <ellipse cx="370" cy="280" rx="25" ry="35" fill="#222"/>
+        {/* Arka çamurluk - SOL (arka-sol yarım ay) */}
+        <path className="part" d="M120 580 Q120 540 170 540 L200 540 L200 660 Q150 660 130 630 Z" fill="#e0e0e0"/>
+
+        {/* Arka çamurluk - SAĞ (arka-sağ yarım ay) */}
+        <path className="part" d="M380 580 Q380 540 330 540 L300 540 L300 660 Q350 660 370 630 Z" fill="#e0e0e0"/>
+
+        {/* Sol ÖN KAPI (sol orta üst) */}
+        <path className="part" d="M120 290 L200 290 L200 410 Q150 410 120 380 Z" fill="#e0e0e0"/>
+        {/* Sol ÖN KAPI CAMI */}
+        <path d="M135 305 L195 305 L195 360 L135 360 Z" fill="#b8d4e8" stroke="#666" strokeWidth="1"/>
+
+        {/* Sağ ÖN KAPI */}
+        <path className="part" d="M380 290 L300 290 L300 410 Q350 410 380 380 Z" fill="#e0e0e0"/>
+        {/* Sağ ÖN KAPI CAMI */}
+        <path d="M365 305 L305 305 L305 360 L365 360 Z" fill="#b8d4e8" stroke="#666" strokeWidth="1"/>
+
+        {/* Sol ARKA KAPI (sol orta alt) */}
+        <path className="part" d="M120 410 L200 410 L200 540 Q150 540 120 510 Z" fill="#e0e0e0"/>
+        {/* Sol ARKA KAPI CAMI */}
+        <path d="M135 425 L195 425 L195 490 L135 490 Z" fill="#b8d4e8" stroke="#666" strokeWidth="1"/>
+
+        {/* Sağ ARKA KAPI */}
+        <path className="part" d="M380 410 L300 410 L300 540 Q350 540 380 510 Z" fill="#e0e0e0"/>
+        {/* Sağ ARKA KAPI CAMI */}
+        <path d="M365 425 L305 425 L305 490 L365 490 Z" fill="#b8d4e8" stroke="#666" strokeWidth="1"/>
+
+        {/* Arka tampon (en altta, U şeklinde) */}
+        <path className="part" d="M150 830 Q150 870 200 870 L300 870 Q350 870 350 830 L350 800 L150 800 Z" fill="#d0d0d0"/>
+
+        {/* === TEKERLEKLER (4 adet, yarım daire dışarıda) === */}
+        <ellipse cx="120" cy="280" rx="22" ry="32" fill="#222"/>
+        <ellipse cx="120" cy="280" rx="10" ry="16" fill="#666"/>
+        <ellipse cx="380" cy="280" rx="22" ry="32" fill="#222"/>
+        <ellipse cx="380" cy="280" rx="10" ry="16" fill="#666"/>
+        <ellipse cx="120" cy="600" rx="22" ry="32" fill="#222"/>
+        <ellipse cx="120" cy="600" rx="10" ry="16" fill="#666"/>
+        <ellipse cx="380" cy="600" rx="22" ry="32" fill="#222"/>
+        <ellipse cx="380" cy="600" rx="10" ry="16" fill="#666"/>
+
+        {/* === ARAÇ DIŞ HAT (siluet) === */}
+        <path d="M150 170 Q150 100 220 100 L280 100 Q350 100 350 170 L350 740 Q350 830 250 880 Q150 830 150 740 Z"
+              fill="none" stroke="#444" strokeWidth="3"/>
 
       </svg>
     </div>
