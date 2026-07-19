@@ -118,7 +118,7 @@ function PartsListModal({ value, onChange, onClose }: {
   value: Record<string, PaintStatus>;
   onChange: (v: Record<string, PaintStatus>) => void;
   onClose: () => void;
-}) {
+} { // eslint-disable-line @typescript-eslint/no-unused-vars) {
   const modalRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -153,7 +153,7 @@ function PartsListModal({ value, onChange, onClose }: {
                     <td className="p-2 font-medium">{p.label}</td>
                     <td className="p-2">
                       <select value={status}
-                        onChange={(e) => onchange({ ...value, [p.code]: e.target.value as PaintStatus })}
+                        onChange={(e) => onChange({ ...value, [p.code]: e.target.value as PaintStatus })}
                         className="border rounded px-2 py-1 text-sm">
                         <option value="none">Belirtilmemiş</option>
                         {Object.entries(STATUS_META).filter(([k]) => k !== 'none').map(([key, m]) => (
