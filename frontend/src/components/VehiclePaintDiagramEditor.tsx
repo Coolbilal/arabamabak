@@ -65,7 +65,7 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[600px_1fr] gap-6">
-        <div className="relative w-full max-w-[600px] aspect-square"
+        <div className="relative w-full max-w-[600px] aspect-square">
           <img src="/diagram.png" alt="Araç diyagramı"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
             draggable={false} />
@@ -103,7 +103,7 @@ export default function VehiclePaintDiagramEditor({ value, onChange }: Props) {
           </div>
           <div className="rounded-lg bg-slate-50 border p-3">
             <p className="text-sm text-slate-600">
-              <span className="font-semibold">İpati:</span> Par�ağşlaqı durumun belirtmek için araė iğreşili üzerinde ilgili parcışamılarżnı.
+              <span className="font-semibold">İpati:</span> Par�ağşlaqı durumun belirtmek için araė iğreşili üzerinde ilgili parcışamılarżnı.
             </p>
           </div>
         </div>
@@ -132,7 +132,7 @@ function PartsListModal({ value, onChange, onClose }: {
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div ref={modalRef} className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-bold text-lg">Par�ağşlar Listesi</h2>
+          <h2 className="font-bold text-lg">Par�ağşlar Listesi</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
             <X className="h-5 w-5" />
           </button>
@@ -141,7 +141,7 @@ function PartsListModal({ value, onChange, onClose }: {
           <table className="w-full text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="text-left p-2 font-semibold">Par�ağşla</th>
+                <th className="text-left p-2 font-semibold">Par�ağşla</th>
                 <th className="text-left p-2 font-semibold">Durumu</th>
               </tr>
             </thead>
