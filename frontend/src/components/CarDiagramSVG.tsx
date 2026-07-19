@@ -1,22 +1,22 @@
 export default function CarDiagramSVG() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 900">
-      <path id="body" className="body" fill="#f5f5f5" stroke="#444" strokeWidth="3" strokeLinejoin="round" d="M 150 90 C 150 70 180 60 250 60 C 320 60 350 70 350 90 C 370 140 380 200 385 280 C 392 360 395 440 395 520 C 395 580 392 640 385 700 C 380 760 370 810 350 820 C 320 835 280 840 250 840 C 220 840 180 835 150 820 C 130 810 120 760 115 700 C 108 640 105 580 105 520 C 105 440 108 360 115 280 C 120 200 130 140 150 90 Z"/>
-      <path id="hood" className="part" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 180 130 C 180 115 200 108 250 108 C 300 108 320 115 320 130 C 330 175 338 220 340 265 C 320 275 290 280 250 280 C 210 280 180 275 160 265 C 162 220 170 175 180 130 Z"/>
-      <path id="roof" className="part" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 170 305 C 170 295 195 290 250 290 C 305 290 330 295 330 305 C 345 380 350 460 350 540 C 350 555 325 565 250 565 C 175 565 150 555 150 540 C 150 460 155 380 170 305 Z"/>
-      <path id="trunk" className="part" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 160 595 C 175 590 215 588 250 588 C 285 588 325 590 340 595 C 338 645 332 700 325 740 C 320 760 300 770 250 770 C 200 770 180 760 175 740 C 168 700 162 645 160 595 Z"/>
-      <path id="leftDoor" className="part" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 130 295 C 130 285 138 282 148 282 C 155 285 158 295 158 310 C 156 380 155 460 155 540 C 155 555 152 565 145 567 C 135 567 130 562 130 550 C 128 460 128 380 130 310 C 130 305 130 300 130 295 Z M 138 420 C 134 418 132 422 132 428 C 132 434 134 438 138 436 C 142 434 142 422 138 420 Z"/>
-      <path id="rightDoor" className="part" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 370 295 C 370 285 362 282 352 282 C 345 285 342 295 342 310 C 344 380 345 460 345 540 C 345 555 348 565 355 567 C 365 567 370 562 370 550 C 372 460 372 380 370 310 C 370 305 370 300 370 295 Z M 362 420 C 366 418 368 422 368 428 C 368 434 366 438 362 436 C 358 434 358 422 362 420 Z"/>
-      <path id="leftFender" className="part" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 140 115 C 140 100 155 92 175 92 C 188 95 192 105 192 120 C 192 140 188 165 180 185 C 175 195 165 198 155 195 C 145 192 138 180 138 165 C 138 150 138 130 140 115 Z"/>
-      <path id="rightFender" className="part" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 360 115 C 360 100 345 92 325 92 C 312 95 308 105 308 120 C 308 140 312 165 320 185 C 325 195 335 198 345 195 C 355 192 362 180 362 165 C 362 150 362 130 360 115 Z"/>
-      <ellipse className="wheel" cx="135" cy="200" rx="38" ry="28" fill="#2a2a2a"/>
-      <ellipse className="wheel-inner" cx="135" cy="200" rx="14" ry="10" fill="#555"/>
-      <ellipse className="wheel" cx="365" cy="200" rx="38" ry="28" fill="#2a2a2a"/>
-      <ellipse className="wheel-inner" cx="365" cy="200" rx="14" ry="10" fill="#555"/>
-      <ellipse className="wheel" cx="135" cy="700" rx="38" ry="28" fill="#2a2a2a"/>
-      <ellipse className="wheel-inner" cx="135" cy="700" rx="14" ry="10" fill="#555"/>
-      <ellipse className="wheel" cx="365" cy="700" rx="38" ry="28" fill="#2a2a2a"/>
-      <ellipse className="wheel-inner" cx="365" cy="700" rx="14" ry="10" fill="#555"/>
+      <path id="body" fill="#f5f5f5" stroke="#444" strokeWidth="3" d="M 130 180 C 130 150 160 130 200 125 C 230 122 250 120 250 120 C 250 120 270 122 300 125 C 340 130 370 150 370 180 C 372 210 374 240 375 270 C 376 350 376 450 376 550 C 376 630 374 670 370 700 C 365 740 350 770 320 785 C 290 795 260 798 250 798 C 240 798 210 795 180 785 C 150 770 135 740 130 700 C 126 670 124 630 124 550 C 124 450 124 350 125 270 C 126 240 128 210 130 180 Z"/>
+      <path id="hood" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 165 250 C 168 220 185 200 215 195 C 235 193 248 192 250 192 C 252 192 265 193 285 195 C 315 200 332 220 335 250 C 336 280 337 320 338 360 C 338 400 338 430 338 450 C 320 455 290 458 250 458 C 210 458 180 455 162 450 C 162 430 162 400 162 360 C 163 320 164 280 165 250 Z"/>
+      <path id="roof" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 170 470 C 175 462 190 458 215 456 C 230 455 245 454 250 454 C 255 454 270 455 285 456 C 310 458 325 462 330 470 C 332 490 333 530 333 580 C 333 620 332 650 330 660 C 325 668 310 672 285 674 C 270 675 255 676 250 676 C 245 676 230 675 215 674 C 190 672 175 668 170 660 C 168 650 167 620 167 580 C 167 530 168 490 170 470 Z"/>
+      <path id="trunk" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 165 690 C 168 680 180 675 200 673 C 220 671 240 670 250 670 C 260 670 280 671 300 673 C 320 675 332 680 335 690 C 336 720 335 745 328 760 C 318 775 295 783 265 786 C 258 787 252 787 250 787 C 248 787 242 787 235 786 C 205 783 182 775 172 760 C 165 745 164 720 165 690 Z"/>
+      <path id="leftDoor" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 162 460 C 175 458 195 457 215 457 C 225 457 235 457 245 458 C 246 480 247 520 247 580 C 247 620 246 645 245 658 C 235 659 225 659 215 659 C 195 659 175 658 162 656 C 161 640 160 610 160 580 C 160 520 161 480 162 460 Z"/>
+      <path id="rightDoor" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 338 460 C 325 458 305 457 285 457 C 275 457 265 457 255 458 C 254 480 253 520 253 580 C 253 620 254 645 255 658 C 265 659 275 659 285 659 C 305 659 325 658 338 656 C 339 640 340 610 340 580 C 340 520 339 480 338 460 Z"/>
+      <path id="leftFender" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 128 250 C 130 230 135 215 145 205 C 155 200 168 200 180 210 C 188 218 190 230 188 245 C 187 270 186 310 186 350 C 186 390 187 420 188 440 C 175 442 158 443 142 442 C 132 425 126 400 124 370 C 122 340 122 310 124 280 C 125 268 126 258 128 250 Z"/>
+      <path id="rightFender" fill="#e0e0e0" stroke="#222" strokeWidth="2" strokeLinejoin="round" d="M 372 250 C 370 230 365 215 355 205 C 345 200 332 200 320 210 C 312 218 310 230 312 245 C 313 270 314 310 314 350 C 314 390 313 420 312 440 C 325 442 342 443 358 442 C 368 425 374 400 376 370 C 378 340 378 310 376 280 C 375 268 374 258 372 250 Z"/>
+      <ellipse cx="120" cy="200" rx="38" ry="55" fill="#2a2a2a"/>
+      <ellipse cx="120" cy="200" rx="16" ry="28" fill="#666"/>
+      <ellipse cx="380" cy="200" rx="38" ry="55" fill="#2a2a2a"/>
+      <ellipse cx="380" cy="200" rx="16" ry="28" fill="#666"/>
+      <ellipse cx="120" cy="700" rx="38" ry="55" fill="#2a2a2a"/>
+      <ellipse cx="120" cy="700" rx="16" ry="28" fill="#666"/>
+      <ellipse cx="380" cy="700" rx="38" ry="55" fill="#2a2a2a"/>
+      <ellipse cx="380" cy="700" rx="16" ry="28" fill="#666"/>
     </svg>
   );
 }
