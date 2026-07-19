@@ -118,11 +118,13 @@ function PartsListModal({ value, onChange, onClose }: {
   value: Record<string, PaintStatus>;
   onChange: (v: Record<string, PaintStatus>) => void;
   onClose: () => void;
-} { // eslint-disable-line @typescript-eslint/no-unused-vars) {
+}) {
+  void onChange; // kullanılıyor (select onChange)
   const modalRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function onClick(e: MouseEvent) {
-      if (modalRef.current && !modalRef.current.contains(e.target as Node)) onClose();
+      if (modalRef.current && modalRef.current.contains(e.target as Node)) return;
+      onClose();
     }
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
