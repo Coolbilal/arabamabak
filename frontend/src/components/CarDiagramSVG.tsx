@@ -1,4 +1,3 @@
-import React from 'react';
 import { cn } from '../lib/utils';
 
 export type PaintStatus = 'none' | 'original' | 'painted' | 'local_painted' | 'changed' | 'repaired';

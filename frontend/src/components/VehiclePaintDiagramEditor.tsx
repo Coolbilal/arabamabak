@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, List } from 'lucide-react';
-import { cn } from '../lib/utils';
 import CarDiagramSVG, { STATUS_META, DIAGRAM_PARTS, type PaintStatus } from './CarDiagramSVG';
 
 type Props = {
@@ -13,10 +12,6 @@ type Props = {
 export default function VehiclePaintDiagramEditor({ value, onChange, showList: showListProp }: Props) {
   const [showListInternal, setShowListInternal] = useState(false);
   const showList = showListProp ?? showListInternal;
-
-  function setStatus(code: string, status: PaintStatus) {
-    onChange({ ...value, [code]: status });
-  }
 
   function setAllOriginal() {
     const next: Record<string, PaintStatus> = {};
@@ -156,3 +151,6 @@ function PartsListModal({ value, onChange, onClose }: {
     </div>
   );
 }
+
+// Re-export PaintStatus type for backwards compatibility
+export type { PaintStatus } from './CarDiagramSVG';
