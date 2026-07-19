@@ -1,78 +1,72 @@
 import { useState } from "react";
 
-const partsList = [
-  "hood",
-  "roof",
-  "trunk",
-  "leftDoor",
-  "rightDoor",
-  "leftFender",
-  "rightFender"
-];
-
-const colors = {
-  original: "#4CAF50",
-  painted: "#FFC107",
-  changed: "#F44336"
-};
+type Status = "original" | "painted" | "changed" | null;
 
 export default function CarDiagramSVG() {
-  const [parts, setParts] = useState<Record<string, keyof typeof colors | null>>({});
+  const [parts, setParts] = useState<Record<string, Status>>({});
+
+  const colors: Record<string, string> = {
+    original: "#4CAF50",
+    painted: "#FFC107",
+    changed: "#F44336"
+  };
 
   const handleClick = (part: string) => {
     const current = parts[part];
-
-    let next: keyof typeof colors | null;
+    let next: Status;
     if (!current) next = "original";
     else if (current === "original") next = "painted";
     else if (current === "painted") next = "changed";
     else next = null;
-
     setParts({ ...parts, [part]: next });
   };
 
   const getColor = (part: string) => {
-    return colors[parts[part] as keyof typeof colors] || "#ddd";
+    const s = parts[part];
+    return s ? colors[s] : "#ddd";
   };
 
   return (
     <div>
-      <svg viewBox="0 0 300 600" width="250">
-        {/* Kaput */}
-        <rect x="100" y="120" width="100" height="80"
-          fill={getColor("hood")}
+      <svg viewBox="0 0 400 800" xmlns="http://www.w3.org/2000/svg" width="300">
+        {/* KAPUT */}
+        <path d="M140 150 Q200 100 260 150 L260 260 Q200 300 140 260 Z"
+          fill={getColor("hood")} stroke="#333" style={{ cursor: 'pointer' }}
           onClick={() => handleClick("hood")}
         />
-        {/* Tavan */}
-        <rect x="100" y="220" width="100" height="100"
-          fill={getColor("roof")}
+        {/* TAVAN */}
+        <path d="M140 260 Q200 220 260 260 L260 380 Q200 420 140 380 Z"
+          fill={getColor("roof")} stroke="#333" style={{ cursor: 'pointer' }}
           onClick={() => handleClick("roof")}
         />
-        {/* Bagaj */}
-        <rect x="100" y="340" width="100" height="80"
-          fill={getColor("trunk")}
+        {/* BAGAJ */}
+        <path d="M140 380 Q200 420 260 380 L260 480 Q200 520 140 480 Z"
+          fill={getColor("trunk")} stroke="#333" style={{ cursor: 'pointer' }}
           onClick={() => handleClick("trunk")}
         />
-        {/* Sol Kapı */}
-        <rect x="60" y="220" width="30" height="120"
-          fill={getColor("leftDoor")}
+        {/* SOL ÖN ÇAMURLUK */}
+        <path d="M90 160 Q120 130 140 180 L140 250 Q110 260 90 220 Z"
+          fill={getColor("leftFrontFender")} stroke="#333" style={{ cursor: 'pointer' }}
+          onClick={() => handleClick("leftFrontFender")}
+        />
+        {/* SAĞ ÖN ÇAMURLUK */}
+        <path d="M310 160 Q280 130 260 180 L260 250 Q290 260 310 220 Z"
+          fill={getColor("rightFrontFender")} stroke="#333" style={{ cursor: 'pointer' }}
+          onClick={() => handleClick("rightFrontFender")}
+        />
+        {/* SOL KAPI */}
+        <path d="M100 260 L140 260 L140 380 L100 380 Q80 330 100 260 Z"
+          fill={getColor("leftDoor")} stroke="#333" style={{ cursor: 'pointer' }}
           onClick={() => handleClick("leftDoor")}
         />
-        {/* Sağ Kapı */}
-        <rect x="210" y="220" width="30" height="120"
-          fill={getColor("rightDoor")}
+        {/* SAĞ KAPI */}
+        <path d="M300 260 L260 260 L260 380 L300 380 Q320 330 300 260 Z"
+          fill={getColor("rightDoor")} stroke="#333" style={{ cursor: 'pointer' }}
           onClick={() => handleClick("rightDoor")}
         />
-        {/* Sol Çamurluk */}
-        <rect x="60" y="120" width="30" height="80"
-          fill={getColor("leftFender")}
-          onClick={() => handleClick("leftFender")}
-        />
-        {/* Sağ Çamurluk */}
-        <rect x="210" y="120" width="30" height="80"
-          fill={getColor("rightFender")}
-          onClick={() => handleClick("rightFender")}
-        />
+        {/* ARAÇ DIŞ HAT */}
+        <path d="M140 150 Q200 80 260 150 L260 500 Q200 580 140 500 Z"
+          fill="none" stroke="#555" strokeWidth="2" />
       </svg>
       <div style={{ marginTop: 10 }}>
         <p>🟢 Orijinal</p>
