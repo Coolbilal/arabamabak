@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Gavel, Search, Clock, Calendar,
@@ -63,8 +63,19 @@ const STATUS_CLASS: Record<string, string> = {
 type Tab = 'incoming' | 'live' | 'sold';
 
 export default function AuctionsPage() {
-  const [tab, setTab] = useState<Tab>('live');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // ?tab=sold, ?tab=live, ?tab=incoming ile URL'den tab al (default 'live')
+  const initialTab = (searchParams.get('tab') as Tab) || 'live';
+  const [tab, setTab] = useState<Tab>(
+    ['incoming', 'live', 'sold'].includes(initialTab) ? initialTab : 'live'
+  );
   const [search, setSearch] = useState('');
+
+  // Tab değiştiğinde URL'yi güncelle
+  function handleTabChange(newTab: Tab) {
+    setTab(newTab);
+    setSearchParams({ tab: newTab }, { replace: true });
+  }
 
   const statusMap: Record<Tab, string[]> = {
     incoming: ['scheduled'],
@@ -138,13 +149,13 @@ export default function AuctionsPage() {
 
       {/* Tabs */}
       <div className="border-b border-slate-200 flex gap-1 overflow-x-auto">
-        <TabButton active={tab === 'live'} onClick={() => setTab('live')} icon={<Play className="h-4 w-4" />} count={allQ.data?.live}>
+        <TabButton active={tab === 'live'} onClick={() => handleTabChange('live')} icon={<Play className="h-4 w-4" />} count={allQ.data?.live}>
           Canlı Mezatlar
         </TabButton>
-        <TabButton active={tab === 'incoming'} onClick={() => setTab('incoming')} icon={<Clock className="h-4 w-4" />} count={allQ.data?.incoming}>
+        <TabButton active={tab === 'incoming'} onClick={() => handleTabChange('incoming')} icon={<Clock className="h-4 w-4" />} count={allQ.data?.incoming}>
           Çıkacak Olanlar
         </TabButton>
-        <TabButton active={tab === 'sold'} onClick={() => setTab('sold')} icon={<Trophy className="h-4 w-4" />} count={allQ.data?.sold}>
+        <TabButton active={tab === 'sold'} onClick={() => handleTabChange('sold')} icon={<Trophy className="h-4 w-4" />} count={allQ.data?.sold}>
           Satılanlar
         </TabButton>
       </div>
@@ -196,7 +207,7 @@ export default function AuctionsPage() {
                       <Gavel className="h-12 w-12" />
                     </div>
                   )}
-                  {a.status === 'ended' && <SoldStamp variant="full" />}
+                  {(a.status === 'ended' || a.status === 'sold' || a.status === 'sold_pending_confirmation') && <SoldStamp variant="full" />}
                   <div className="absolute top-2 left-2 flex flex-col gap-1">
                     <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold',
                       STATUS_CLASS[a.status])}>
