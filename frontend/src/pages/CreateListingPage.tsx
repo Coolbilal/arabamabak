@@ -6,7 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { useCities, useDistricts } from '../lib/useLocationData';
 import VehicleCascadeWizard, { type CascadeValue } from '../components/VehicleCascadeWizard';
-import VehiclePaintDiagramEditor, { type PaintStatus } from '../components/VehiclePaintDiagramEditor';
+import VehiclePaintDiagramEditor from '../components/VehiclePaintDiagramEditor';
+// (PaintStatus removed - kullanılmıyor)
 
 
 // ==================== TYPES ====================
