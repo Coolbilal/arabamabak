@@ -51,20 +51,20 @@ export default function CarDiagramSVG() {
           </div>
         ))}
       </div>
-      {/* SABİT 600x300 container, overflow visible, viewBox 800x400 oranı korunur */}
+      {/* Responsive container: ekran genişliğine göre SVG boyutlanır, ezilmez */}
       <div
         style={{
-          width: '600px',
-          maxWidth: '100%',
-          height: '300px',
-          overflow: 'visible'
+          width: '100%',
+          maxWidth: '600px',
+          aspectRatio: '2 / 1',  // viewBox 800x400 = 2:1 oran
+          overflow: 'visible',
         }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 800 400"
-          width="600"
-          height="300"
+          width="100%"
+          height="100%"
           preserveAspectRatio="xMidYMid meet"
           style={{ display: 'block' }}
         >
