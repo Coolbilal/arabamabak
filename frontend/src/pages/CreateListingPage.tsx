@@ -145,7 +145,7 @@ export default function CreateListingPage() {
 
   const isMotorcycle = form.vehicle_type === 'motorsiklet_utv_atv';
   const isAuction = form.listing_type === 'auction' || form.listing_type === 'premium_auction';
-  const fee = form.listing_type === 'premium_auction' ? 200 : 100;
+  const fee = form.listing_type === 'premium_auction' ? 500 : form.listing_type === 'auction' ? 200 : 0;
 
   const citiesQuery = useCities();
   const districtsQuery = useDistricts(form.city);
@@ -633,10 +633,49 @@ function StepPublishType({ form, setField, paymentMethod, setPaymentMethod, wall
           />
           <div className="flex items-start gap-3">
             <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl font-bold">🏗</div>
-            <div>
+            <div className="flex-1">
               <div className="font-bold text-base">Açık Arttırma İlanı Ver</div>
               <div className="text-sm text-slate-600 mt-1">Aracınız açık arttırmaya çıkar, en yüksek teklifi veren kazanır.</div>
               <div className="text-xs text-red-600 font-semibold mt-2">Ücret: {fee} TL</div>
+
+              {/* PREMIUM TOGGLE */}
+              <div className="mt-4 pt-4 border-t border-red-200 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                <div className="flex-1">
+                  <div className="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    ⭐ Premium Açık Arttırma
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    Öne çıkan ilanlarda göster, 5 kat daha fazla görüntülenme
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.listing_type === 'premium_auction'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (form.listing_type === 'auction') {
+                      setField('listing_type', 'premium_auction');
+                    } else if (form.listing_type === 'premium_auction') {
+                      setField('listing_type', 'auction');
+                    } else {
+                      setField('listing_type', 'premium_auction');
+                    }
+                  }}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ml-3",
+                    form.listing_type === 'premium_auction' ? 'bg-red-600' : 'bg-slate-300'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                      form.listing_type === 'premium_auction' ? 'translate-x-5' : 'translate-x-0'
+                    )}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </label>
