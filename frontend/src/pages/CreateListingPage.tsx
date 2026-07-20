@@ -223,7 +223,7 @@ export default function CreateListingPage() {
     setError(null);
     setSuccess(null);
     try {
-      // Ã–NCE ilanı INSERT et (RPC ile â€” RLS bypass)
+      // Ã–NCE ilanı INSERT et (RPC ile €” RLS bypass)
       const payload: any = {
         seller_id: currentUser.id,
         vehicle_type: form.vehicle_type,
@@ -860,7 +860,7 @@ function StepDetails({ form, setField }: any) {
   );
 }
 
-// ==================== STEP 5: FOTOÄRAFLAR (MEVCUT â€” DİL DEÄİÅTİ) ====================
+// ==================== STEP 5: FOTOÄRAFLAR (MEVCUT €” DİL DEÄİÅTİ) ====================
 function StepImages({ form, setField, userId }: any) {
   const [uploading, setUploading] = useState(false);
 
@@ -895,17 +895,17 @@ function StepImages({ form, setField, userId }: any) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <label className={cn("border-2 border-dashed border-red-300 bg-red-50/30 rounded-lg p-5 text-center cursor-pointer hover:border-red-500", uploading && "opacity-50 pointer-events-none")}>
           <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} disabled={uploading} />
-          <div className="text-3xl mb-1">{uploading ? 'â³' : 'ğŸ“·'}</div>
+          <div className="text-3xl mb-1">{uploading ? '⏳' : '📷'}</div>
           <div className="font-semibold text-red-700">{uploading ? 'Yükleniyor...' : 'Fotoğraf Ekle'}</div>
           <div className="text-xs text-slate-500">{form.images.length}/15 yüklendi</div>
         </label>
         <button type="button" className="border rounded-lg p-5 text-center">
-          <div className="text-3xl mb-1">ğŸ“±</div>
+          <div className="text-3xl mb-1">📱</div>
           <div className="font-semibold">Telefondan Ekle</div>
           <div className="text-xs text-slate-500">Bildirim ile</div>
         </button>
         <button type="button" className="border rounded-lg p-5 text-center">
-          <div className="text-3xl mb-1">ğŸ“²</div>
+          <div className="text-3xl mb-1">📲</div>
           <div className="font-semibold">Telefondan Ekle</div>
           <div className="text-xs text-slate-500">QR Kod ile</div>
         </button>
