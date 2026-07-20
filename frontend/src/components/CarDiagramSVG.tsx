@@ -16,15 +16,17 @@ const LABELS: Record<string, string> = {
   orjinal: "Orijinal"
 };
 
+const PART_LIST = [
+  { id: "hood", label: "Kaput" },
+  { id: "frontDoor", label: "Ön Kapı" },
+  { id: "rearDoor", label: "Arka Kapı" },
+  { id: "trunk", label: "Bagaj" },
+] as const;
+
 const ORDER: Status[] = ["orjinal", "boyalı", "lokal", "degisen", null];
 
 export default function CarDiagramSVG() {
-  const [parts, setParts] = useState<Record<string, Status>>({
-    hood: "boyalı",
-    frontDoor: "degisen",
-    rearDoor: "lokal",
-    trunk: "orjinal"
-  });
+  const [parts, setParts] = useState<Record<string, Status>>({});
 
   const handleClick = (id: string) => {
     const current = parts[id] ?? null;
@@ -33,16 +35,81 @@ export default function CarDiagramSVG() {
     setParts({ ...parts, [id]: next });
   };
 
-  const getClass = (id: string) => {
-    const status = parts[id];
-    return `part ${status ?? ""}`.trim();
-  };
-
   return (
-    <div>
-      <div className="flex flex-wrap gap-2 mb-3">
+    <div className="space-y-4">
+      {/* Görsel: sadece gövde silüeti (kare YOK, kavisli gövde) */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '600px',
+          aspectRatio: '2 / 1',
+          background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+          borderRadius: '20px',
+          position: 'relative',
+          border: '2px solid #475569',
+        }}
+      >
+        {/* Tekerlekler (dışarıda, kavisli) */}
+        <div
+          style={{
+            position: 'absolute',
+            left: '12%',
+            top: '40%',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            background: '#1a1a1a',
+            border: '3px solid #475569',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            right: '12%',
+            top: '40%',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            background: '#1a1a1a',
+            border: '3px solid #475569',
+          }}
+        />
+
+        {/* Parça rozetleri (her parça için) - konumlandırılmış, renkli, parça adı yazılı */}
+        {PART_LIST.map((p) => {
+          const status = parts[p.id];
+          const positions: Record<string, { left: string }> = {
+            hood: { left: '15%' },
+            frontDoor: { left: '37%' },
+            rearDoor: { left: '60%' },
+            trunk: { left: '82%' },
+          };
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => handleClick(p.id)}
+              className="absolute top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg font-semibold text-sm border-2 transition-all hover:scale-105"
+              style={{
+                left: positions[p.id].left,
+                background: status ? COLORS[status] : 'rgba(255,255,255,0.85)',
+                color: status ? '#fff' : '#1e293b',
+                borderColor: status ? COLORS[status] : '#94a3b8',
+                textShadow: status ? '0 1px 2px rgba(0,0,0,0.3)' : 'none',
+                transform: 'translate(-50%, -50%)',
+              }}
+            >
+              {p.label}
+              {status && <span className="block text-xs mt-0.5">{LABELS[status]}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Renk açıklaması */}
+      <div className="flex flex-wrap gap-3 text-sm">
         {ORDER.filter(s => s !== null).map((s) => (
-          <div key={s} className="flex items-center gap-1 text-sm">
+          <div key={s} className="flex items-center gap-1.5">
             <span
               className="h-3 w-3 rounded-full inline-block border border-slate-300"
               style={{ background: COLORS[s!] }}
@@ -51,59 +118,28 @@ export default function CarDiagramSVG() {
           </div>
         ))}
       </div>
-      {/* Responsive container: ekran genişliğine göre SVG boyutlanır, ezilmez */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '600px',
-          aspectRatio: '2 / 1',  // viewBox 800x400 = 2:1 oran
-          overflow: 'visible',
-        }}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 800 400"
-          width="100%"
-          height="100%"
-          preserveAspectRatio="xMidYMid meet"
-          style={{ display: 'block' }}
-        >
-          <style>{`
-            .part { cursor: pointer; stroke: #222; stroke-width: 2; transition: 0.2s; }
-            .part:hover { opacity: 0.8; stroke-width: 3; }
-            .boyalı { fill: #ff4d4d; }
-            .degisen { fill: #ffa500; }
-            .lokal { fill: #4da6ff; }
-            .orjinal { fill: #4dff88; }
-          `}</style>
-          {/* CAR BASE - senin verdiğin BİREBİR */}
-          <rect x="100" y="150" width="600" height="120" fill="#e0e0e0" stroke="#333" />
-          {/* PARTS - senin verdiğin BİREBİR */}
-          <rect
-            id="hood"
-            className={getClass("hood")}
-            x="100" y="150" width="150" height="120"
-            onClick={() => handleClick("hood")}
-          />
-          <rect
-            id="frontDoor"
-            className={getClass("frontDoor")}
-            x="250" y="150" width="150" height="120"
-            onClick={() => handleClick("frontDoor")}
-          />
-          <rect
-            id="rearDoor"
-            className={getClass("rearDoor")}
-            x="400" y="150" width="150" height="120"
-            onClick={() => handleClick("rearDoor")}
-          />
-          <rect
-            id="trunk"
-            className={getClass("trunk")}
-            x="550" y="150" width="150" height="120"
-            onClick={() => handleClick("trunk")}
-          />
-        </svg>
+
+      {/* Parça listesi (tıklama için alternatif) */}
+      <div className="grid grid-cols-2 gap-2">
+        {PART_LIST.map((p) => {
+          const status = parts[p.id];
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => handleClick(p.id)}
+              className="flex items-center justify-between p-2 rounded border border-slate-200 hover:border-slate-400 transition-colors"
+            >
+              <span className="font-medium text-sm">{p.label}</span>
+              <span
+                className="px-2 py-0.5 rounded text-xs font-semibold text-white"
+                style={{ background: status ? COLORS[status] : '#cbd5e1' }}
+              >
+                {status ? LABELS[status] : 'Seç'}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
