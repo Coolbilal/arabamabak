@@ -46,13 +46,17 @@ interface AuctionRow {
 const STATUS_LABELS: Record<string, string> = {
   scheduled: 'Yakında',
   live: 'Canlı',
-  ended: 'Satıldı',
+  ended: 'Onay Bekliyor',
+  sold: 'Satıldı',
+  sold_pending_confirmation: 'Onay Sürecinde',
   cancelled: 'İptal',
 };
 const STATUS_CLASS: Record<string, string> = {
   scheduled: 'bg-sky-100 text-sky-700',
   live: 'bg-red-100 text-red-700',
-  ended: 'bg-emerald-100 text-emerald-700',
+  ended: 'bg-amber-100 text-amber-700',
+  sold: 'bg-emerald-100 text-emerald-700',
+  sold_pending_confirmation: 'bg-blue-100 text-blue-700',
   cancelled: 'bg-slate-100 text-slate-500',
 };
 
@@ -65,7 +69,7 @@ export default function AuctionsPage() {
   const statusMap: Record<Tab, string[]> = {
     incoming: ['scheduled'],
     live: ['live'],
-    sold: ['ended'],
+    sold: ['ended', 'sold', 'sold_pending_confirmation'],
   };
 
   const auctionsQ = useQuery({
