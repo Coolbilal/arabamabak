@@ -154,3 +154,80 @@
     border: 1px solid var(--color-border);
   }
 }
+
+/* Bilgi Bankası Accordion */
+.bb-accordion {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+  background: #fafafa;
+  overflow: hidden;
+}
+.bb-accordion > summary {
+  cursor: pointer;
+  padding: 0.875rem 1rem;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #1f2937;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  background: #f9fafb;
+  transition: background 0.15s;
+}
+.bb-accordion > summary:hover {
+  background: #f3f4f6;
+}
+.bb-accordion > summary::-webkit-details-marker {
+  display: none;
+}
+.bb-accordion > summary::after {
+  content: '▸';
+  font-size: 0.875rem;
+  color: #6b7280;
+  transition: transform 0.2s;
+  margin-left: 1rem;
+  flex-shrink: 0;
+}
+.bb-accordion[open] > summary {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+.bb-accordion[open] > summary::after {
+  transform: rotate(90deg);
+  color: #dc2626;
+}
+.bb-accordion-body {
+  padding: 1rem 1.25rem;
+  color: #374151;
+  line-height: 1.65;
+}
+.bb-accordion-body p {
+  margin: 0.5rem 0;
+}
+.bb-accordion-body p:first-child {
+  margin-top: 0;
+}
+.bb-accordion-body p:last-child {
+  margin-bottom: 0;
+}
+.bb-accordion-body ul,
+.bb-accordion-body ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+.bb-accordion-body li {
+  margin: 0.25rem 0;
+}
+.bb-accordion-body strong {
+  color: #111827;
+}
+.bb-accordion-body a {
+  color: #dc2626;
+  text-decoration: none;
+}
+.bb-accordion-body a:hover {
+  text-decoration: underline;
+}
