@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import InfoIcon from './InfoIcon';
 
 type InfoPage = {
   id: string;
@@ -60,7 +61,9 @@ export default function InfoCards() {
               className="group bg-white rounded-xl border border-slate-200 p-5 hover:border-red-400 hover:shadow-md transition-all"
             >
               <div className="flex items-start gap-3 mb-3">
-                <span className="text-3xl flex-shrink-0">{p.icon || '📚'}</span>
+                <span className="flex-shrink-0 text-slate-700" style={{ width: '2.25rem', height: '2.25rem' }}>
+                  <InfoIcon icon={p.icon} className="w-9 h-9" />
+                </span>
                 <h3 className="font-bold text-slate-900 group-hover:text-red-600 transition-colors line-clamp-2">
                   {p.title}
                 </h3>

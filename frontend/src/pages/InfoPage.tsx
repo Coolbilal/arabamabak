@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import InfoIcon from '../components/InfoIcon';
 
 type InfoPage = {
   id: string;
@@ -81,7 +82,11 @@ export default function InfoPage() {
         )}
 
         <div className="flex items-center gap-3 mb-2">
-          {page.icon && <span className="text-4xl">{page.icon}</span>}
+          {page.icon && (
+            <span className="text-slate-700" style={{ width: '3rem', height: '3rem' }}>
+              <InfoIcon icon={page.icon} className="w-12 h-12" />
+            </span>
+          )}
           <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">{page.title}</h1>
         </div>
 
