@@ -3,6 +3,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 import AuctionTicker from './components/AuctionTicker';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
+import InfoPage from './pages/InfoPage';
 import AuctionsPage from './pages/AuctionsPage';
 import ValuationPage from './pages/ValuationPage';
 import CategoryPage from './pages/CategoryPage';
@@ -35,6 +36,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
         <Route index element={<HomePage />} />
+        <Route path="/bilgi/:slug" element={<InfoPage />} />
         <Route path="/kategori/:cat" element={<CategoryPage />} />
         <Route path="/ilan/:id" element={<VehicleDetailPage />} />
         <Route path="/giris" element={<LoginPage />} />

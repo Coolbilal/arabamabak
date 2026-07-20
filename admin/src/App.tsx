@@ -11,6 +11,8 @@ import FreeListingsPage from './pages/FreeListingsPage';
 import ExpertisePage from './pages/ExpertisePage';
 import SettingsPage from './pages/SettingsPage';
 import EidsSettingsPage from './pages/EidsSettingsPage';
+import InfoPagesPage from "./pages/InfoPagesPage";
+import InfoPageEditPage from "./pages/InfoPageEditPage";
 import EidsLogsPage from './pages/EidsLogsPage';
 import AuthorizationPage from './pages/AuthorizationPage';
 import DealershipsPage from './pages/DealershipsPage';
@@ -65,6 +67,9 @@ export default function App() {
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="slots" element={<SlotsPage />} />
         <Route path="site/reklamlar" element={<AdBannersPage />} />
+        <Route path="info-pages" element={<InfoPagesPage />} />
+        <Route path="info-pages/new" element={<InfoPageEditPage />} />
+        <Route path="info-pages/:id/edit" element={<InfoPageEditPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

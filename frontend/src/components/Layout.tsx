@@ -3,6 +3,7 @@ import Header from './Header';
 import Footer from './Footer';
 import HeaderTopAdBanner from './HeaderTopAdBanner';
 import ModalAdBanner from './ModalAdBanner';
+import InfoCards from './InfoCards';
 
 export default function Layout() {
   return (
@@ -13,6 +14,8 @@ export default function Layout() {
       <main className="flex-1">
         <Outlet />
       </main>
+      {/* Footer üstünde Bilgi Bankası kartları */}
+      <InfoCards />
       <Footer />
     </div>
   );
