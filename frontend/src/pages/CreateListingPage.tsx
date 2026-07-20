@@ -430,7 +430,6 @@ function StepType({ form, setField }: any) {
 // ==================== STEP 2: BRAND & MODEL ====================
 // ==================== STEP 3: ENGINE ====================
 function StepPaintCondition({ form, setField }: any) {
-  const [paint, setPaint] = useState<Record<string, PaintStatus>>({});
   return (
     <div>
       <h2 className="text-xl font-extrabold mb-1">Boya, Değişen ve Tramer Bilgisi</h2>
