@@ -16,14 +16,16 @@ const LABELS: Record<string, string> = {
   orjinal: "Orijinal"
 };
 
-const PART_LIST = [
-  { id: "hood", label: "Kaput" },
-  { id: "frontDoor", label: "Ön Kapı" },
-  { id: "rearDoor", label: "Arka Kapı" },
-  { id: "trunk", label: "Bagaj" },
-] as const;
-
 const ORDER: Status[] = ["orjinal", "boyalı", "lokal", "degisen", null];
+
+// Senin 4 parçan - KAVİSLİ path'ler, gerçek sedan araba şekli
+// viewBox 800x500
+const PARTS: { id: string; d: string }[] = [
+  { id: "hood", d: "M 80 200 Q 100 180 130 180 L 280 180 L 280 320 L 130 320 Q 100 320 80 300 L 80 220 Z" },
+  { id: "frontDoor", d: "M 280 180 L 290 130 Q 305 100 340 100 L 510 100 Q 530 100 540 120 L 540 320 Q 525 330 510 330 L 340 330 Q 305 330 290 310 L 280 320 Z" },
+  { id: "rearDoor", d: "M 540 180 L 700 180 L 700 320 L 540 320 Z" },
+  { id: "trunk", d: "M 700 200 Q 720 180 750 200 L 750 300 Q 720 320 700 300 L 700 220 Z" },
+];
 
 export default function CarDiagramSVG() {
   const [parts, setParts] = useState<Record<string, Status>>({});
@@ -35,81 +37,16 @@ export default function CarDiagramSVG() {
     setParts({ ...parts, [id]: next });
   };
 
+  const getClass = (id: string) => {
+    const status = parts[id];
+    return `part ${status ?? ""}`.trim();
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Görsel: sadece gövde silüeti (kare YOK, kavisli gövde) */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '600px',
-          aspectRatio: '2 / 1',
-          background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-          borderRadius: '20px',
-          position: 'relative',
-          border: '2px solid #475569',
-        }}
-      >
-        {/* Tekerlekler (dışarıda, kavisli) */}
-        <div
-          style={{
-            position: 'absolute',
-            left: '12%',
-            top: '40%',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: '#1a1a1a',
-            border: '3px solid #475569',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            right: '12%',
-            top: '40%',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: '#1a1a1a',
-            border: '3px solid #475569',
-          }}
-        />
-
-        {/* Parça rozetleri (her parça için) - konumlandırılmış, renkli, parça adı yazılı */}
-        {PART_LIST.map((p) => {
-          const status = parts[p.id];
-          const positions: Record<string, { left: string }> = {
-            hood: { left: '15%' },
-            frontDoor: { left: '37%' },
-            rearDoor: { left: '60%' },
-            trunk: { left: '82%' },
-          };
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => handleClick(p.id)}
-              className="absolute top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg font-semibold text-sm border-2 transition-all hover:scale-105"
-              style={{
-                left: positions[p.id].left,
-                background: status ? COLORS[status] : 'rgba(255,255,255,0.85)',
-                color: status ? '#fff' : '#1e293b',
-                borderColor: status ? COLORS[status] : '#94a3b8',
-                textShadow: status ? '0 1px 2px rgba(0,0,0,0.3)' : 'none',
-                transform: 'translate(-50%, -50%)',
-              }}
-            >
-              {p.label}
-              {status && <span className="block text-xs mt-0.5">{LABELS[status]}</span>}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Renk açıklaması */}
-      <div className="flex flex-wrap gap-3 text-sm">
+    <div>
+      <div className="flex flex-wrap gap-2 mb-3">
         {ORDER.filter(s => s !== null).map((s) => (
-          <div key={s} className="flex items-center gap-1.5">
+          <div key={s} className="flex items-center gap-1 text-sm">
             <span
               className="h-3 w-3 rounded-full inline-block border border-slate-300"
               style={{ background: COLORS[s!] }}
@@ -118,28 +55,55 @@ export default function CarDiagramSVG() {
           </div>
         ))}
       </div>
-
-      {/* Parça listesi (tıklama için alternatif) */}
-      <div className="grid grid-cols-2 gap-2">
-        {PART_LIST.map((p) => {
-          const status = parts[p.id];
-          return (
-            <button
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '600px',
+          aspectRatio: '8 / 5',  // viewBox 800x500
+          overflow: 'visible',
+        }}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 800 500"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          style={{ display: 'block' }}
+        >
+          <style>{`
+            .part { cursor: pointer; stroke: #222; stroke-width: 2.5; transition: 0.2s; }
+            .part:hover { opacity: 0.85; stroke-width: 3.5; }
+            .boyalı { fill: #ff4d4d; }
+            .degisen { fill: #ffa500; }
+            .lokal { fill: #4da6ff; }
+            .orjinal { fill: #4dff88; }
+          `}</style>
+          {/* CAR BASE - gövde silüeti (gri zemin, kavisli uçlu) */}
+          <path
+            d="M 80 200 Q 100 180 130 180 L 690 180 Q 720 180 750 200 L 750 300 Q 720 320 690 320 L 130 320 Q 100 320 80 300 L 80 220 Z"
+            fill="#e0e0e0" stroke="#333" strokeWidth="2"
+          />
+          {/* 4 PARÇA - kavisli gerçek araba şekli */}
+          {PARTS.map((p) => (
+            <path
               key={p.id}
-              type="button"
+              id={p.id}
+              className={getClass(p.id)}
+              d={p.d}
               onClick={() => handleClick(p.id)}
-              className="flex items-center justify-between p-2 rounded border border-slate-200 hover:border-slate-400 transition-colors"
-            >
-              <span className="font-medium text-sm">{p.label}</span>
-              <span
-                className="px-2 py-0.5 rounded text-xs font-semibold text-white"
-                style={{ background: status ? COLORS[status] : '#cbd5e1' }}
-              >
-                {status ? LABELS[status] : 'Seç'}
-              </span>
-            </button>
-          );
-        })}
+            />
+          ))}
+          {/* TEKERLEKLER - 4 adet dışarıda, dikey oval */}
+          <ellipse cx="120" cy="200" rx="25" ry="35" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
+          <ellipse cx="120" cy="200" rx="10" ry="16" fill="#666" />
+          <ellipse cx="700" cy="200" rx="25" ry="35" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
+          <ellipse cx="700" cy="200" rx="10" ry="16" fill="#666" />
+          <ellipse cx="120" cy="380" rx="25" ry="35" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
+          <ellipse cx="120" cy="380" rx="10" ry="16" fill="#666" />
+          <ellipse cx="700" cy="380" rx="25" ry="35" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
+          <ellipse cx="700" cy="380" rx="10" ry="16" fill="#666" />
+        </svg>
       </div>
     </div>
   );
