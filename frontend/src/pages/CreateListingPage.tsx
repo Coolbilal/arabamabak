@@ -362,8 +362,8 @@ export default function CreateListingPage() {
         {step === 7 && <StepPublishType form={form} setField={setField} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} walletBalance={walletBalance} fee={fee} />}
       </div>
 
-      {/* Ã–deme Modal'ları */}
-      {/* Ã–deme modal'ları ileride eklenecek (iyzico/PayTR entegrasyonu sonrası) */}
+      {/* Ödeme Modal'ları */}
+      {/* Ödeme modal'ları ileride eklenecek (iyzico/PayTR entegrasyonu sonrası) */}
 
       <div className="mt-4 flex justify-between">
         <button onClick={prevStep} disabled={step === 0} className="btn-ghost disabled:opacity-30">
@@ -609,7 +609,7 @@ function StepLocationContact({ form, setField, cities, districts }: any) {
   );
 }
 
-// ==================== STEP 7: İLAN TÃœRÃœ + YAYINLA (YENİ) ====================
+// ==================== STEP 7: İLAN TÜRÜ + YAYINLA (YENİ) ====================
 function StepPublishType({ form, setField, paymentMethod, setPaymentMethod, walletBalance, fee }: any) {
   return (
     <div>
@@ -632,11 +632,11 @@ function StepPublishType({ form, setField, paymentMethod, setPaymentMethod, wall
             className="sr-only"
           />
           <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl font-bold">ğŸ·ï¸</div>
+            <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl font-bold">🏗</div>
             <div>
               <div className="font-bold text-base">Açık Arttırma İlanı Ver</div>
               <div className="text-sm text-slate-600 mt-1">Aracınız açık arttırmaya çıkar, en yüksek teklifi veren kazanır.</div>
-              <div className="text-xs text-red-600 font-semibold mt-2">Ãœcret: {fee} TL</div>
+              <div className="text-xs text-red-600 font-semibold mt-2">Ücret: {fee} TL</div>
             </div>
           </div>
         </label>
@@ -654,27 +654,27 @@ function StepPublishType({ form, setField, paymentMethod, setPaymentMethod, wall
             className="sr-only"
           />
           <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl font-bold">âœ“</div>
+            <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl font-bold">✓</div>
             <div>
-              <div className="font-bold text-base">Ãœcretsiz İlan Ver</div>
+              <div className="font-bold text-base">Ücretsiz İlan Ver</div>
               <div className="text-sm text-slate-600 mt-1">Aracınız klasik ilan olarak yayınlanır, sabit fiyat ile satılır.</div>
-              <div className="text-xs text-emerald-600 font-semibold mt-2">Ãœcretsiz</div>
+              <div className="text-xs text-emerald-600 font-semibold mt-2">Ücretsiz</div>
             </div>
           </div>
         </label>
       </div>
 
-      {/* Ã–deme (auction seçildiyse) */}
+      {/* Ödeme (auction seçildiyse) */}
       {(form.listing_type === 'auction' || form.listing_type === 'premium_auction') && (
         <div className="mt-6 rounded-xl border p-5 bg-slate-50">
-          <h3 className="font-bold mb-3">Ã–deme Yöntemi</h3>
+          <h3 className="font-bold mb-3">Ödeme Yöntemi</h3>
           <div className="space-y-2">
             <PaymentOption
               value="wallet"
               current={paymentMethod}
               onSelect={setPaymentMethod}
-              label="Cüzdandan Ã–de"
-              detail={`Bakiye: ${walletBalance} TL ${walletBalance >= fee ? 'âœ“' : 'âœ— Yetersiz'}`}
+              label="Cüzdandan Öde"
+              detail={`Bakiye: ${walletBalance} TL ${walletBalance >= fee ? '✓' : '✗ Yetersiz'}`}
             />
             <PaymentOption
               value="card"
