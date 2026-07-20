@@ -18,13 +18,12 @@ const LABELS: Record<string, string> = {
 
 const ORDER: Status[] = ["orjinal", "boyalı", "lokal", "degisen", null];
 
-// Senin 4 parçan - KAVİSLİ path'ler, gerçek sedan araba şekli
-// viewBox 800x500
+// YATAY sedan araba - 4 parça, KAVİSLİ, viewBox 1000x500
 const PARTS: { id: string; d: string }[] = [
-  { id: "hood", d: "M 80 200 Q 100 180 130 180 L 280 180 L 280 320 L 130 320 Q 100 320 80 300 L 80 220 Z" },
-  { id: "frontDoor", d: "M 280 180 L 290 130 Q 305 100 340 100 L 510 100 Q 530 100 540 120 L 540 320 Q 525 330 510 330 L 340 330 Q 305 330 290 310 L 280 320 Z" },
-  { id: "rearDoor", d: "M 540 180 L 700 180 L 700 320 L 540 320 Z" },
-  { id: "trunk", d: "M 700 200 Q 720 180 750 200 L 750 300 Q 720 320 700 300 L 700 220 Z" },
+  { id: "hood", d: "M 60 220 Q 60 180 110 180 L 280 180 Q 290 180 290 190 L 290 320 Q 290 330 280 330 L 110 330 Q 60 330 60 290 Z" },
+  { id: "frontDoor", d: "M 290 190 L 290 130 Q 295 100 320 100 L 480 100 Q 510 100 510 130 L 510 320 Q 510 330 500 330 L 300 330 Q 290 330 290 320 Z" },
+  { id: "rearDoor", d: "M 510 190 L 510 130 Q 510 110 530 110 L 940 110 Q 960 110 960 130 L 960 320 Q 960 330 950 330 L 530 330 Q 510 330 510 320 Z" },
+  { id: "trunk", d: "M 960 220 L 960 290 Q 960 330 940 330 L 760 330 Q 720 330 720 320 L 720 190 Q 720 180 730 180 L 760 180 Q 940 180 940 220 Q 940 220 960 220 Z" },
 ];
 
 export default function CarDiagramSVG() {
@@ -59,13 +58,13 @@ export default function CarDiagramSVG() {
         style={{
           width: '100%',
           maxWidth: '600px',
-          aspectRatio: '8 / 5',  // viewBox 800x500
+          aspectRatio: '2 / 1',  // viewBox 1000x500
           overflow: 'visible',
         }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 800 500"
+          viewBox="0 0 1000 500"
           width="100%"
           height="100%"
           preserveAspectRatio="xMidYMid meet"
@@ -79,9 +78,9 @@ export default function CarDiagramSVG() {
             .lokal { fill: #4da6ff; }
             .orjinal { fill: #4dff88; }
           `}</style>
-          {/* CAR BASE - gövde silüeti (gri zemin, kavisli uçlu) */}
+          {/* CAR BASE - gövde silüeti, kavisli tampon uçlu */}
           <path
-            d="M 80 200 Q 100 180 130 180 L 690 180 Q 720 180 750 200 L 750 300 Q 720 320 690 320 L 130 320 Q 100 320 80 300 L 80 220 Z"
+            d="M 60 220 Q 60 180 110 180 L 940 180 Q 960 180 960 220 L 960 290 Q 960 330 940 330 L 110 330 Q 60 330 60 290 Z"
             fill="#e0e0e0" stroke="#333" strokeWidth="2"
           />
           {/* 4 PARÇA - kavisli gerçek araba şekli */}
@@ -94,15 +93,18 @@ export default function CarDiagramSVG() {
               onClick={() => handleClick(p.id)}
             />
           ))}
-          {/* TEKERLEKLER - 4 adet dışarıda, dikey oval */}
-          <ellipse cx="120" cy="200" rx="25" ry="35" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
-          <ellipse cx="120" cy="200" rx="10" ry="16" fill="#666" />
-          <ellipse cx="700" cy="200" rx="25" ry="35" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
-          <ellipse cx="700" cy="200" rx="10" ry="16" fill="#666" />
-          <ellipse cx="120" cy="380" rx="25" ry="35" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
-          <ellipse cx="120" cy="380" rx="10" ry="16" fill="#666" />
-          <ellipse cx="700" cy="380" rx="25" ry="35" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
-          <ellipse cx="700" cy="380" rx="10" ry="16" fill="#666" />
+          {/* 4 TEKERLEK - dışarıda, dikey oval */}
+          <ellipse cx="120" cy="180" rx="30" ry="38" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
+          <ellipse cx="120" cy="180" rx="12" ry="18" fill="#666" />
+          <ellipse cx="940" cy="180" rx="30" ry="38" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
+          <ellipse cx="940" cy="180" rx="12" ry="18" fill="#666" />
+          <ellipse cx="120" cy="380" rx="30" ry="38" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
+          <ellipse cx="120" cy="380" rx="12" ry="18" fill="#666" />
+          <ellipse cx="940" cy="380" rx="30" ry="38" fill="#1a1a1a" stroke="#222" strokeWidth="2" />
+          <ellipse cx="940" cy="380" rx="12" ry="18" fill="#666" />
+          {/* ÖN/ARKA FARLAR (dekoratif) */}
+          <rect x="65" y="240" width="20" height="8" rx="2" fill="#334155" />
+          <rect x="935" y="240" width="20" height="8" rx="2" fill="#334155" />
         </svg>
       </div>
     </div>
