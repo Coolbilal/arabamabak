@@ -13,7 +13,7 @@ import { SoldStamp } from '../components/SoldStamp';
 
 interface AuctionRow {
   id: string;
-  status: 'scheduled' | 'live' | 'ended' | 'cancelled';
+  status: 'scheduled' | 'live' | 'ended' | 'sold' | 'sold_pending_confirmation' | 'cancelled';
   opening_price: number;
   current_price: number;
   bid_increment: number;
