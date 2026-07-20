@@ -81,7 +81,7 @@ export default function AuctionsPage() {
         .select(`
           id, status, opening_price, current_price, bid_increment, total_bids,
           start_at, end_at, live_started_at, live_ends_at, ended_at, final_price,
-          vehicle:vehicles!inner(
+          vehicle:vehicles(
             id, title, year, km, fuel, transmission, city, price, status, listing_type, sold_at,
             brand:vehicle_brands(name),
             model:vehicle_models(name),
@@ -114,7 +114,7 @@ export default function AuctionsPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('auctions')
-        .select('id, status, vehicle:vehicles!inner(status)');
+        .select('id, status, vehicle:vehicles(status)');
       const rows = (data ?? []) as any[];
       return {
         incoming: rows.filter((r) => r.status === 'scheduled').length,
