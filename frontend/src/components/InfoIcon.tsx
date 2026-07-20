@@ -1,3 +1,5 @@
+import type { ReactElement } from 'react';
+
 type Props = {
   icon: string | null;
   className?: string;
@@ -5,7 +7,7 @@ type Props = {
 };
 
 // Özel SVG ikonlar (Unicode'da olmayanlar)
-const SVG_ICONS: Record<string, JSX.Element> = {
+const SVG_ICONS: Record<string, ReactElement> = {
   gavel: (
     <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
       {/* Çekiç kafası + sapı */}
