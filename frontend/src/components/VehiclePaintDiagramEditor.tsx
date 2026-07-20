@@ -1,15 +1,5 @@
 import { useState } from "react";
 
-const partsList = [
-  "hood",
-  "roof",
-  "trunk",
-  "leftDoor",
-  "rightDoor",
-  "leftFender",
-  "rightFender"
-];
-
 const colors = {
   original: "#4CAF50",
   painted: "#FFC107",
@@ -82,3 +72,6 @@ export default function VehiclePaintDiagramEditor() {
     </div>
   );
 }
+
+
+export type PaintStatus = "original" | "painted" | "changed" | null;
