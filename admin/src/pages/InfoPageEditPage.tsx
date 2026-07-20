@@ -5,7 +5,7 @@ import { Save, ArrowLeft, FileText, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import RichTextEditor from '../components/RichTextEditor';
 
-const ICON_OPTIONS = ['📚', '🏗', '🔨', '📞', '🛡️', '💼', '🚗', '📋', '💡', '❓', '⭐', '🔔'];
+// (Emoji seçenekleri kaldırıldı — kullanıcı kendi emoji'sini yazıyor)
 
 function slugify(text: string) {
   return text
@@ -153,19 +153,21 @@ export default function InfoPageEditPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-700">İkon</label>
-              <div className="flex gap-1 mt-1">
-                {ICON_OPTIONS.map((ic) => (
-                  <button
-                    key={ic}
-                    type="button"
-                    onClick={() => setIcon(ic)}
-                    className={`text-2xl p-1 rounded ${icon === ic ? 'bg-red-100 ring-2 ring-red-500' : 'hover:bg-slate-100'}`}
-                  >
-                    {ic}
-                  </button>
-                ))}
+              <label className="text-xs font-semibold text-slate-700">İkon (Emoji)</label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="text"
+                  value={icon}
+                  onChange={(e) => setIcon(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-2xl text-center"
+                  placeholder="📚"
+                  maxLength={4}
+                />
+                {icon && (
+                  <span className="text-3xl px-2" title="Önizleme">{icon}</span>
+                )}
               </div>
+              <p className="text-xs text-slate-500 mt-1">İstediğin emojiyi yapıştır (örn. 🪵, 🪓, ⭐)</p>
             </div>
           </div>
 
