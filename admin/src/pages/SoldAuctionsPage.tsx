@@ -25,15 +25,20 @@ export default function SoldAuctionsPage() {
   const [confirmDelete, setConfirmDelete] = useState<AuctionFilterRow | null>(null);
   const canEdit = hasPermission('auctions', 'edit');
 
-  const soldQ = useAuctionsByStatus(['ended']);
-  // 24 saatten eski olanları filtrele
+  const soldQ = useAuctionsByStatus(['ended', 'sold', 'sold_pending_confirmation']);
+  // 24 saatten eski olanları filtrele — sadece 'ended' ve 'sold_pending_confirmation' için (onay bekleyenler)
+  // 'sold' olanlar HER ZAMAN görünür (geçmiş satışlar dahil)
   const filtered = useMemo(() => {
     const rows = soldQ.data ?? [];
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const recent = rows.filter((r) => (r.ended_at ?? '') >= cutoff);
-    if (!search) return recent;
+    // Status tipine göre filtreleme: sold = tümü, diğerleri = 24 saat
+    const visible = rows.filter((r) => {
+      if (r.status === 'sold') return true; // satılanlar her zaman gösterilir
+      return (r.ended_at ?? '') >= cutoff; // ended/sold_pending_confirmation = son 24 saat
+    });
+    if (!search) return visible;
     const s = search.toLowerCase();
-    return recent.filter((r) =>
+    return visible.filter((r) =>
       (r.vehicle?.title || '').toLowerCase().includes(s) ||
       (r.vehicle?.brand?.name || '').toLowerCase().includes(s),
     );
