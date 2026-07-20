@@ -439,7 +439,7 @@ function StepPaintCondition({ form, setField }: any) {
       {/* Boya/Değişen Diyagramı */}
       <div className="rounded-lg border p-4 mb-4">
         <h3 className="font-bold mb-3">Boya ve Değişen Bilgisi</h3>
-        <VehiclePaintDiagramEditor value={paint} onChange={setPaint} />
+        <VehiclePaintDiagramEditor></VehiclePaintDiagramEditor>
       </div>
 
       {/* Tramer */}
@@ -934,3 +934,4 @@ function StepImages({ form, setField, userId }: any) {
     </div>
   );
 }
+
