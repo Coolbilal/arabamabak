@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-// Senin son verdiğin SVG'nin class'ları ve renkleri
 type Status = "boyalı" | "degisen" | "lokal" | "orjinal" | null;
 
 const COLORS: Record<string, string> = {
@@ -17,18 +16,15 @@ const LABELS: Record<string, string> = {
   orjinal: "Orijinal"
 };
 
-// Senin verdiğin 4 parça (viewBox 800x400)
-const PARTS = [
-  { id: "hood", label: "Kaput" },
-  { id: "frontDoor", label: "Ön Kapı" },
-  { id: "rearDoor", label: "Arka Kapı" },
-  { id: "trunk", label: "Bagaj" },
-] as const;
-
 const ORDER: Status[] = ["orjinal", "boyalı", "lokal", "degisen", null];
 
 export default function CarDiagramSVG() {
-  const [parts, setParts] = useState<Record<string, Status>>({});
+  const [parts, setParts] = useState<Record<string, Status>>({
+    hood: "boyalı",
+    frontDoor: "degisen",
+    rearDoor: "lokal",
+    trunk: "orjinal"
+  });
 
   const handleClick = (id: string) => {
     const current = parts[id] ?? null;
@@ -55,48 +51,60 @@ export default function CarDiagramSVG() {
           </div>
         ))}
       </div>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 800 400"
-        width="100%"
-        style={{ maxWidth: '600px', height: 'auto' }}
+      {/* SABİT 600x300 container, overflow visible, viewBox 800x400 oranı korunur */}
+      <div
+        style={{
+          width: '600px',
+          maxWidth: '100%',
+          height: '300px',
+          overflow: 'visible'
+        }}
       >
-        <style>{`
-          .part { cursor: pointer; stroke: #222; stroke-width: 2; transition: 0.2s; }
-          .part:hover { opacity: 0.8; stroke-width: 3; }
-          .boyalı { fill: #ff4d4d; }
-          .degisen { fill: #ffa500; }
-          .lokal { fill: #4da6ff; }
-          .orjinal { fill: #4dff88; }
-        `}</style>
-        {/* CAR BASE */}
-        <rect x="100" y="150" width="600" height="120" fill="#e0e0e0" stroke="#333" />
-        {/* PARTS - senin verdiğin BİREBİR */}
-        <rect
-          id="hood"
-          className={getClass("hood")}
-          x="100" y="150" width="150" height="120"
-          onClick={() => handleClick("hood")}
-        />
-        <rect
-          id="frontDoor"
-          className={getClass("frontDoor")}
-          x="250" y="150" width="150" height="120"
-          onClick={() => handleClick("frontDoor")}
-        />
-        <rect
-          id="rearDoor"
-          className={getClass("rearDoor")}
-          x="400" y="150" width="150" height="120"
-          onClick={() => handleClick("rearDoor")}
-        />
-        <rect
-          id="trunk"
-          className={getClass("trunk")}
-          x="550" y="150" width="150" height="120"
-          onClick={() => handleClick("trunk")}
-        />
-      </svg>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 800 400"
+          width="600"
+          height="300"
+          preserveAspectRatio="xMidYMid meet"
+          style={{ display: 'block' }}
+        >
+          <style>{`
+            .part { cursor: pointer; stroke: #222; stroke-width: 2; transition: 0.2s; }
+            .part:hover { opacity: 0.8; stroke-width: 3; }
+            .boyalı { fill: #ff4d4d; }
+            .degisen { fill: #ffa500; }
+            .lokal { fill: #4da6ff; }
+            .orjinal { fill: #4dff88; }
+          `}</style>
+          {/* CAR BASE - senin verdiğin BİREBİR */}
+          <rect x="100" y="150" width="600" height="120" fill="#e0e0e0" stroke="#333" />
+          {/* PARTS - senin verdiğin BİREBİR */}
+          <rect
+            id="hood"
+            className={getClass("hood")}
+            x="100" y="150" width="150" height="120"
+            onClick={() => handleClick("hood")}
+          />
+          <rect
+            id="frontDoor"
+            className={getClass("frontDoor")}
+            x="250" y="150" width="150" height="120"
+            onClick={() => handleClick("frontDoor")}
+          />
+          <rect
+            id="rearDoor"
+            className={getClass("rearDoor")}
+            x="400" y="150" width="150" height="120"
+            onClick={() => handleClick("rearDoor")}
+          />
+          <rect
+            id="trunk"
+            className={getClass("trunk")}
+            x="550" y="150" width="150" height="120"
+            onClick={() => handleClick("trunk")}
+          />
+        </svg>
+      </div>
     </div>
   );
 }
