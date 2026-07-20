@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-// Senin verdiğin parça isimleri ve renkler (BİREBİR aynı)
+// Senin verdiğin parça isimleri ve renkler
 type Status = "original" | "painted" | "changed" | null;
 
 const colors: Record<string, string> = {
@@ -34,8 +34,8 @@ export default function CarDiagramSVG() {
         <p>🟡 Boyalı</p>
         <p>🔴 Değişmiş</p>
       </div>
-      <svg viewBox="0 0 300 600" width="250">
-        {/* Senin orijinal SVG parçaların — BİREBİR, değişiklik yok */}
+      <svg viewBox="0 0 500 900" width="250">
+        {/* Senin verdiğin SVG parçaları - BİREBİR, hiç değişiklik yok */}
         {/* Kaput */}
         <rect x="100" y="120" width="100" height="80"
           fill={getColor("hood")}
