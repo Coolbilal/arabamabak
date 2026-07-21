@@ -659,9 +659,13 @@ function ResultCard({ v, cat }: { v: AuctionVehicle; cat: Cat }) {
             <span className="badge bg-slate-800 text-white">SATILDI</span>
           )}
         </div>
-        {v.auction && cat === 'live' && (
+        {v.auction && (cat === 'live' || cat === 'upcoming') && (
           <div className="absolute bottom-2 right-2">
-            <CountdownTimer target={v.auction.end_at ?? undefined} size="sm" glow />
+            <CountdownTimer
+              target={cat === 'upcoming' ? (v.auction.start_at ?? undefined) : (v.auction.end_at ?? undefined)}
+              size="sm"
+              glow
+            />
           </div>
         )}
         {v.favorite_count > 0 && (
@@ -714,9 +718,13 @@ function ResultRow({ v, cat }: { v: AuctionVehicle; cat: Cat }) {
             </div>
           )}
         </div>
-        {v.auction && cat === 'live' && (
+        {v.auction && (cat === 'live' || cat === 'upcoming') && (
           <div className="absolute right-2 bottom-2">
-            <CountdownTimer target={v.auction.end_at ?? undefined} size="sm" glow />
+            <CountdownTimer
+              target={cat === 'upcoming' ? (v.auction.start_at ?? undefined) : (v.auction.end_at ?? undefined)}
+              size="sm"
+              glow
+            />
           </div>
         )}
       </div>
@@ -743,6 +751,15 @@ function ResultRow({ v, cat }: { v: AuctionVehicle; cat: Cat }) {
           <Spec icon={<Palette className="h-3 w-3" />}>{v.color ?? '-'}</Spec>
           <Spec icon={<MapPin className="h-3 w-3" />}>{v.city}</Spec>
         </div>
+        {v.auction && (cat === 'live' || cat === 'upcoming') && (
+          <div className="flex items-center">
+            <CountdownTimer
+              target={cat === 'upcoming' ? (v.auction.start_at ?? undefined) : (v.auction.end_at ?? undefined)}
+              size="sm"
+              glow
+            />
+          </div>
+        )}
         <div className="flex items-center gap-2 pt-1 flex-wrap">
           {v.is_premium && <span className="badge bg-amber-500 text-white">PREMIUM</span>}
           {isAuction && cat !== 'sold' && (
