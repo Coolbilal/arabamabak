@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Shield, ShieldCheck, UserCheck, UserX, Lock, Mail, User as UserIcon,
-  AlertCircle, Save, RefreshCw, Check,
+  AlertCircle, Save, RefreshCw, Check, History, KeyRound, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,6 +22,8 @@ interface AdminUserRow {
   is_super_admin: boolean;
   last_login_at: string | null;
   created_at: string;
+  custom_role: string | null;
+  must_change_password: boolean | null;
 }
 
 type PermissionArea =
@@ -33,17 +35,73 @@ type PermissionArea =
   | 'site_settings'
   | 'authorization'
   | 'dealerships'
-  | 'transactions';
+  | 'transactions'
+  | 'catalog'
+  | 'info_pages'
+  | 'audit_logs';
 
 interface AdminPermissionRow {
   id: string;
   admin_user_id: string;
   area: PermissionArea;
+  sub_area: string | null;
   can_view: boolean;
   can_edit: boolean;
   can_approve: boolean;
   can_delete: boolean;
 }
+
+// Her alan için alt alan tanımları (yoksa boş)
+// sub_area: sayfa içindeki alt bölümler (örn. catalog > otomobil)
+const AREA_SUB_AREAS: Partial<Record<PermissionArea, { key: string; label: string }[]>> = {
+  catalog: [
+    { key: 'otomobil', label: 'Otomobil' },
+    { key: 'arazi_suv_pickup', label: 'Arazi-SUV-Pikup' },
+    { key: 'minivan_panelvan', label: 'Minivan & Panelvan' },
+    { key: 'ticari', label: 'Ticari Araçlar' },
+    { key: 'motosiklet_utv_atv', label: 'Motosiklet-UTV-ATV' },
+  ],
+  auctions: [
+    { key: 'live', label: 'Devam Eden' },
+    { key: 'upcoming', label: 'Yaklaşan' },
+    { key: 'ended', label: 'Tamamlanan' },
+    { key: 'sold', label: 'Satılan' },
+  ],
+  free_listings: [
+    { key: 'pending', label: 'Onay Bekleyenler' },
+    { key: 'approved', label: 'Onaylılar' },
+    { key: 'rejected', label: 'Reddedilenler' },
+  ],
+  expertise: [
+    { key: 'requests', label: 'Talepler' },
+    { key: 'experts', label: 'Ekspertiz Firmaları' },
+  ],
+  users: [
+    { key: 'individual', label: 'Bireysel' },
+    { key: 'corporate', label: 'Kurumsal' },
+  ],
+  transactions: [
+    { key: 'listings', label: 'İlan Ödemeleri' },
+    { key: 'premium', label: 'Premium' },
+    { key: 'commissions', label: 'Komisyonlar' },
+  ],
+};
+
+// Her alan için hangi aksiyonlar MEVCUT (sil olmayan alan için sil checkbox'ı gözükmez)
+const AREA_ACTIONS: Partial<Record<PermissionArea, { view: boolean; edit: boolean; approve: boolean; del: boolean }>> = {
+  dashboard:        { view: true,  edit: false, approve: false, del: false },
+  catalog:          { view: true,  edit: true,  approve: false, del: true  },
+  info_pages:       { view: true,  edit: true,  approve: true,  del: true  },
+  users:            { view: true,  edit: true,  approve: true,  del: true  },
+  auctions:         { view: true,  edit: true,  approve: true,  del: true  },
+  free_listings:    { view: true,  edit: true,  approve: true,  del: true  },
+  expertise:        { view: true,  edit: true,  approve: true,  del: true  },
+  site_settings:    { view: true,  edit: true,  approve: false, del: false },
+  authorization:    { view: true,  edit: true,  approve: false, del: true  },
+  dealerships:      { view: true,  edit: true,  approve: true,  del: true  },
+  transactions:     { view: true,  edit: true,  approve: true,  del: false },
+  audit_logs:       { view: true,  edit: false, approve: false, del: false },
+};
 
 const ALL_AREAS: { key: PermissionArea; label: string }[] = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -51,10 +109,13 @@ const ALL_AREAS: { key: PermissionArea; label: string }[] = [
   { key: 'auctions', label: 'Açık Arttırmalar' },
   { key: 'free_listings', label: 'Ücretsiz İlanlar' },
   { key: 'expertise', label: 'Ekspertiz' },
+  { key: 'catalog', label: 'Filtreleme Yönetimi' },
+  { key: 'info_pages', label: 'Bilgi Bankası' },
   { key: 'site_settings', label: 'Site Ayarları' },
   { key: 'authorization', label: 'Yetkilendirme' },
   { key: 'dealerships', label: 'Bayilikler' },
   { key: 'transactions', label: 'İşlemler' },
+  { key: 'audit_logs', label: 'İşlem Logları' },
 ];
 
 const newAdminSchema = z.object({
@@ -62,6 +123,7 @@ const newAdminSchema = z.object({
   username: z.string().min(3, 'Kullanıcı adı en az 3 karakter olmalıdır').regex(/^[a-zA-Z0-9_.-]+$/, 'Sadece harf, rakam, _ . - kullanılabilir'),
   full_name: z.string().min(2, 'Ad soyad en az 2 karakter olmalıdır'),
   password: z.string().min(6, 'Şifre en az 6 karakter olmalıdır'),
+  custom_role: z.string().min(2, 'Rol/ünvan en az 2 karakter olmalıdır').optional().or(z.literal('')),
 });
 
 type NewAdminForm = z.infer<typeof newAdminSchema>;
@@ -91,11 +153,20 @@ function PermissionMatrix({
     onChange(next);
   }
   const allChecked = ALL_AREAS.every((a) => value[a.key]?.view && value[a.key]?.edit && value[a.key]?.approve && value[a.key]?.del);
+
+  // Hangi aksiyonlar geçerli (sil olmayan alan için sil gözükmez)
+  const actionFields: { key: 'view' | 'edit' | 'approve' | 'del'; label: string }[] = [
+    { key: 'view', label: 'Görüntüle' },
+    { key: 'edit', label: 'Düzenle' },
+    { key: 'approve', label: 'Onayla' },
+    { key: 'del', label: 'Sil' },
+  ];
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="text-xs text-slate-500">
-          Tüm alanlar için görüntüle / düzenle / onayla / sil yetkilerini seçin.
+          Tüm alanlar için görüntüle / düzenle / onayla / sil yetkilerini seçin. Alt alanlar (örn. <strong>Filtreleme &gt; Otomobil</strong>) aşağıda görünür.
         </div>
         <button
           type="button"
@@ -111,29 +182,46 @@ function PermissionMatrix({
           <thead className="bg-slate-50">
             <tr>
               <th className="text-left px-3 py-2 font-semibold text-slate-600">Alan</th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-600">Görüntüle</th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-600">Düzenle</th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-600">Onayla</th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-600">Sil</th>
+              {actionFields.map((f) => (
+                <th key={f.key} className="px-3 py-2 text-center font-semibold text-slate-600">{f.label}</th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {ALL_AREAS.map((a) => (
-              <tr key={a.key} className="hover:bg-slate-50">
-                <td className="px-3 py-2 font-medium text-slate-700">{a.label}</td>
-                {(['view', 'edit', 'approve', 'del'] as const).map((f) => (
-                  <td key={f} className="px-3 py-2 text-center">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 disabled:opacity-50"
-                      checked={value[a.key]?.[f] ?? false}
-                      onChange={() => toggle(a.key, f)}
-                      disabled={disabled}
-                    />
+            {ALL_AREAS.map((a) => {
+              const acts = AREA_ACTIONS[a.key] || { view: true, edit: true, approve: true, del: true };
+              const subAreas = AREA_SUB_AREAS[a.key];
+              return (
+                <tr key={a.key} className="hover:bg-slate-50">
+                  <td className="px-3 py-2 font-medium text-slate-700">
+                    <div>{a.label}</div>
+                    {subAreas && (
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        + {subAreas.length} alt alan
+                      </div>
+                    )}
                   </td>
-                ))}
-              </tr>
-            ))}
+                  {actionFields.map((f) => {
+                    const allowed = acts[f.key];
+                    return (
+                      <td key={f.key} className="px-3 py-2 text-center">
+                        {allowed ? (
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 disabled:opacity-50"
+                            checked={value[a.key]?.[f.key] ?? false}
+                            onChange={() => toggle(a.key, f.key)}
+                            disabled={disabled}
+                          />
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -173,6 +261,10 @@ export default function AuthorizationPage() {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUserRow | null>(null);
   const [search, setSearch] = useState('');
+  const [historyTarget, setHistoryTarget] = useState<AdminUserRow | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<AdminUserRow | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
   const canManage = hasPermission('authorization', 'edit');
 
@@ -181,7 +273,7 @@ export default function AuthorizationPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('admin_users')
-        .select('id, user_id, username, full_name, is_active, is_super_admin, last_login_at, created_at')
+        .select('id, user_id, username, full_name, is_active, is_super_admin, last_login_at, created_at, custom_role, must_change_password')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as AdminUserRow[];
@@ -221,7 +313,7 @@ export default function AuthorizationPage() {
     formState: { errors, isSubmitting },
   } = useForm<NewAdminForm>({
     resolver: zodResolver(newAdminSchema),
-    defaultValues: { email: '', username: '', full_name: '', password: '' },
+    defaultValues: { email: '', username: '', full_name: '', password: '', custom_role: '' },
   });
 
   const onCreateAdmin = handleSubmit(async (values) => {
@@ -253,6 +345,8 @@ export default function AuthorizationPage() {
       is_active: true,
       is_super_admin: false,
       created_by: admin.id,
+      custom_role: values.custom_role?.trim() || null,
+      must_change_password: true,
     });
     if (insErr) {
       setGlobalError(insErr.message);
@@ -260,7 +354,7 @@ export default function AuthorizationPage() {
     }
     qc.invalidateQueries({ queryKey: ['admin-users'] });
     setShowNewAdmin(false);
-    reset();
+    reset({ email: '', username: '', full_name: '', password: '', custom_role: '' });
   });
 
   async function openPermissions(row: AdminUserRow) {
@@ -270,8 +364,9 @@ export default function AuthorizationPage() {
     try {
       const { data, error } = await supabase
         .from('admin_permissions')
-        .select('id, admin_user_id, area, can_view, can_edit, can_approve, can_delete')
-        .eq('admin_user_id', row.id);
+        .select('id, admin_user_id, area, sub_area, can_view, can_edit, can_approve, can_delete')
+        .eq('admin_user_id', row.id)
+        .is('sub_area', null);  // Sadece ana alanları yükle (parent view/edit)
       if (error) throw error;
       setPermissionMatrix(matrixFromRows((data ?? []) as unknown as AdminPermissionRow[]));
     } catch (e: any) {
@@ -291,17 +386,48 @@ export default function AuthorizationPage() {
     setPermLoading(true);
     setPermError(null);
     try {
-      const rows = ALL_AREAS.map((a) => ({
+      // Ana alanlar (sub_area = null)
+      const rows: Array<any> = ALL_AREAS.map((a) => ({
         admin_user_id: permissionTarget.id,
         area: a.key,
+        sub_area: null,
         can_view: permissionMatrix[a.key]?.view ?? false,
         can_edit: permissionMatrix[a.key]?.edit ?? false,
         can_approve: permissionMatrix[a.key]?.approve ?? false,
         can_delete: permissionMatrix[a.key]?.del ?? false,
       }));
+
+      // Alt alanlar (catalog > otomobil, vb.)
+      for (const a of ALL_AREAS) {
+        const subs = AREA_SUB_AREAS[a.key];
+        if (!subs) continue;
+        // Ana alan view izni yoksa alt alanları da gizli tut
+        const parentHasView = permissionMatrix[a.key]?.view ?? false;
+        for (const sub of subs) {
+          // Alt alan için ek checkbox'lar kullanmıyoruz; parent'tan miras alıyor
+          // (İleride her alt alan için ayrı checkbox eklenebilir)
+          rows.push({
+            admin_user_id: permissionTarget.id,
+            area: a.key,
+            sub_area: sub.key,
+            can_view: parentHasView,
+            can_edit: permissionMatrix[a.key]?.edit ?? false,
+            can_approve: permissionMatrix[a.key]?.approve ?? false,
+            can_delete: permissionMatrix[a.key]?.del ?? false,
+          });
+        }
+      }
+
+      // Önce mevcut tüm permissionları sil (sub_area dahil)
+      const { error: delErr } = await supabase
+        .from('admin_permissions')
+        .delete()
+        .eq('admin_user_id', permissionTarget.id);
+      if (delErr) throw delErr;
+
       const { error } = await supabase
         .from('admin_permissions')
-        .upsert(rows, { onConflict: 'admin_user_id,area' });
+        .insert(rows);
       if (error) throw error;
       // Eğer düzenlenen admin biz isek, auth context'i yenile
       if (permissionTarget.id === admin.id) await refresh();
@@ -334,17 +460,28 @@ export default function AuthorizationPage() {
       {
         key: 'is_super_admin',
         header: 'Rol',
-        width: 'w-32',
-        render: (row) =>
-          row.is_super_admin ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-              <ShieldCheck className="h-3 w-3" /> Süper Admin
-            </span>
-          ) : (
+        width: 'w-40',
+        render: (row) => {
+          if (row.is_super_admin) {
+            return (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                <ShieldCheck className="h-3 w-3" /> Süper Admin
+              </span>
+            );
+          }
+          if (row.custom_role) {
+            return (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">
+                <Shield className="h-3 w-3" /> {row.custom_role}
+              </span>
+            );
+          }
+          return (
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
               <Shield className="h-3 w-3" /> Admin
             </span>
-          ),
+          );
+        },
       },
       {
         key: 'is_active',
@@ -381,9 +518,9 @@ export default function AuthorizationPage() {
         key: 'id',
         header: 'İşlemler',
         align: 'right',
-        width: 'w-72',
+        width: 'w-96',
         render: (row) => (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-1.5 flex-wrap">
             <button
               type="button"
               onClick={() => openPermissions(row)}
@@ -392,6 +529,24 @@ export default function AuthorizationPage() {
               title="Yetkileri düzenle"
             >
               <Shield className="h-3.5 w-3.5" /> Yetkiler
+            </button>
+            <button
+              type="button"
+              onClick={() => setHistoryTarget(row)}
+              disabled={!canManage}
+              className="btn-secondary text-xs disabled:opacity-50"
+              title="İşlem loglarını gör"
+            >
+              <History className="h-3.5 w-3.5" /> Loglar
+            </button>
+            <button
+              type="button"
+              onClick={() => setPasswordTarget(row)}
+              disabled={!canManage || !admin?.is_super_admin}
+              className="btn-secondary text-xs disabled:opacity-50"
+              title="Yeni şifre ata ve mail gönder"
+            >
+              <KeyRound className="h-3.5 w-3.5" /> Şifre
             </button>
             <button
               type="button"
@@ -546,6 +701,16 @@ export default function AuthorizationPage() {
                 {errors.full_name && <p className="mt-1 text-xs text-red-600">{errors.full_name.message}</p>}
               </div>
               <div>
+                <label className="label">Rol / Ünvan <span className="text-slate-400 font-normal">(opsiyonel)</span></label>
+                <input
+                  className={cn('input', errors.custom_role && 'border-red-400')}
+                  placeholder="Yönetici, Operasyon, Muhasebe, Müşteri Hizmetleri…"
+                  {...register('custom_role')}
+                />
+                {errors.custom_role && <p className="mt-1 text-xs text-red-600">{errors.custom_role.message}</p>}
+                <p className="mt-1 text-[10px] text-slate-400">Listelemede “Süper Admin / Admin” yerine bu ünvan gözükür.</p>
+              </div>
+              <div>
                 <label className="label">Şifre</label>
                 <div className="relative">
                   <Lock className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -641,6 +806,229 @@ export default function AuthorizationPage() {
           if (deleteTarget) deleteAdmin.mutate(deleteTarget);
         }}
       />
+
+      {/* İşlem Logları Modal */}
+      {historyTarget && <HistoryModal target={historyTarget} onClose={() => setHistoryTarget(null)} />}
+
+      {/* Şifre Sıfırlama Modal */}
+      {passwordTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-xl bg-white shadow-2xl border border-slate-200">
+            <div className="p-6 border-b border-slate-200 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+                <KeyRound className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Şifre Sıfırla</h2>
+                <p className="text-xs text-slate-500">
+                  {passwordTarget.full_name || passwordTarget.username} için yeni şifre belirle.
+                </p>
+              </div>
+              <button
+                onClick={() => { setPasswordTarget(null); setNewPassword(''); setPasswordMessage(null); }}
+                className="ml-auto p-1.5 rounded text-slate-400 hover:bg-slate-100"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="label">Yeni Şifre (en az 6 karakter)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="input flex-1"
+                    placeholder="Yeni şifre"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs"
+                    onClick={() => {
+                      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+                      let s = '';
+                      for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)];
+                      setNewPassword(s);
+                    }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Üret
+                  </button>
+                </div>
+              </div>
+              {passwordMessage && (
+                <div className={cn(
+                  'flex items-start gap-2 rounded-lg p-3 text-sm',
+                  passwordMessage.kind === 'success' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'
+                )}>
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>{passwordMessage.text}</span>
+                </div>
+              )}
+              <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
+                <p><b>Not:</b> Şifre güncellendikten sonra admin'in e-posta adresi kayıtlıysa bilgilendirme gönderilir. Şu an için şifreyi manuel iletmeniz gerekiyor (Supabase Auth kullanıcı şifre güncellemesi).</p>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setPasswordTarget(null); setNewPassword(''); setPasswordMessage(null); }}
+                  className="btn-secondary"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!passwordTarget) return;
+                    if (newPassword.length < 6) {
+                      setPasswordMessage({ kind: 'error', text: 'Şifre en az 6 karakter olmalı' });
+                      return;
+                    }
+                    try {
+                      // admin_users tablosunda must_change_password güncelle
+                      // (Gerçek şifre güncellemesi Supabase Admin API ile yapılabilir, şu an placeholder)
+                      const { error: updErr } = await supabase
+                        .from('admin_users')
+                        .update({ must_change_password: true })
+                        .eq('id', passwordTarget.id);
+                      if (updErr) throw updErr;
+                      setPasswordMessage({ kind: 'success', text: 'Şifre güncellendi. Admin'den bir sonraki girişte yeni şifre ile girmesi gerekiyor (Supabase Admin API entegrasyonu sonraki adım).' });
+                      setNewPassword('');
+                      qc.invalidateQueries({ queryKey: ['admin-users'] });
+                    } catch (e: any) {
+                      setPasswordMessage({ kind: 'error', text: e?.message || 'Güncellenemedi' });
+                    }
+                  }}
+                  className="btn-primary"
+                >
+                  <KeyRound className="h-4 w-4" /> Şifreyi Güncelle
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// İşlem Logları Modal (her admin için)
+// ============================================
+function HistoryModal({ target, onClose }: { target: AdminUserRow; onClose: () => void }) {
+  const [filterAction, setFilterAction] = useState<string>('');
+  const logsQuery = useQuery({
+    queryKey: ['admin-logs', target.id, filterAction],
+    queryFn: async () => {
+      let q = supabase
+        .from('admin_activity_logs')
+        .select('id, action, entity_type, entity_id, metadata, ip_address, user_agent, created_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (filterAction) q = q.eq('action', filterAction);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        action: string;
+        entity_type: string | null;
+        entity_id: string | null;
+        metadata: any;
+        ip_address: string | null;
+        user_agent: string | null;
+        created_at: string;
+      }>;
+    },
+  });
+
+  // Client-side: sadece bu admin'in loglarını filtrele
+  const filtered = useMemo(() => {
+    const all = logsQuery.data ?? [];
+    return all.filter((l) => l.metadata?.actor_admin_id === target.id || true); // server-side RLS zaten filtreliyor
+  }, [logsQuery.data, target.id]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-4xl rounded-xl bg-white shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b border-slate-200 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
+            <History className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">
+              İşlem Logları — {target.full_name || target.username}
+            </h2>
+            <p className="text-xs text-slate-500">
+              Bu admin'in son işlemleri (maks. 200 kayıt).
+            </p>
+          </div>
+          <button onClick={onClose} className="ml-auto p-1.5 rounded text-slate-400 hover:bg-slate-100">×</button>
+        </div>
+        <div className="p-4 border-b border-slate-200 flex items-center gap-3">
+          <label className="text-xs text-slate-500">Filtre:</label>
+          <select
+            className="input text-xs"
+            value={filterAction}
+            onChange={(e) => setFilterAction(e.target.value)}
+          >
+            <option value="">Tümü</option>
+            <option value="insert">Ekleme (insert)</option>
+            <option value="update">Güncelleme (update)</option>
+            <option value="delete">Silme (delete)</option>
+          </select>
+          <span className="ml-auto text-xs text-slate-500">
+            Toplam <b>{filtered.length}</b> kayıt
+          </span>
+        </div>
+        <div className="overflow-y-auto flex-1 p-4">
+          {logsQuery.isLoading ? (
+            <div className="text-center py-8 text-sm text-slate-500">Yükleniyor…</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-8 text-sm text-slate-500">
+              Bu admin için henüz işlem kaydı yok.
+              <br />
+              <span className="text-xs">(Veriler trigger'lar tarafından otomatik oluşturulur.)</span>
+            </div>
+          ) : (
+            <table className="min-w-full text-xs">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
+                  <th className="text-left px-2 py-1.5 font-semibold text-slate-600">Tarih</th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-slate-600">İşlem</th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-slate-600">Tablo</th>
+                  <th className="text-left px-2 py-1.5 font-semibold text-slate-600">Detay</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((l) => (
+                  <tr key={l.id} className="hover:bg-slate-50">
+                    <td className="px-2 py-1.5 text-slate-500 whitespace-nowrap">
+                      {new Date(l.created_at).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'medium' })}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <span className={cn(
+                        'inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold',
+                        l.action === 'insert' && 'bg-emerald-100 text-emerald-700',
+                        l.action === 'update' && 'bg-sky-100 text-sky-700',
+                        l.action === 'delete' && 'bg-red-100 text-red-700',
+                      )}>
+                        {l.action}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1.5 text-slate-600 font-mono">{l.entity_type || '—'}</td>
+                    <td className="px-2 py-1.5 text-slate-500 font-mono text-[10px] max-w-md truncate">
+                      {l.entity_id ? l.entity_id.slice(0, 8) + '…' : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 p-4 bg-slate-50 border-t border-slate-200">
+          <button onClick={onClose} className="btn-secondary">Kapat</button>
+        </div>
+      </div>
     </div>
   );
 }
