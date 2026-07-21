@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Filter, Tag, Settings2, Layers, ChevronLeft, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Filter, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 
@@ -16,7 +16,6 @@ type Category = {
 type Brand = {
   id: string;
   name: string;
-  logo_url: string | null;
   is_active: boolean;
   sort_order: number;
 };
@@ -45,50 +44,133 @@ type EnginePower = {
   sort_order: number;
 };
 
-type SubTab = 'brands' | 'models' | 'trims' | 'engine-powers';
+// Navigation state
+type NavLevel = 'category' | 'brand' | 'model' | 'trim' | 'engine-power';
 
 export default function CatalogPage() {
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [subTab, setSubTab] = useState<SubTab>('brands');
+  const [navCategory, setNavCategory] = useState<Category | null>(null);
+  const [navBrand, setNavBrand] = useState<Brand | null>(null);
+  const [navModel, setNavModel] = useState<Model | null>(null);
+  const [navTrim, setNavTrim] = useState<Trim | null>(null);
 
-  // Kategori seçilmemişse: kategori seçim ekranı
-  if (!selectedCategory) {
-    return <CategorySelector onSelect={setSelectedCategory} />;
-  }
+  // 1. Seviye: Kategori listesi
+  if (!navCategory) return <CategoriesLevel onSelect={setNavCategory} />;
 
+  // 2. Seviye: Kategori altında markalar
+  if (!navBrand) return (
+    <BrandsLevel
+      category={navCategory}
+      onSelect={setNavBrand}
+      onBack={() => setNavCategory(null)}
+    />
+  );
+
+  // 3. Seviye: Marka altında modeller
+  if (!navModel) return (
+    <ModelsLevel
+      category={navCategory}
+      brand={navBrand}
+      onSelect={setNavModel}
+      onBack={() => setNavBrand(null)}
+    />
+  );
+
+  // 4. Seviye: Model altında paketler
+  if (!navTrim) return (
+    <TrimsLevel
+      category={navCategory}
+      brand={navBrand}
+      model={navModel}
+      onSelect={setNavTrim}
+      onBack={() => setNavModel(null)}
+    />
+  );
+
+  // 5. Seviye: Paket altında motor HP'leri
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <Breadcrumb category={selectedCategory} onBack={() => setSelectedCategory(null)} />
-      <h1 className="text-2xl font-extrabold flex items-center gap-2 mb-6">
-        <span className="text-3xl">{selectedCategory.icon}</span>
-        {selectedCategory.name}
-      </h1>
+    <EnginePowersLevel
+      category={navCategory}
+      brand={navBrand}
+      model={navModel}
+      trim={navTrim}
+      onBack={() => setNavTrim(null)}
+    />
+  );
+}
 
-      <div className="border-b border-slate-200 flex gap-1 mb-6 overflow-x-auto">
-        <TabButton active={subTab === 'brands'} onClick={() => setSubTab('brands')} icon={<Tag className="h-4 w-4" />}>
-          Markalar
-        </TabButton>
-        <TabButton active={subTab === 'models'} onClick={() => setSubTab('models')} icon={<Settings2 className="h-4 w-4" />}>
-          Modeller
-        </TabButton>
-        <TabButton active={subTab === 'trims'} onClick={() => setSubTab('trims')} icon={<Filter className="h-4 w-4" />}>
-          Paketler
-        </TabButton>
-        <TabButton active={subTab === 'engine-powers'} onClick={() => setSubTab('engine-powers')} icon={<Layers className="h-4 w-4" />}>
-          Motor HP
-        </TabButton>
-      </div>
-
-      {subTab === 'brands' && <BrandsPanel category={selectedCategory} />}
-      {subTab === 'models' && <ModelsPanel category={selectedCategory} />}
-      {subTab === 'trims' && <TrimsPanel category={selectedCategory} />}
-      {subTab === 'engine-powers' && <EnginePowersPanel category={selectedCategory} />}
+/* ---------- BREADCRUMB ---------- */
+function Breadcrumb({ items, onBack }: { items: { label: string; icon?: string }[]; onBack?: () => void }) {
+  return (
+    <div className="flex items-center gap-2 text-sm mb-3 text-slate-600 flex-wrap">
+      {onBack && (
+        <button type="button" onClick={onBack} className="inline-flex items-center gap-1 text-slate-600 hover:text-red-600 font-semibold">
+          <ChevronLeft className="h-4 w-4" /> Geri
+        </button>
+      )}
+      {items.map((it, i) => (
+        <span key={i} className="inline-flex items-center gap-1">
+          {i > 0 && <span className="text-slate-400 mx-1">/</span>}
+          {it.icon && <span>{it.icon}</span>}
+          <span className={i === items.length - 1 ? 'font-bold text-slate-900' : ''}>{it.label}</span>
+        </span>
+      ))}
     </div>
   );
 }
 
-/* ---------- KATEGORİ SEÇİCİ (İlk Ekran) ---------- */
-function CategorySelector({ onSelect }: { onSelect: (c: Category) => void }) {
+function DeleteButton({ onConfirm, message }: { onConfirm: () => void; message: string }) {
+  const [confirming, setConfirming] = useState(false);
+  if (confirming) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-red-600 font-semibold">Emin misin?</span>
+        <button
+          type="button"
+          onClick={() => { onConfirm(); setConfirming(false); }}
+          className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          <Check className="h-3 w-3" /> Evet
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded hover:bg-slate-300"
+        >
+          <X className="h-3 w-3" /> Hayır
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-red-50 text-red-700 rounded hover:bg-red-100"
+      title="Sil"
+    >
+      <Trash2 className="h-3 w-3" /> Sil
+    </button>
+  );
+}
+
+function AddToggle({ open, setOpen, label, icon }: { open: boolean; setOpen: (v: boolean) => void; label: string; icon?: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(!open)}
+      className={cn(
+        'inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold transition',
+        open ? 'bg-slate-200 text-slate-700' : 'bg-red-600 text-white hover:bg-red-700'
+      )}
+    >
+      {icon || <Plus className="h-4 w-4" />}
+      {open ? 'Kapat' : label}
+    </button>
+  );
+}
+
+/* ==================== 1. SEVİYE: KATEGORİLER ==================== */
+function CategoriesLevel({ onSelect }: { onSelect: (c: Category) => void }) {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -106,14 +188,6 @@ function CategorySelector({ onSelect }: { onSelect: (c: Category) => void }) {
       if (error) throw error;
       return (data ?? []) as Category[];
     },
-  });
-
-  const toggleMut = useMutation({
-    mutationFn: async ({ id, current }: { id: string; current: boolean }) => {
-      const { error } = await supabase.from('vehicle_categories').update({ is_active: !current }).eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicle-categories'] }),
   });
 
   const addMut = useMutation({
@@ -148,17 +222,9 @@ function CategorySelector({ onSelect }: { onSelect: (c: Category) => void }) {
           <h1 className="text-2xl font-extrabold flex items-center gap-2">
             <Filter className="h-6 w-6" /> Filtreleme Yönetimi
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Bir kategori seçin, o kategorinin altına marka, model, paket ve motor HP ekleyin.
-          </p>
+          <p className="text-slate-500 text-sm mt-1">Bir kategori seçin, hiyerarşik olarak marka/model/paket/motor ekleyin.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="inline-flex items-center gap-1 bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700"
-        >
-          <Plus className="h-4 w-4" /> Yeni Kategori
-        </button>
+        <AddToggle open={showForm} setOpen={setShowForm} label="Yeni Kategori" />
       </div>
 
       {showForm && (
@@ -176,7 +242,7 @@ function CategorySelector({ onSelect }: { onSelect: (c: Category) => void }) {
           <input
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
-            placeholder="slug (elektrikli-araclar)"
+            placeholder="slug"
             className="px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm"
             required
           />
@@ -199,30 +265,24 @@ function CategorySelector({ onSelect }: { onSelect: (c: Category) => void }) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {data?.map((c) => (
-            <div
+            <button
               key={c.id}
-              className={cn(
-                'bg-white border-2 rounded-xl p-5 transition cursor-pointer hover:shadow-md',
-                c.is_active ? 'border-slate-200 hover:border-red-400' : 'border-slate-100 opacity-60'
-              )}
+              type="button"
               onClick={() => c.is_active && onSelect(c)}
+              disabled={!c.is_active}
+              className={cn(
+                'bg-white border-2 rounded-xl p-5 transition text-left',
+                c.is_active ? 'border-slate-200 hover:border-red-400 hover:shadow-md cursor-pointer' : 'border-slate-100 opacity-60 cursor-not-allowed'
+              )}
             >
               <div className="flex items-start justify-between mb-3">
                 <span className="text-4xl">{c.icon}</span>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); toggleMut.mutate({ id: c.id, current: c.is_active }); }}
-                  className={cn('text-xs px-2 py-0.5 rounded', c.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600')}
-                >
-                  {c.is_active ? 'Aktif' : 'Pasif'}
-                </button>
+                <ChevronRight className="h-5 w-5 text-slate-400" />
               </div>
               <h3 className="text-lg font-bold mb-1">{c.name}</h3>
-              <p className="text-xs text-slate-500 mb-3">/{c.slug}</p>
-              <div className="text-xs text-red-600 font-semibold flex items-center gap-1">
-                Altına git →
-              </div>
-            </div>
+              <p className="text-xs text-slate-500">/{c.slug}</p>
+              {!c.is_active && <p className="text-xs text-amber-600 mt-1">⚠ Pasif</p>}
+            </button>
           ))}
         </div>
       )}
@@ -230,300 +290,155 @@ function CategorySelector({ onSelect }: { onSelect: (c: Category) => void }) {
   );
 }
 
-/* ---------- BREADCRUMB ---------- */
-function Breadcrumb({ category, onBack }: { category: Category; onBack: () => void }) {
-  return (
-    <div className="flex items-center gap-2 text-sm mb-4 text-slate-600">
-      <button type="button" onClick={onBack} className="inline-flex items-center gap-1 text-slate-600 hover:text-red-600">
-        <ChevronLeft className="h-4 w-4" /> Filtreleme Yönetimi
-      </button>
-      <span className="text-slate-400">/</span>
-      <span className="inline-flex items-center gap-1 font-semibold text-slate-900">
-        <span>{category.icon}</span> {category.name}
-      </span>
-    </div>
-  );
-}
-
-function TabButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-1.5 px-4 py-2.5 font-semibold text-sm border-b-2 transition',
-        active ? 'border-red-600 text-red-600' : 'border-transparent text-slate-600 hover:text-slate-900'
-      )}
-    >
-      {icon}
-      {children}
-    </button>
-  );
-}
-
-/* ---------- MARKA - KATEGORİ İLİŞKİSİ (yardımcı hook) ---------- */
-function useBrandCategories() {
-  return useQuery({
-    queryKey: ['brand-categories-all'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('brand_categories')
-        .select('brand_id, category_id');
-      if (error) throw error;
-      return (data ?? []) as { brand_id: string; category_id: string }[];
-    },
-  });
-}
-
-function useCategories() {
-  return useQuery({
-    queryKey: ['vehicle-categories-active'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vehicle_categories')
-        .select('id, slug, name, icon, sort_order, is_active')
-        .eq('is_active', true)
-        .order('sort_order');
-      if (error) throw error;
-      return (data ?? []) as Category[];
-    },
-  });
-}
-
-/* ---------- MARKALAR (kategoriye özel) ---------- */
-function BrandsPanel({ category }: { category: Category }) {
+/* ==================== 2. SEVİYE: MARKALAR ==================== */
+function BrandsLevel({ category, onSelect, onBack }: { category: Category; onSelect: (b: Brand) => void; onBack: () => void }) {
   const qc = useQueryClient();
-  const brandCats = useBrandCategories();
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
-  const [selectedCats, setSelectedCats] = useState<string[]>([category.id]);
-  const [editing, setEditing] = useState<Brand | null>(null);
-  const [showExistingPicker, setShowExistingPicker] = useState(false);
-  const [existingSearch, setExistingSearch] = useState('');
 
-  // Kategoriye ait brand_id'leri al
-  const categoryBrandIds = brandCats.data
-    ?.filter((bc) => bc.category_id === category.id)
-    .map((bc) => bc.brand_id) ?? [];
-
+  // Bu kategorideki markalar (brand_categories join)
   const { data, isLoading } = useQuery({
-    queryKey: ['vehicle-brands-in-category', category.id],
+    queryKey: ['brands-in-category', category.id],
     queryFn: async () => {
-      // Bu kategorideki markaları al
-      if (categoryBrandIds.length === 0) return [] as Brand[];
-      const { data, error } = await supabase
-        .from('vehicle_brands')
-        .select('id, name, logo_url, is_active, sort_order')
-        .in('id', categoryBrandIds)
-        .order('sort_order');
-      if (error) throw error;
-      return (data ?? []) as Brand[];
+      const { data: bcs } = await supabase
+        .from('brand_categories')
+        .select('brand_id, vehicle_brands!inner(id, name, is_active, sort_order)')
+        .eq('category_id', category.id);
+      if (!bcs) return [] as Brand[];
+      return bcs.map((bc) => bc.vehicle_brands).filter(Boolean).sort((a: any, b: any) => a.sort_order - b.sort_order) as Brand[];
     },
-    enabled: categoryBrandIds.length > 0,
   });
 
-  // Mevcut TÜM markalar (bu kategoride olmayanları seçmek için)
+  // Tüm markalar (mevcut listeden seçmek için)
   const { data: allBrands } = useQuery({
-    queryKey: ['vehicle-brands-all'],
+    queryKey: ['vehicle-brands-all-list'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vehicle_brands')
-        .select('id, name, logo_url, is_active, sort_order')
+        .select('id, name, is_active, sort_order')
         .order('sort_order');
       if (error) throw error;
       return (data ?? []) as Brand[];
     },
   });
 
-  // Bu kategoride OLMAYAN markalar
-  const availableBrands = (allBrands ?? []).filter((b) => !categoryBrandIds.includes(b.id));
-  const filteredAvailable = existingSearch
-    ? availableBrands.filter((b) => b.name.toLowerCase().includes(existingSearch.toLowerCase()))
+  const existingIds = (data ?? []).map((b) => b.id);
+  const availableBrands = (allBrands ?? []).filter((b) => !existingIds.includes(b.id));
+  const [search, setSearch] = useState('');
+  const filteredAvailable = search
+    ? availableBrands.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
     : availableBrands;
 
-  // Mevcut markayı bu kategoriye ekle
+  const addNewMut = useMutation({
+    mutationFn: async (newName: string) => {
+      const { data: b, error } = await supabase.from('vehicle_brands').insert({ name: newName.trim(), is_active: true }).select('id').single();
+      if (error) throw error;
+      const { error: e2 } = await supabase.from('brand_categories').insert({ brand_id: b.id, category_id: category.id });
+      if (e2) throw e2;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brands-in-category'] });
+      qc.invalidateQueries({ queryKey: ['vehicle-brands-all-list'] });
+      qc.invalidateQueries({ queryKey: ['brand-categories-all'] });
+      setName(''); setShowForm(false);
+    },
+  });
+
   const addExistingMut = useMutation({
     mutationFn: async (brandId: string) => {
       const { error } = await supabase.from('brand_categories').insert({ brand_id: brandId, category_id: category.id });
       if (error) throw error;
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brands-in-category'] });
       qc.invalidateQueries({ queryKey: ['brand-categories-all'] });
-      qc.invalidateQueries({ queryKey: ['vehicle-brands-in-category'] });
-      setShowExistingPicker(false);
-      setExistingSearch('');
-    },
-  });
-
-  const saveMut = useMutation({
-    mutationFn: async (payload: { id?: string; name: string; categoryIds: string[] }) => {
-      let brandId = payload.id;
-      if (!brandId) {
-        // Önce marka oluştur
-        const { data, error } = await supabase.from('vehicle_brands').insert({ name: payload.name, is_active: true }).select('id').single();
-        if (error) throw error;
-        brandId = data.id;
-      } else {
-        const { error } = await supabase.from('vehicle_brands').update({ name: payload.name }).eq('id', brandId);
-        if (error) throw error;
-      }
-      // Kategori ilişkilerini güncelle
-      await supabase.from('brand_categories').delete().eq('brand_id', brandId);
-      if (payload.categoryIds.length > 0) {
-        const rows = payload.categoryIds.map((cid) => ({ brand_id: brandId, category_id: cid }));
-        const { error } = await supabase.from('brand_categories').insert(rows);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vehicle-brands-in-category'] });
-      qc.invalidateQueries({ queryKey: ['brand-categories-all'] });
-      setName(''); setSelectedCats([category.id]); setEditing(null);
     },
   });
 
   const deleteMut = useMutation({
-    mutationFn: async (id: string) => {
-      // brand_categories'den de silinir (CASCADE)
-      const { error } = await supabase.from('vehicle_brands').delete().eq('id', id);
+    mutationFn: async (brandId: string) => {
+      // Sadece bu kategoriden çıkar (markayı silme, sadece ilişkiyi sil)
+      const { error } = await supabase.from('brand_categories').delete().eq('brand_id', brandId).eq('category_id', category.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vehicle-brands-in-category'] });
+      qc.invalidateQueries({ queryKey: ['brands-in-category'] });
       qc.invalidateQueries({ queryKey: ['brand-categories-all'] });
     },
   });
 
-  const allCategories = useCategories().data ?? [];
-
   return (
-    <div>
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
-        <h3 className="font-semibold mb-3 flex items-center gap-2">
-          {editing ? <><Pencil className="h-4 w-4" /> Marka Düzenle</> : <><Plus className="h-4 w-4" /> Yeni Marka Ekle</>}
-        </h3>
+    <div className="p-6 max-w-6xl mx-auto">
+      <Breadcrumb items={[{ label: 'Filtreleme Yönetimi' }, { label: category.name, icon: category.icon }]} onBack={onBack} />
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-extrabold flex items-center gap-2">
+          <span className="text-3xl">{category.icon}</span>
+          {category.name} - Markalar
+        </h1>
+        <AddToggle open={showForm} setOpen={setShowForm} label="Yeni Marka" />
+      </div>
+
+      {showForm && (
         <form
-          onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; saveMut.mutate({ id: editing?.id, name: name.trim(), categoryIds: selectedCats }); }}
-          className="space-y-3"
+          onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; addNewMut.mutate(name); }}
+          className="bg-white border border-slate-200 rounded-xl p-4 mb-4 flex gap-2"
         >
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Marka adı (örn. BMW, Audi, Ford)"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+            placeholder="Yeni marka adı (örn. BMW, Audi, Ford)"
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
             required
           />
-          <div>
-            <label className="text-xs font-semibold text-slate-700">Kategoriler (bu marka hangi kategorilerde olacak?)</label>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {allCategories.map((c) => {
-                const active = selectedCats.includes(c.id);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSelectedCats((p) => active ? p.filter((x) => x !== c.id) : [...p, c.id])}
-                    className={cn(
-                      'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 text-sm font-semibold transition',
-                      active ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                    )}
-                  >
-                    <span>{c.icon}</span> {c.name}
-                    {active && <X className="h-3 w-3" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={saveMut.isPending} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
-              {saveMut.isPending ? 'Kaydediliyor...' : editing ? 'Güncelle' : 'Ekle'}
-            </button>
-            {editing && (
-              <button type="button" onClick={() => { setEditing(null); setName(''); setSelectedCats([category.id]); }} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-                İptal
-              </button>
-            )}
-          </div>
-        </form>
-        {saveMut.isError && <p className="text-sm text-red-600 mt-2">Hata: {(saveMut.error as any)?.message}</p>}
-      </div>
-
-      {/* MEVCUT MARKALARDAN BU KATEGORİYE EKLE */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold flex items-center gap-2 text-sm">
-            📋 Mevcut Markalardan Bu Kategoriye Ekle
-          </h3>
-          <button
-            type="button"
-            onClick={() => setShowExistingPicker((v) => !v)}
-            className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded font-semibold"
-          >
-            {showExistingPicker ? 'Kapat' : 'Aç'}
+          <button type="submit" disabled={addNewMut.isPending} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
+            {addNewMut.isPending ? 'Ekleniyor...' : 'Ekle'}
           </button>
-        </div>
-        <p className="text-xs text-slate-500">
-          Bu kategoride olmayan tüm markalar ({availableBrands.length} adet)
-        </p>
-        {showExistingPicker && (
-          <div className="mt-3 space-y-2">
-            <input
-              type="text"
-              value={existingSearch}
-              onChange={(e) => setExistingSearch(e.target.value)}
-              placeholder="Marka ara..."
-              className="w-full px-3 py-1.5 border border-slate-300 rounded text-sm"
-            />
-            {availableBrands.length === 0 ? (
-              <p className="text-sm text-emerald-600 py-2">✅ Tüm markalar zaten bu kategoride</p>
-            ) : filteredAvailable.length === 0 ? (
-              <p className="text-sm text-slate-500 py-2">Sonuç bulunamadı</p>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 max-h-60 overflow-y-auto">
-                {filteredAvailable.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => addExistingMut.mutate(b.id)}
-                    disabled={addExistingMut.isPending}
-                    className="text-left px-2 py-1.5 text-sm border border-slate-200 rounded hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition disabled:opacity-50"
-                  >
-                    + {b.name}
-                  </button>
-                ))}
-              </div>
-            )}
-            {addExistingMut.isError && (
-              <p className="text-xs text-red-600">Hata: {(addExistingMut.error as any)?.message}</p>
-            )}
-          </div>
-        )}
-      </div>
+          {addNewMut.isError && <p className="text-sm text-red-600">Hata: {(addNewMut.error as any)?.message}</p>}
+        </form>
+      )}
 
-      {isLoading || brandCats.isLoading ? (
+      {/* Mevcut listeden ekleme */}
+      {availableBrands.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+          <h3 className="font-semibold mb-2 text-sm">📋 Mevcut Markalardan Bu Kategoriye Ekle ({availableBrands.length} adet)</h3>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Marka ara..." className="w-full mb-2 px-3 py-1.5 border border-slate-300 rounded text-sm" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 max-h-60 overflow-y-auto">
+            {filteredAvailable.slice(0, 50).map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => addExistingMut.mutate(b.id)}
+                disabled={addExistingMut.isPending}
+                className="text-left px-2 py-1.5 text-sm border border-slate-200 rounded hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition disabled:opacity-50"
+              >
+                + {b.name}
+              </button>
+            ))}
+          </div>
+          {filteredAvailable.length > 50 && <p className="text-xs text-slate-500 mt-2">İlk 50 gösteriliyor, arama kullanın</p>}
+        </div>
+      )}
+
+      {isLoading ? (
         <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
       ) : data?.length === 0 ? (
         <div className="text-center py-12 bg-white border border-slate-200 rounded-lg">
           <p className="text-slate-500 mb-2">Bu kategoride henüz marka yok</p>
-          <p className="text-xs text-slate-400">Yukarıdan yeni marka ekleyin veya mevcut markalardan bu kategoriye ekleyin.</p>
+          <p className="text-xs text-slate-400">Yukarıdan yeni marka ekleyin veya mevcut markalardan seçin.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {data?.map((b) => (
             <div key={b.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
-              <div className="font-semibold truncate">{b.name}</div>
-              <div className="flex items-center gap-1">
-                <button type="button" onClick={async () => {
-                  setEditing(b); setName(b.name);
-                  const { data: bc } = await supabase.from('brand_categories').select('category_id').eq('brand_id', b.id);
-                  setSelectedCats((bc ?? []).map((x) => x.category_id));
-                }} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded" title="Düzenle">
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => { if (confirm(`"${b.name}" markasını silmek istediğine emin misin?`)) deleteMut.mutate(b.id); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Sil">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => onSelect(b)}
+                className="flex-1 min-w-0 text-left hover:text-red-600 transition"
+              >
+                <div className="font-semibold truncate">{b.name}</div>
+                <div className="text-xs text-slate-500">Modelleri gör →</div>
+              </button>
+              <DeleteButton onConfirm={() => deleteMut.mutate(b.id)} message={`"${b.name}" markasını bu kategoriden çıkarmak istediğine emin misin?`} />
             </div>
           ))}
         </div>
@@ -532,82 +447,30 @@ function BrandsPanel({ category }: { category: Category }) {
   );
 }
 
-/* ---------- MODELLER (kategoriye özel) ---------- */
-function ModelsPanel({ category }: { category: Category }) {
+/* ==================== 3. SEVİYE: MODELLER ==================== */
+function ModelsLevel({ category, brand, onSelect, onBack }: { category: Category; brand: Brand; onSelect: (m: Model) => void; onBack: () => void }) {
   const qc = useQueryClient();
-  const brandCats = useBrandCategories();
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
-  const [brandId, setBrandId] = useState('');
-  const [editing, setEditing] = useState<Model | null>(null);
-  const [showExistingPicker, setShowExistingPicker] = useState(false);
-  const [existingSearch, setExistingSearch] = useState('');
-  const [pickBrandId, setPickBrandId] = useState('');
-  const [filterModelBrand, setFilterModelBrand] = useState('');
+  const [search, setSearch] = useState('');
 
-  // Kategoriye ait markalar
-  const categoryBrandIds = brandCats.data
-    ?.filter((bc) => bc.category_id === category.id)
-    .map((bc) => bc.brand_id) ?? [];
-
-  // Kategoriye ait modelleri al (brand_id IN categoryBrandIds)
+  // Bu markanın modelleri
   const { data, isLoading } = useQuery({
-    queryKey: ['vehicle-models-in-category', category.id],
+    queryKey: ['models-of-brand', brand.id],
     queryFn: async () => {
-      if (categoryBrandIds.length === 0) return [] as (Model & { brand_name: string })[];
       const { data, error } = await supabase
         .from('vehicle_models')
-        .select('id, name, brand_id, is_active, sort_order, brand:vehicle_brands(name)')
-        .in('brand_id', categoryBrandIds)
+        .select('id, name, brand_id, is_active, sort_order')
+        .eq('brand_id', brand.id)
         .order('sort_order');
       if (error) throw error;
-      return ((data ?? []) as any[]).map((m) => ({ ...m, brand_name: m.brand?.name ?? '—' }));
-    },
-    enabled: categoryBrandIds.length > 0,
-  });
-
-  // Marka listesi (kategoriye ait)
-  const { data: brands } = useQuery({
-    queryKey: ['vehicle-brands-in-cat-for-models', category.id],
-    queryFn: async () => {
-      if (categoryBrandIds.length === 0) return [] as Brand[];
-      const { data, error } = await supabase
-        .from('vehicle_brands')
-        .select('id, name, logo_url, is_active, sort_order')
-        .in('id', categoryBrandIds)
-        .order('sort_order');
-      if (error) throw error;
-      return (data ?? []) as Brand[];
-    },
-    enabled: categoryBrandIds.length > 0,
-  });
-
-  const saveMut = useMutation({
-    mutationFn: async (payload: { id?: string; name: string; brand_id: string }) => {
-      if (payload.id) {
-        const { error } = await supabase.from('vehicle_models').update({ name: payload.name, brand_id: payload.brand_id }).eq('id', payload.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('vehicle_models').insert({ name: payload.name, brand_id: payload.brand_id, is_active: true });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vehicle-models-in-category'] });
-      setName(''); setBrandId(''); setEditing(null);
+      return (data ?? []) as Model[];
     },
   });
 
-  const deleteMut = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('vehicle_models').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicle-models-in-category'] }),
-  });
-
-  // TÜM modeller (mevcut listeden seçmek için)
+  // Tüm modeller (mevcut listeden seçmek için)
   const { data: allModels } = useQuery({
-    queryKey: ['vehicle-models-all'],
+    queryKey: ['vehicle-models-all-list'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vehicle_models')
@@ -618,160 +481,120 @@ function ModelsPanel({ category }: { category: Category }) {
     },
   });
 
-  // Kategoriye ait markaların modelleri zaten var (üstte var), availableModels bunun disindaki
-  const existingModelIds = (data ?? []).map((m) => m.id);
-  const availableModels = (allModels ?? []).filter((m) => !existingModelIds.includes(m.id));
-  const filteredAvailable = availableModels
-    .filter((m) => !pickBrandId || m.brand_id === pickBrandId)
-    .filter((m) => {
-      if (!existingSearch) return true;
-      const q = existingSearch.toLowerCase();
-      return m.name.toLowerCase().includes(q) || (m.brand?.name ?? '').toLowerCase().includes(q);
-    });
+  const existingIds = (data ?? []).map((m) => m.id);
+  const availableModels = (allModels ?? []).filter((m) => !existingIds.includes(m.id));
+  const filteredAvailable = search
+    ? availableModels.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()) || (m.brand?.name ?? '').toLowerCase().includes(search.toLowerCase()))
+    : availableModels;
 
-  // Mevcut modeli bu markanın altına ekle (modeli güncelle, brand_id degistir)
-  const addExistingMut = useMutation({
-    mutationFn: async ({ modelId, targetBrandId }: { modelId: string; targetBrandId: string }) => {
-      // Modeli sil, yeni marka altinda olustur (CASCADE temizlik)
-      const old = allModels?.find((m) => m.id === modelId);
-      if (!old) throw new Error('Model bulunamadı');
-      // INSERT yeni, eskiyi sil
-      const { error: insertErr } = await supabase.from('vehicle_models').insert({ name: old.name, brand_id: targetBrandId, is_active: true });
-      if (insertErr) throw insertErr;
-      const { error: delErr } = await supabase.from('vehicle_models').delete().eq('id', modelId);
-      if (delErr) throw delErr;
+  const addNewMut = useMutation({
+    mutationFn: async (newName: string) => {
+      const { error } = await supabase.from('vehicle_models').insert({ name: newName.trim(), brand_id: brand.id, is_active: true });
+      if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vehicle-models-in-category'] });
-      qc.invalidateQueries({ queryKey: ['vehicle-models-all'] });
-      setShowExistingPicker(false);
-      setExistingSearch('');
-      setPickBrandId('');
+      qc.invalidateQueries({ queryKey: ['models-of-brand'] });
+      setName(''); setShowForm(false);
     },
   });
 
+  const addExistingMut = useMutation({
+    mutationFn: async ({ modelId, targetBrandId }: { modelId: string; targetBrandId: string }) => {
+      const old = allModels?.find((m) => m.id === modelId);
+      if (!old) throw new Error('Model bulunamadı');
+      const { error: e1 } = await supabase.from('vehicle_models').insert({ name: old.name, brand_id: targetBrandId, is_active: true });
+      if (e1) throw e1;
+      const { error: e2 } = await supabase.from('vehicle_models').delete().eq('id', modelId);
+      if (e2) throw e2;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['models-of-brand'] });
+      qc.invalidateQueries({ queryKey: ['vehicle-models-all-list'] });
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('vehicle_models').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['models-of-brand'] }),
+  });
+
   return (
-    <div>
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
-        <h3 className="font-semibold mb-3 flex items-center gap-2">
-          {editing ? <><Pencil className="h-4 w-4" /> Model Düzenle</> : <><Plus className="h-4 w-4" /> Yeni Model Ekle</>}
-        </h3>
+    <div className="p-6 max-w-6xl mx-auto">
+      <Breadcrumb items={[{ label: 'Filtreleme Yönetimi' }, { label: category.name, icon: category.icon }, { label: brand.name }]} onBack={onBack} />
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-extrabold flex items-center gap-2">
+          {brand.name} - Modeller
+        </h1>
+        <AddToggle open={showForm} setOpen={setShowForm} label="Yeni Model" />
+      </div>
+
+      {showForm && (
         <form
-          onSubmit={(e) => { e.preventDefault(); if (!name.trim() || !brandId) return; saveMut.mutate(editing ? { id: editing.id, name: name.trim(), brand_id: brandId } : { name: name.trim(), brand_id: brandId }); }}
-          className="flex flex-col sm:flex-row gap-2"
+          onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; addNewMut.mutate(name); }}
+          className="bg-white border border-slate-200 rounded-xl p-4 mb-4 flex gap-2"
         >
-          <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg" required>
-            <option value="">{brands?.length ? 'Marka seçin' : 'Önce marka ekleyin'}</option>
-            {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Model adı (örn. 3 Serisi, A4, Focus)"
+            placeholder="Yeni model adı (örn. 3 Serisi, A4, Focus)"
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
             required
           />
-          <button type="submit" disabled={saveMut.isPending || (brands?.length ?? 0) === 0} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
-            {saveMut.isPending ? 'Kaydediliyor...' : editing ? 'Güncelle' : 'Ekle'}
+          <button type="submit" disabled={addNewMut.isPending} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
+            {addNewMut.isPending ? 'Ekleniyor...' : 'Ekle'}
           </button>
-          {editing && (
-            <button type="button" onClick={() => { setEditing(null); setName(''); setBrandId(''); }} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-              İptal
-            </button>
-          )}
+          {addNewMut.isError && <p className="text-sm text-red-600">Hata: {(addNewMut.error as any)?.message}</p>}
         </form>
-      </div>
+      )}
 
-      {/* Bu kategorideki modeller + Marka filtresi */}
-      <div className="mb-3 flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg">
-        <label className="text-sm font-semibold text-slate-700">Marka:</label>
-        <select value={filterModelBrand} onChange={(e) => setFilterModelBrand(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
-          <option value="">Tüm markalar</option>
-          {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
-        <span className="text-sm text-slate-500 ml-auto">
-          {filterModelBrand ? (data ?? []).filter((m) => m.brand_id === filterModelBrand).length : data?.length ?? 0} / {data?.length ?? 0} model
-        </span>
-      </div>
-
-      {/* MEVCUT MODELLERİ BU KATEGORİYE EKLE */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold flex items-center gap-2 text-sm">📋 Mevcut Modellerden Bu Kategoriye Ekle</h3>
-          <button type="button" onClick={() => setShowExistingPicker((v) => !v)} className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded font-semibold">
-            {showExistingPicker ? 'Kapat' : 'Aç'}
-          </button>
-        </div>
-        <p className="text-xs text-slate-500">
-          Bu kategoride olmayan tüm modeller ({availableModels.length} adet) - farklı markalardan
-        </p>
-        {showExistingPicker && (
-          <div className="mt-3 space-y-2">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <select value={pickBrandId} onChange={(e) => setPickBrandId(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
-                <option value="">Tüm markalar</option>
-                {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-              <input type="text" value={existingSearch} onChange={(e) => setExistingSearch(e.target.value)} placeholder="Model ara..." className="flex-1 px-3 py-1.5 border border-slate-300 rounded text-sm" />
-            </div>
-            {availableModels.length === 0 ? (
-              <p className="text-sm text-emerald-600 py-2">✅ Tüm modeller zaten bu kategoride</p>
-            ) : filteredAvailable.length === 0 ? (
-              <p className="text-sm text-slate-500 py-2">Sonuç bulunamadı</p>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-60 overflow-y-auto">
-                {filteredAvailable.map((m) => (
-                  <div key={m.id} className="flex items-center gap-1">
-                    <span className="text-xs text-slate-500 truncate flex-1">{m.brand?.name} {m.name}</span>
-                    <select
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          addExistingMut.mutate({ modelId: m.id, targetBrandId: e.target.value });
-                          e.target.value = '';
-                        }
-                      }}
-                      disabled={addExistingMut.isPending}
-                      className="text-xs border border-slate-300 rounded px-1 py-0.5"
-                      defaultValue=""
-                    >
-                      <option value="" disabled>Ekle →</option>
-                      {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
-                  </div>
-                ))}
+      {/* Mevcut modellerden taşı */}
+      {availableModels.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+          <h3 className="font-semibold mb-2 text-sm">📋 Mevcut Modellerden {brand.name}'e Taşı ({availableModels.length} adet)</h3>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Model ara..." className="w-full mb-2 px-3 py-1.5 border border-slate-300 rounded text-sm" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-60 overflow-y-auto">
+            {filteredAvailable.slice(0, 50).map((m) => (
+              <div key={m.id} className="flex items-center gap-1 text-xs border border-slate-200 rounded px-2 py-1">
+                <span className="truncate flex-1">{m.brand?.name} {m.name}</span>
+                <button
+                  type="button"
+                  onClick={() => addExistingMut.mutate({ modelId: m.id, targetBrandId: brand.id })}
+                  disabled={addExistingMut.isPending}
+                  className="text-red-600 hover:text-red-700 font-bold px-1"
+                  title="Bu markaya taşı"
+                >
+                  + →
+                </button>
               </div>
-            )}
-            {addExistingMut.isError && (
-              <p className="text-xs text-red-600">Hata: {(addExistingMut.error as any)?.message}</p>
-            )}
-            <p className="text-xs text-slate-400">💡 Modeli başka bir markaya taşımak için: marka seç → model eski yerinden silinip yeni markanın altına eklenir</p>
+            ))}
           </div>
-        )}
-      </div>
+          {filteredAvailable.length > 50 && <p className="text-xs text-slate-500 mt-2">İlk 50 gösteriliyor</p>}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
       ) : data?.length === 0 ? (
         <div className="text-center py-12 bg-white border border-slate-200 rounded-lg">
-          <p className="text-slate-500 mb-2">Bu kategoride henüz model yok</p>
-          <p className="text-xs text-slate-400">Önce "Markalar" tab'ından marka ekleyin.</p>
+          <p className="text-slate-500 mb-2">Bu markada henüz model yok</p>
+          <p className="text-xs text-slate-400">Yukarıdan yeni model ekleyin veya mevcut modellerden taşıyın.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {data?.filter((m) => !filterModelBrand || m.brand_id === filterModelBrand).map((m) => (
+          {data?.map((m) => (
             <div key={m.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="text-xs text-slate-500">{m.brand_name}</div>
+              <button
+                type="button"
+                onClick={() => onSelect(m)}
+                className="flex-1 min-w-0 text-left hover:text-red-600 transition"
+              >
                 <div className="font-semibold truncate">{m.name}</div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button type="button" onClick={() => { setEditing({ id: m.id, name: m.name, brand_id: m.brand_id, is_active: m.is_active, sort_order: m.sort_order }); setName(m.name); setBrandId(m.brand_id); }} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded" title="Düzenle">
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => { if (confirm(`"${m.name}" modelini silmek istediğine emin misin?`)) deleteMut.mutate(m.id); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Sil">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+                <div className="text-xs text-slate-500">Paketleri gör →</div>
+              </button>
+              <DeleteButton onConfirm={() => deleteMut.mutate(m.id)} message={`"${m.name}" modelini silmek istediğine emin misin? Bu modele bağlı paketler ve motor HP'leri de silinir.`} />
             </div>
           ))}
         </div>
@@ -780,69 +603,33 @@ function ModelsPanel({ category }: { category: Category }) {
   );
 }
 
-/* ---------- PAKETLER (kategoriye özel) ---------- */
-function TrimsPanel({ category }: { category: Category }) {
+/* ==================== 4. SEVİYE: PAKETLER ==================== */
+function TrimsLevel({ category, brand, model, onSelect, onBack }: { category: Category; brand: Brand; model: Model; onSelect: (t: Trim) => void; onBack: () => void }) {
   const qc = useQueryClient();
-  const brandCats = useBrandCategories();
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
-  const [modelId, setModelId] = useState('');
-  const [editing, setEditing] = useState<Trim | null>(null);
-  const [filterBrand, setFilterBrand] = useState('');
-  const [filterModel, setFilterModel] = useState('');
 
-  const categoryBrandIds = brandCats.data
-    ?.filter((bc) => bc.category_id === category.id)
-    .map((bc) => bc.brand_id) ?? [];
-
-  // Kategoriye ait modeller
-  const { data: models } = useQuery({
-    queryKey: ['vehicle-models-in-cat-for-trims', category.id],
-    queryFn: async () => {
-      if (categoryBrandIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from('vehicle_models')
-        .select('id, name, brand_id, brand:vehicle_brands(name)')
-        .in('brand_id', categoryBrandIds)
-        .order('name');
-      if (error) throw error;
-      return ((data ?? []) as any[]);
-    },
-    enabled: categoryBrandIds.length > 0,
-  });
-
-  // Kategoriye ait paketler
-  const modelIds = models?.map((m) => m.id) ?? [];
   const { data, isLoading } = useQuery({
-    queryKey: ['vehicle-trims-in-category', category.id],
+    queryKey: ['trims-of-model', model.id],
     queryFn: async () => {
-      if (modelIds.length === 0) return [];
       const { data, error } = await supabase
         .from('vehicle_trims')
-        .select('id, name, model_id, is_active, sort_order, model:vehicle_models(name, brand:vehicle_brands(name))')
-        .in('model_id', modelIds)
+        .select('id, name, model_id, is_active, sort_order')
+        .eq('model_id', model.id)
         .order('sort_order');
       if (error) throw error;
-      return ((data ?? []) as any[]).map((t) => ({
-        ...t,
-        label: `${t.model?.brand?.name ?? '—'} ${t.model?.name ?? '—'}`,
-      }));
+      return (data ?? []) as Trim[];
     },
-    enabled: modelIds.length > 0,
   });
 
-  const saveMut = useMutation({
-    mutationFn: async (payload: { id?: string; name: string; model_id: string }) => {
-      if (payload.id) {
-        const { error } = await supabase.from('vehicle_trims').update({ name: payload.name, model_id: payload.model_id }).eq('id', payload.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('vehicle_trims').insert({ name: payload.name, model_id: payload.model_id, is_active: true });
-        if (error) throw error;
-      }
+  const addNewMut = useMutation({
+    mutationFn: async (newName: string) => {
+      const { error } = await supabase.from('vehicle_trims').insert({ name: newName.trim(), model_id: model.id, is_active: true });
+      if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vehicle-trims-in-category'] });
-      setName(''); setModelId(''); setEditing(null);
+      qc.invalidateQueries({ queryKey: ['trims-of-model'] });
+      setName(''); setShowForm(false);
     },
   });
 
@@ -851,44 +638,24 @@ function TrimsPanel({ category }: { category: Category }) {
       const { error } = await supabase.from('vehicle_trims').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicle-trims-in-category'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['trims-of-model'] }),
   });
 
   return (
-    <div>
-      {/* Marka + Model Filtreleri */}
-      <div className="mb-3 flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg">
-        <label className="text-sm font-semibold text-slate-700">Marka:</label>
-        <select value={filterBrand} onChange={(e) => { setFilterBrand(e.target.value); setFilterModel(''); }} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
-          <option value="">Tüm markalar</option>
-          {(() => {
-            const uniqueBrands = new Map<string, { id: string; name: string }>();
-            (models ?? []).forEach((m) => { if (m.brand) uniqueBrands.set(m.brand_id, { id: m.brand_id, name: m.brand.name }); });
-            return Array.from(uniqueBrands.values()).map((b) => <option key={b.id} value={b.id}>{b.name}</option>);
-          })()}
-        </select>
-        <label className="text-sm font-semibold text-slate-700 ml-2">Model:</label>
-        <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
-          <option value="">Tüm modeller</option>
-          {(models ?? []).filter((m) => !filterBrand || m.brand_id === filterBrand).map((m) => <option key={m.id} value={m.id}>{m.brand?.name} {m.name}</option>)}
-        </select>
-        <span className="text-sm text-slate-500 ml-auto">
-          {data?.filter((t) => !filterModel || t.model_id === filterModel).length ?? 0} / {data?.length ?? 0} paket
-        </span>
+    <div className="p-6 max-w-6xl mx-auto">
+      <Breadcrumb items={[{ label: 'Filtreleme Yönetimi' }, { label: category.name, icon: category.icon }, { label: brand.name }, { label: model.name }]} onBack={onBack} />
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-extrabold flex items-center gap-2">
+          {brand.name} {model.name} - Paketler
+        </h1>
+        <AddToggle open={showForm} setOpen={setShowForm} label="Yeni Paket" />
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
-        <h3 className="font-semibold mb-3 flex items-center gap-2">
-          {editing ? <><Pencil className="h-4 w-4" /> Paket Düzenle</> : <><Plus className="h-4 w-4" /> Yeni Paket Ekle</>}
-        </h3>
+      {showForm && (
         <form
-          onSubmit={(e) => { e.preventDefault(); if (!name.trim() || !modelId) return; saveMut.mutate(editing ? { id: editing.id, name: name.trim(), model_id: modelId } : { name: name.trim(), model_id: modelId }); }}
-          className="flex flex-col sm:flex-row gap-2"
+          onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; addNewMut.mutate(name); }}
+          className="bg-white border border-slate-200 rounded-xl p-4 mb-4 flex gap-2"
         >
-          <select value={modelId} onChange={(e) => setModelId(e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg flex-1" required>
-            <option value="">{models?.length ? 'Model seçin' : 'Önce model ekleyin'}</option>
-            {models?.map((m) => <option key={m.id} value={m.id}>{m.brand?.name} {m.name}</option>)}
-          </select>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -896,39 +663,33 @@ function TrimsPanel({ category }: { category: Category }) {
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
             required
           />
-          <button type="submit" disabled={saveMut.isPending || (models?.length ?? 0) === 0} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
-            {saveMut.isPending ? 'Kaydediliyor...' : editing ? 'Güncelle' : 'Ekle'}
+          <button type="submit" disabled={addNewMut.isPending} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
+            {addNewMut.isPending ? 'Ekleniyor...' : 'Ekle'}
           </button>
-          {editing && (
-            <button type="button" onClick={() => { setEditing(null); setName(''); setModelId(''); }} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-              İptal
-            </button>
-          )}
+          {addNewMut.isError && <p className="text-sm text-red-600">Hata: {(addNewMut.error as any)?.message}</p>}
         </form>
-      </div>
+      )}
 
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
       ) : data?.length === 0 ? (
-        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg text-slate-500">
-          Bu kategoride paket yok. Önce "Modeller" tab'ından model ekleyin.
+        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg">
+          <p className="text-slate-500 mb-2">Bu modelde henüz paket yok</p>
+          <p className="text-xs text-slate-400">Yukarıdan yeni paket ekleyin (Comfort, Sport, M Sport, AMG vb.)</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {data?.filter((t) => !filterModel || t.model_id === filterModel).map((t) => (
+          {data?.map((t) => (
             <div key={t.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="text-xs text-slate-500">{t.label}</div>
+              <button
+                type="button"
+                onClick={() => onSelect(t)}
+                className="flex-1 min-w-0 text-left hover:text-red-600 transition"
+              >
                 <div className="font-semibold truncate">{t.name}</div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button type="button" onClick={() => { setEditing({ id: t.id, name: t.name, model_id: t.model_id, is_active: t.is_active, sort_order: t.sort_order }); setName(t.name); setModelId(t.model_id); }} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded" title="Düzenle">
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={() => { if (confirm(`"${t.name}" paketini silmek istediğine emin misin?`)) deleteMut.mutate(t.id); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Sil">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+                <div className="text-xs text-slate-500">Motor HP'leri gör →</div>
+              </button>
+              <DeleteButton onConfirm={() => deleteMut.mutate(t.id)} message={`"${t.name}" paketini silmek istediğine emin misin? Bu pakete bağlı motor HP'leri de silinir.`} />
             </div>
           ))}
         </div>
@@ -937,67 +698,33 @@ function TrimsPanel({ category }: { category: Category }) {
   );
 }
 
-/* ---------- MOTOR HP'LERİ (kategoriye özel) ---------- */
-function EnginePowersPanel({ category }: { category: Category }) {
+/* ==================== 5. SEVİYE: MOTOR HP'LERİ ==================== */
+function EnginePowersLevel({ category, brand, model, trim, onBack }: { category: Category; brand: Brand; model: Model; trim: Trim; onBack: () => void }) {
   const qc = useQueryClient();
-  const brandCats = useBrandCategories();
+  const [showForm, setShowForm] = useState(false);
   const [hp, setHp] = useState('');
-  const [modelId, setModelId] = useState('');
-  const [editing, setEditing] = useState<EnginePower | null>(null);
-  const [filterBrand, setFilterBrand] = useState('');
-  const [filterModel, setFilterModel] = useState('');
 
-  const categoryBrandIds = brandCats.data
-    ?.filter((bc) => bc.category_id === category.id)
-    .map((bc) => bc.brand_id) ?? [];
-
-  const { data: models } = useQuery({
-    queryKey: ['vehicle-models-in-cat-for-hp', category.id],
-    queryFn: async () => {
-      if (categoryBrandIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from('vehicle_models')
-        .select('id, name, brand_id, brand:vehicle_brands(name)')
-        .in('brand_id', categoryBrandIds)
-        .order('name');
-      if (error) throw error;
-      return ((data ?? []) as any[]);
-    },
-    enabled: categoryBrandIds.length > 0,
-  });
-
-  const modelIds = models?.map((m) => m.id) ?? [];
   const { data, isLoading } = useQuery({
-    queryKey: ['vehicle-engine-powers-in-category', category.id],
+    queryKey: ['engine-powers-of-model', model.id],
     queryFn: async () => {
-      if (modelIds.length === 0) return [];
       const { data, error } = await supabase
         .from('vehicle_engine_powers')
-        .select('id, hp, model_id, is_active, sort_order, model:vehicle_models(name, brand:vehicle_brands(name))')
-        .in('model_id', modelIds)
+        .select('id, hp, model_id, is_active, sort_order')
+        .eq('model_id', model.id)
         .order('hp');
       if (error) throw error;
-      return ((data ?? []) as any[]).map((p) => ({
-        ...p,
-        label: `${p.model?.brand?.name ?? '—'} ${p.model?.name ?? '—'}`,
-      }));
+      return (data ?? []) as EnginePower[];
     },
-    enabled: modelIds.length > 0,
   });
 
-  const saveMut = useMutation({
-    mutationFn: async (payload: { id?: string; hp: number; model_id: string }) => {
-      if (payload.id) {
-        const { error } = await supabase.from('vehicle_engine_powers').update({ hp: payload.hp, model_id: payload.model_id }).eq('id', payload.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('vehicle_engine_powers').insert({ hp: payload.hp, model_id: payload.model_id, is_active: true });
-        if (error) throw error;
-      }
+  const addNewMut = useMutation({
+    mutationFn: async (newHp: number) => {
+      const { error } = await supabase.from('vehicle_engine_powers').insert({ hp: newHp, model_id: model.id, is_active: true });
+      if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vehicle-engine-powers-in-category'] });
-      setHp(''); setModelId(''); setEditing(null);
+      qc.invalidateQueries({ queryKey: ['engine-powers-of-model'] });
+      setHp(''); setShowForm(false);
     },
   });
 
@@ -1006,90 +733,61 @@ function EnginePowersPanel({ category }: { category: Category }) {
       const { error } = await supabase.from('vehicle_engine_powers').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicle-engine-powers-in-category'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['engine-powers-of-model'] }),
   });
 
   return (
-    <div>
-      {/* Marka + Model Filtreleri */}
-      <div className="mb-3 flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg">
-        <label className="text-sm font-semibold text-slate-700">Marka:</label>
-        <select value={filterBrand} onChange={(e) => { setFilterBrand(e.target.value); setFilterModel(''); }} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
-          <option value="">Tüm markalar</option>
-          {(() => {
-            const uniqueBrands = new Map<string, { id: string; name: string }>();
-            (models ?? []).forEach((m) => { if (m.brand) uniqueBrands.set(m.brand_id, { id: m.brand_id, name: m.brand.name }); });
-            return Array.from(uniqueBrands.values()).map((b) => <option key={b.id} value={b.id}>{b.name}</option>);
-          })()}
-        </select>
-        <label className="text-sm font-semibold text-slate-700 ml-2">Model:</label>
-        <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
-          <option value="">Tüm modeller</option>
-          {(models ?? []).filter((m) => !filterBrand || m.brand_id === filterBrand).map((m) => <option key={m.id} value={m.id}>{m.brand?.name} {m.name}</option>)}
-        </select>
-        <span className="text-sm text-slate-500 ml-auto">
-          {data?.filter((p) => !filterModel || p.model_id === filterModel).length ?? 0} / {data?.length ?? 0} motor
-        </span>
+    <div className="p-6 max-w-6xl mx-auto">
+      <Breadcrumb items={[{ label: 'Filtreleme Yönetimi' }, { label: category.name, icon: category.icon }, { label: brand.name }, { label: model.name }, { label: trim.name }]} onBack={onBack} />
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-extrabold flex items-center gap-2">
+          {brand.name} {model.name} {trim.name} - Motor HP'leri
+        </h1>
+        <AddToggle open={showForm} setOpen={setShowForm} label="Yeni Motor HP" />
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
-        <h3 className="font-semibold mb-3 flex items-center gap-2">
-          {editing ? <><Pencil className="h-4 w-4" /> Motor HP Düzenle</> : <><Plus className="h-4 w-4" /> Yeni Motor HP Ekle</>}
-        </h3>
+      <p className="text-sm text-slate-500 mb-4">
+        ℹ️ Motor HP'ler model seviyesinde tanımlıdır. Bir modelin tüm paketleri aynı motor HP listesini paylaşır.
+      </p>
+
+      {showForm && (
         <form
-          onSubmit={(e) => { e.preventDefault(); const n = parseInt(hp); if (!n || !modelId) return; saveMut.mutate(editing ? { id: editing.id, hp: n, model_id: modelId } : { hp: n, model_id: modelId }); }}
-          className="flex flex-col sm:flex-row gap-2"
+          onSubmit={(e) => { e.preventDefault(); const n = parseInt(hp); if (!n) return; addNewMut.mutate(n); }}
+          className="bg-white border border-slate-200 rounded-xl p-4 mb-4 flex gap-2"
         >
-          <select value={modelId} onChange={(e) => setModelId(e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg flex-1" required>
-            <option value="">{models?.length ? 'Model seçin' : 'Önce model ekleyin'}</option>
-            {models?.map((m) => <option key={m.id} value={m.id}>{m.brand?.name} {m.name}</option>)}
-          </select>
-          <div className="flex items-center gap-2 flex-1">
-            <input
-              type="number"
-              value={hp}
-              onChange={(e) => setHp(e.target.value)}
-              placeholder="HP (örn. 184)"
-              min="20"
-              max="2000"
-              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
-              required
-            />
-            <span className="text-sm text-slate-500 font-semibold">HP</span>
-          </div>
-          <button type="submit" disabled={saveMut.isPending || (models?.length ?? 0) === 0} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
-            {saveMut.isPending ? 'Kaydediliyor...' : editing ? 'Güncelle' : 'Ekle'}
+          <input
+            type="number"
+            value={hp}
+            onChange={(e) => setHp(e.target.value)}
+            placeholder="HP (örn. 184)"
+            min="20"
+            max="2000"
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
+            required
+          />
+          <span className="text-sm text-slate-500 font-semibold self-center">HP</span>
+          <button type="submit" disabled={addNewMut.isPending} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
+            {addNewMut.isPending ? 'Ekleniyor...' : 'Ekle'}
           </button>
-          {editing && (
-            <button type="button" onClick={() => { setEditing(null); setHp(''); setModelId(''); }} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-              İptal
-            </button>
-          )}
+          {addNewMut.isError && <p className="text-sm text-red-600">Hata: {(addNewMut.error as any)?.message}</p>}
         </form>
-      </div>
+      )}
 
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
       ) : data?.length === 0 ? (
-        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg text-slate-500">
-          Bu kategoride motor yok. Önce "Modeller" tab'ından model ekleyin.
+        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg">
+          <p className="text-slate-500 mb-2">Bu modelde henüz motor HP yok</p>
+          <p className="text-xs text-slate-400">Yukarıdan yeni motor HP ekleyin (örn. 110, 150, 184)</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {data?.filter((p) => !filterModel || p.model_id === filterModel).map((p) => (
+          {data?.map((p) => (
             <div key={p.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-slate-500 truncate">{p.label}</div>
                 <div className="font-bold text-lg">{p.hp} <span className="text-sm text-slate-500">HP</span></div>
               </div>
-              <div className="flex flex-col items-center gap-1">
-                <button type="button" onClick={() => { setEditing({ id: p.id, hp: p.hp, model_id: p.model_id, is_active: p.is_active, sort_order: p.sort_order }); setHp(String(p.hp)); setModelId(p.model_id); }} className="p-1 text-slate-600 hover:bg-slate-100 rounded" title="Düzenle">
-                  <Pencil className="h-3 w-3" />
-                </button>
-                <button type="button" onClick={() => { if (confirm(`"${p.hp} HP" motorunu silmek istediğine emin misin?`)) deleteMut.mutate(p.id); }} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Sil">
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
+              <DeleteButton onConfirm={() => deleteMut.mutate(p.id)} message={`${p.hp} HP motorunu silmek istediğine emin misin?`} />
             </div>
           ))}
         </div>
