@@ -40,8 +40,6 @@ export default function CountdownTimer({
 
   // auto: süre 1 saatten fazla ise saat:dk:sn, az ise dk:sn
   const showHours = format === 'auto' ? (t.days * 24 + t.hours > 0) : format === 'hmsm';
-  const showMinutes = format !== 'msm' ? true : true; // hmsm, msm, auto hepsinde dakika var
-  const showLeadingMinute = format === 'msm' || (format === 'auto' && !showHours);
 
   return (
     <div className={cn('inline-flex items-center gap-1 font-mono font-bold tabular-nums', className)}>
@@ -51,12 +49,8 @@ export default function CountdownTimer({
           <span className={cn(glow && 'animate-pulse-glow rounded text-red-500')}>:</span>
         </>
       )}
-      {showMinutes && (
-        <Box v={pad(t.minutes, 2)} label="dk" sizeCls={sizeCls} glow={glow} />
-      )}
-      {showMinutes && (
-        <span className={cn(glow && 'animate-pulse-glow rounded text-red-500')}>:</span>
-      )}
+      <Box v={pad(t.minutes, 2)} label="dk" sizeCls={sizeCls} glow={glow} />
+      <span className={cn(glow && 'animate-pulse-glow rounded text-red-500')}>:</span>
       <Box v={pad(t.seconds, 2)} label="sn" sizeCls={sizeCls} glow={glow} />
       {showMs && (
         <>
