@@ -36,6 +36,10 @@ type PermissionArea =
   | 'authorization'
   | 'dealerships'
   | 'transactions'
+  | 'corporate_applications'
+  | 'valet_applications'
+  | 'franchise_applications'
+  | 'payments'
   | 'catalog'
   | 'info_pages'
   | 'audit_logs';
@@ -89,18 +93,22 @@ const AREA_SUB_AREAS: Partial<Record<PermissionArea, { key: string; label: strin
 
 // Her alan için hangi aksiyonlar MEVCUT (sil olmayan alan için sil checkbox'ı gözükmez)
 const AREA_ACTIONS: Partial<Record<PermissionArea, { view: boolean; edit: boolean; approve: boolean; del: boolean }>> = {
-  dashboard:        { view: true,  edit: false, approve: false, del: false },
-  catalog:          { view: true,  edit: true,  approve: false, del: true  },
-  info_pages:       { view: true,  edit: true,  approve: true,  del: true  },
-  users:            { view: true,  edit: true,  approve: true,  del: true  },
-  auctions:         { view: true,  edit: true,  approve: true,  del: true  },
-  free_listings:    { view: true,  edit: true,  approve: true,  del: true  },
-  expertise:        { view: true,  edit: true,  approve: true,  del: true  },
-  site_settings:    { view: true,  edit: true,  approve: false, del: false },
-  authorization:    { view: true,  edit: true,  approve: false, del: true  },
-  dealerships:      { view: true,  edit: true,  approve: true,  del: true  },
-  transactions:     { view: true,  edit: true,  approve: true,  del: false },
-  audit_logs:       { view: true,  edit: false, approve: false, del: false },
+  dashboard:              { view: true,  edit: false, approve: false, del: false },
+  catalog:                { view: true,  edit: true,  approve: false, del: true  },
+  info_pages:             { view: true,  edit: true,  approve: true,  del: true  },
+  users:                  { view: true,  edit: true,  approve: true,  del: true  },
+  auctions:               { view: true,  edit: true,  approve: true,  del: true  },
+  free_listings:          { view: true,  edit: true,  approve: true,  del: true  },
+  expertise:              { view: true,  edit: true,  approve: true,  del: true  },
+  site_settings:          { view: true,  edit: true,  approve: false, del: false },
+  authorization:          { view: true,  edit: true,  approve: false, del: true  },
+  dealerships:            { view: true,  edit: true,  approve: true,  del: true  },
+  corporate_applications: { view: true,  edit: true,  approve: true,  del: true  },
+  valet_applications:     { view: true,  edit: true,  approve: true,  del: true  },
+  franchise_applications: { view: true,  edit: true,  approve: true,  del: true  },
+  transactions:           { view: true,  edit: true,  approve: false, del: false },
+  payments:               { view: true,  edit: true,  approve: true,  del: false },
+  audit_logs:             { view: true,  edit: false, approve: false, del: false },
 };
 
 const ALL_AREAS: { key: PermissionArea; label: string }[] = [
@@ -114,7 +122,11 @@ const ALL_AREAS: { key: PermissionArea; label: string }[] = [
   { key: 'site_settings', label: 'Site Ayarları' },
   { key: 'authorization', label: 'Yetkilendirme' },
   { key: 'dealerships', label: 'Bayilikler' },
-  { key: 'transactions', label: 'İşlemler' },
+  { key: 'corporate_applications', label: 'Kurumsal Başvurular' },
+  { key: 'valet_applications', label: 'Vale Başvuruları' },
+  { key: 'franchise_applications', label: 'Bayi Başvuruları' },
+  { key: 'transactions', label: 'İşlem Geçmişi' },
+  { key: 'payments', label: 'Hakediş ve Ödemeler' },
   { key: 'audit_logs', label: 'İşlem Logları' },
 ];
 
