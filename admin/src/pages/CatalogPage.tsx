@@ -542,6 +542,7 @@ function ModelsPanel({ category }: { category: Category }) {
   const [showExistingPicker, setShowExistingPicker] = useState(false);
   const [existingSearch, setExistingSearch] = useState('');
   const [pickBrandId, setPickBrandId] = useState('');
+  const [filterModelBrand, setFilterModelBrand] = useState('');
 
   // Kategoriye ait markalar
   const categoryBrandIds = brandCats.data
@@ -681,6 +682,18 @@ function ModelsPanel({ category }: { category: Category }) {
         </form>
       </div>
 
+      {/* Bu kategorideki modeller + Marka filtresi */}
+      <div className="mb-3 flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg">
+        <label className="text-sm font-semibold text-slate-700">Marka:</label>
+        <select value={filterModelBrand} onChange={(e) => setFilterModelBrand(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
+          <option value="">Tüm markalar</option>
+          {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+        <span className="text-sm text-slate-500 ml-auto">
+          {filterModelBrand ? (data ?? []).filter((m) => m.brand_id === filterModelBrand).length : data?.length ?? 0} / {data?.length ?? 0} model
+        </span>
+      </div>
+
       {/* MEVCUT MODELLERİ BU KATEGORİYE EKLE */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
         <div className="flex items-center justify-between mb-2">
@@ -745,7 +758,7 @@ function ModelsPanel({ category }: { category: Category }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {data?.map((m) => (
+          {data?.filter((m) => !filterModelBrand || m.brand_id === filterModelBrand).map((m) => (
             <div key={m.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="text-xs text-slate-500">{m.brand_name}</div>
