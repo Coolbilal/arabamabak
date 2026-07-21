@@ -620,9 +620,13 @@ function ModelsPanel({ category }: { category: Category }) {
   // Kategoriye ait markaların modelleri zaten var (üstte var), availableModels bunun disindaki
   const existingModelIds = (data ?? []).map((m) => m.id);
   const availableModels = (allModels ?? []).filter((m) => !existingModelIds.includes(m.id));
-  const filteredAvailable = existingSearch
-    ? availableModels.filter((m) => m.name.toLowerCase().includes(existingSearch.toLowerCase()) || (m.brand?.name ?? '').toLowerCase().includes(existingSearch.toLowerCase()))
-    : availableModels;
+  const filteredAvailable = availableModels
+    .filter((m) => !pickBrandId || m.brand_id === pickBrandId)
+    .filter((m) => {
+      if (!existingSearch) return true;
+      const q = existingSearch.toLowerCase();
+      return m.name.toLowerCase().includes(q) || (m.brand?.name ?? '').toLowerCase().includes(q);
+    });
 
   // Mevcut modeli bu markanın altına ekle (modeli güncelle, brand_id degistir)
   const addExistingMut = useMutation({
@@ -703,7 +707,7 @@ function ModelsPanel({ category }: { category: Category }) {
               <p className="text-sm text-slate-500 py-2">Sonuç bulunamadı</p>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-60 overflow-y-auto">
-                {filteredAvailable.filter((m) => !pickBrandId || m.brand_id === pickBrandId).map((m) => (
+                {filteredAvailable.map((m) => (
                   <div key={m.id} className="flex items-center gap-1">
                     <span className="text-xs text-slate-500 truncate flex-1">{m.brand?.name} {m.name}</span>
                     <select
