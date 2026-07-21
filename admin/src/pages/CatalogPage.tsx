@@ -64,12 +64,16 @@ export default function CatalogPage() {
         <TabButton active={tab === 'trims'} onClick={() => setTab('trims')} icon={<Filter className="h-4 w-4" />}>
           Paketler
         </TabButton>
+        <TabButton active={tab === 'engine-powers'} onClick={() => setTab('engine-powers')} icon={<Settings2 className="h-4 w-4" />}>
+          Motor HP
+        </TabButton>
       </div>
 
       {tab === 'categories' && <CategoriesPanel />}
       {tab === 'brands' && <BrandsPanel />}
       {tab === 'models' && <ModelsPanel />}
       {tab === 'trims' && <TrimsPanel />}
+      {tab === 'engine-powers' && <EnginePowersPanel />}
     </div>
   );
 }
@@ -93,6 +97,12 @@ function TabButton({ active, onClick, icon, children }: { active: boolean; onCli
 /* ---------- KATEGORİLER (Read-only) ---------- */
 function CategoriesPanel() {
   const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [icon, setIcon] = useState('🚗');
+  const [sortOrder, setSortOrder] = useState(10);
+
   const { data, isLoading } = useQuery({
     queryKey: ['vehicle-categories'],
     queryFn: async () => {
@@ -116,16 +126,98 @@ function CategoriesPanel() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicle-categories'] }),
   });
 
+  const addMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('vehicle_categories').insert({
+        name: name.trim(),
+        slug: slug.trim(),
+        icon: icon.trim() || '🚗',
+        sort_order: sortOrder,
+        is_active: true,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vehicle-categories'] });
+      setName('');
+      setSlug('');
+      setIcon('🚗');
+      setSortOrder(10);
+      setShowForm(false);
+    },
+  });
+
+  // Slug otomatik olustur
+  function autoSlug(t: string) {
+    return t
+      .toLowerCase()
+      .replace(/[ıİ]/g, 'i').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
+      .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[çÇ]/g, 'c')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+
   if (isLoading) return <div className="text-center py-12 text-slate-500">Yükleniyor...</div>;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4">
-      <p className="text-sm text-slate-600 mb-4">
-        <strong>Sabit kategoriler.</strong> Migration 59 ile eklenmiştir. İsterseniz yeni kategori ekleyebilir veya mevcut olanı gizleyebilirsiniz.
-      </p>
+    <div>
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold flex items-center gap-2">📂 Araç Kategorileri</h3>
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            className="inline-flex items-center gap-1 text-sm bg-red-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-red-700"
+          >
+            <Plus className="h-3.5 w-3.5" /> Yeni Kategori
+          </button>
+        </div>
+        <p className="text-sm text-slate-600">
+          Sabit kategorilerdir. Anasayfa sol sidebar filtresinde ve ilan verme sihirbazında kullanılır.
+        </p>
+
+        {showForm && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!name.trim() || !slug.trim()) return;
+              addMut.mutate();
+            }}
+            className="grid grid-cols-1 sm:grid-cols-5 gap-2 mt-4 pt-4 border-t"
+          >
+            <input
+              value={name}
+              onChange={(e) => { setName(e.target.value); if (!slug) setSlug(autoSlug(e.target.value)); }}
+              placeholder="Kategori adı (örn. Elektrikli Araçlar)"
+              className="sm:col-span-2 px-3 py-2 border border-slate-300 rounded-lg"
+              required
+            />
+            <input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="slug (elektrikli-araclar)"
+              className="px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm"
+              required
+            />
+            <input
+              value={icon}
+              onChange={(e) => setIcon(e.target.value)}
+              placeholder="🔋"
+              className="px-3 py-2 border border-slate-300 rounded-lg text-center"
+              maxLength={4}
+            />
+            <button type="submit" disabled={addMut.isPending} className="bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
+              {addMut.isPending ? 'Ekleniyor...' : 'Ekle'}
+            </button>
+            {addMut.isError && (
+              <p className="text-sm text-red-600 sm:col-span-5">Hata: {(addMut.error as any)?.message}</p>
+            )}
+          </form>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {data?.map((c) => (
-          <div key={c.id} className="border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+          <div key={c.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-2xl">{c.icon}</span>
               <div>
@@ -567,6 +659,154 @@ function TrimsPanel() {
                   title="Sil"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- MOTOR HP'LERİ ---------- */
+function EnginePowersPanel() {
+  const qc = useQueryClient();
+  const [hp, setHp] = useState('');
+  const [modelId, setModelId] = useState('');
+  const [editing, setEditing] = useState<{ id: string; hp: number; model_id: string } | null>(null);
+  const [filterModel, setFilterModel] = useState('');
+
+  const { data: models } = useQuery({
+    queryKey: ['vehicle-models-for-hp'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('vehicle_models')
+        .select('id, name, brand_id, brand:vehicle_brands(name)')
+        .order('name');
+      return (data ?? []) as { id: string; name: string; brand_id: string; brand: { name: string } | null }[];
+    },
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['vehicle-engine-powers', filterModel],
+    queryFn: async () => {
+      let q = supabase
+        .from('vehicle_engine_powers')
+        .select('id, hp, model_id, is_active, sort_order')
+        .order('hp');
+      if (filterModel) q = q.eq('model_id', filterModel);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as { id: string; hp: number; model_id: string; is_active: boolean; sort_order: number }[];
+    },
+  });
+
+  const saveMut = useMutation({
+    mutationFn: async (payload: { id?: string; hp: number; model_id: string }) => {
+      if (payload.id) {
+        const { error } = await supabase.from('vehicle_engine_powers').update({ hp: payload.hp, model_id: payload.model_id }).eq('id', payload.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('vehicle_engine_powers').insert({ hp: payload.hp, model_id: payload.model_id, is_active: true });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vehicle-engine-powers'] });
+      setHp('');
+      setModelId('');
+      setEditing(null);
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('vehicle_engine_powers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicle-engine-powers'] }),
+  });
+
+  const modelMap = new Map((models ?? []).map((m) => [m.id, `${m.brand?.name ?? '—'} ${m.name}`]));
+
+  return (
+    <div>
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+        <h3 className="font-semibold mb-3 flex items-center gap-2">
+          {editing ? <><Pencil className="h-4 w-4" /> Motor HP Düzenle</> : <><Plus className="h-4 w-4" /> Yeni Motor HP Ekle</>}
+        </h3>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const hpNum = parseInt(hp);
+            if (!hpNum || !modelId) return;
+            saveMut.mutate(editing ? { id: editing.id, hp: hpNum, model_id: modelId } : { hp: hpNum, model_id: modelId });
+          }}
+          className="flex flex-col sm:flex-row gap-2"
+        >
+          <select value={modelId} onChange={(e) => setModelId(e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg flex-1" required>
+            <option value="">Model seçin</option>
+            {models?.map((m) => <option key={m.id} value={m.id}>{m.brand?.name} {m.name}</option>)}
+          </select>
+          <div className="flex items-center gap-2 flex-1">
+            <input
+              type="number"
+              value={hp}
+              onChange={(e) => setHp(e.target.value)}
+              placeholder="HP (örn. 184)"
+              min="20"
+              max="2000"
+              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
+              required
+            />
+            <span className="text-sm text-slate-500 font-semibold">HP</span>
+          </div>
+          <button type="submit" disabled={saveMut.isPending} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
+            {saveMut.isPending ? 'Kaydediliyor...' : editing ? 'Güncelle' : 'Ekle'}
+          </button>
+          {editing && (
+            <button type="button" onClick={() => { setEditing(null); setHp(''); setModelId(''); }} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+              İptal
+            </button>
+          )}
+        </form>
+      </div>
+
+      <div className="mb-3 flex items-center gap-2">
+        <label className="text-sm text-slate-600">Model filtresi:</label>
+        <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
+          <option value="">Tümü</option>
+          {models?.map((m) => <option key={m.id} value={m.id}>{m.brand?.name} {m.name}</option>)}
+        </select>
+        <span className="text-sm text-slate-500 ml-auto">{data?.length ?? 0} motor</span>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
+      ) : data?.length === 0 ? (
+        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg text-slate-500">
+          Bu modele ait motor HP yok
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {data?.map((p) => (
+            <div key={p.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-slate-500 truncate">{modelMap.get(p.model_id) ?? '—'}</div>
+                <div className="font-bold text-lg">{p.hp} <span className="text-sm text-slate-500">HP</span></div>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <button type="button" onClick={() => { setEditing({ id: p.id, hp: p.hp, model_id: p.model_id }); setHp(String(p.hp)); setModelId(p.model_id); }} className="p-1 text-slate-600 hover:bg-slate-100 rounded" title="Düzenle">
+                  <Pencil className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { if (confirm(`"${p.hp} HP" motorunu silmek istediğine emin misin?`)) deleteMut.mutate(p.id); }}
+                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+                  title="Sil"
+                >
+                  <Trash2 className="h-3 w-3" />
                 </button>
               </div>
             </div>
