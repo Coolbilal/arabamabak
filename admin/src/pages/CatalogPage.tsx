@@ -36,6 +36,14 @@ type Trim = {
   sort_order: number;
 };
 
+type SubTrim = {
+  id: string;
+  name: string;
+  trim_id: string;
+  is_active: boolean;
+  sort_order: number;
+};
+
 type EnginePower = {
   id: string;
   hp: number;
@@ -52,6 +60,7 @@ export default function CatalogPage() {
   const [navBrand, setNavBrand] = useState<Brand | null>(null);
   const [navModel, setNavModel] = useState<Model | null>(null);
   const [navTrim, setNavTrim] = useState<Trim | null>(null);
+  const [navSubTrim, setNavSubTrim] = useState<SubTrim | null>(null);
 
   // 1. Seviye: Kategori listesi
   if (!navCategory) return <CategoriesLevel onSelect={setNavCategory} />;
@@ -86,14 +95,27 @@ export default function CatalogPage() {
     />
   );
 
-  // 5. Seviye: Paket altında motor HP'leri
+  // 5. Seviye: Paket altında alt paketler (YENİ)
+  if (!navSubTrim) return (
+    <SubTrimsLevel
+      category={navCategory}
+      brand={navBrand}
+      model={navModel}
+      trim={navTrim}
+      onSelect={setNavSubTrim}
+      onBack={() => setNavTrim(null)}
+    />
+  );
+
+  // 6. Seviye: Alt paket altında motor HP'leri
   return (
     <EnginePowersLevel
       category={navCategory}
       brand={navBrand}
       model={navModel}
       trim={navTrim}
-      onBack={() => setNavTrim(null)}
+      subTrim={navSubTrim}
+      onBack={() => setNavSubTrim(null)}
     />
   );
 }
@@ -698,8 +720,107 @@ function TrimsLevel({ category, brand, model, onSelect, onBack }: { category: Ca
   );
 }
 
-/* ==================== 5. SEVİYE: MOTOR HP'LERİ ==================== */
-function EnginePowersLevel({ category, brand, model, trim, onBack }: { category: Category; brand: Brand; model: Model; trim: Trim; onBack: () => void }) {
+/* ==================== 5. SEVİYE: ALT PAKETLER ==================== */
+function SubTrimsLevel({ category, brand, model, trim, onSelect, onBack }: { category: Category; brand: Brand; model: Model; trim: Trim; onSelect: (st: SubTrim) => void; onBack: () => void }) {
+  const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['sub-trims-of-trim', trim.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vehicle_sub_trims')
+        .select('id, name, trim_id, is_active, sort_order')
+        .eq('trim_id', trim.id)
+        .order('sort_order');
+      if (error) throw error;
+      return (data ?? []) as SubTrim[];
+    },
+  });
+
+  const addNewMut = useMutation({
+    mutationFn: async (newName: string) => {
+      const { error } = await supabase.from('vehicle_sub_trims').insert({ name: newName.trim(), trim_id: trim.id, is_active: true });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sub-trims-of-trim'] });
+      setName(''); setShowForm(false);
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('vehicle_sub_trims').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sub-trims-of-trim'] }),
+  });
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      <Breadcrumb items={[{ label: 'Filtreleme Yönetimi' }, { label: category.name, icon: category.icon }, { label: brand.name }, { label: model.name }, { label: trim.name }]} onBack={onBack} />
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-extrabold flex items-center gap-2">
+          {brand.name} {model.name} {trim.name} - Alt Paketler
+        </h1>
+        <AddToggle open={showForm} setOpen={setShowForm} label="Yeni Alt Paket" />
+      </div>
+
+      <p className="text-sm text-slate-500 mb-4">
+        ℹ️ Alt paket, paketin alt versiyonudur (örn. <strong>1.4 TFSI</strong>, <strong>2.0 TDI</strong>, <strong>320d</strong>). Motor seçiminden önce gösterilir.
+      </p>
+
+      {showForm && (
+        <form
+          onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; addNewMut.mutate(name); }}
+          className="bg-white border border-slate-200 rounded-xl p-4 mb-4 flex gap-2"
+        >
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Alt paket adı (örn. 1.4 TFSI, 2.0 TDI, 320d, Hybrid)"
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
+            required
+          />
+          <button type="submit" disabled={addNewMut.isPending} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
+            {addNewMut.isPending ? 'Ekleniyor...' : 'Ekle'}
+          </button>
+          {addNewMut.isError && <p className="text-sm text-red-600">Hata: {(addNewMut.error as any)?.message}</p>}
+        </form>
+      )}
+
+      {isLoading ? (
+        <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
+      ) : data?.length === 0 ? (
+        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg">
+          <p className="text-slate-500 mb-2">Bu pakette henüz alt paket yok</p>
+          <p className="text-xs text-slate-400">Yukarıdan yeni alt paket ekleyin veya bu adımı atlayıp direkt Motor HP'ye geçin.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {data?.map((st) => (
+            <div key={st.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => onSelect(st)}
+                className="flex-1 min-w-0 text-left hover:text-red-600 transition"
+              >
+                <div className="font-semibold truncate">{st.name}</div>
+                <div className="text-xs text-slate-500">Motor HP'leri gör →</div>
+              </button>
+              <DeleteButton onConfirm={() => deleteMut.mutate(st.id)} message={`"${st.name}" alt paketini silmek istediğine emin misin?`} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ==================== 6. SEVİYE: MOTOR HP'LERİ ==================== */
+function EnginePowersLevel({ category, brand, model, trim, subTrim, onBack }: { category: Category; brand: Brand; model: Model; trim: Trim; subTrim: SubTrim | null; onBack: () => void }) {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [hp, setHp] = useState('');
@@ -738,10 +859,10 @@ function EnginePowersLevel({ category, brand, model, trim, onBack }: { category:
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <Breadcrumb items={[{ label: 'Filtreleme Yönetimi' }, { label: category.name, icon: category.icon }, { label: brand.name }, { label: model.name }, { label: trim.name }]} onBack={onBack} />
+      <Breadcrumb items={[{ label: 'Filtreleme Yönetimi' }, { label: category.name, icon: category.icon }, { label: brand.name }, { label: model.name }, { label: trim.name }, ...(subTrim ? [{ label: subTrim.name }] : [])]} onBack={onBack} />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-extrabold flex items-center gap-2">
-          {brand.name} {model.name} {trim.name} - Motor HP'leri
+          {brand.name} {model.name} {trim.name} {subTrim && `· ${subTrim.name}`} - Motor HP'leri
         </h1>
         <AddToggle open={showForm} setOpen={setShowForm} label="Yeni Motor HP" />
       </div>
