@@ -297,6 +297,8 @@ function BrandsPanel({ category }: { category: Category }) {
   const [name, setName] = useState('');
   const [selectedCats, setSelectedCats] = useState<string[]>([category.id]);
   const [editing, setEditing] = useState<Brand | null>(null);
+  const [showExistingPicker, setShowExistingPicker] = useState(false);
+  const [existingSearch, setExistingSearch] = useState('');
 
   // Kategoriye ait brand_id'leri al
   const categoryBrandIds = brandCats.data
@@ -317,6 +319,39 @@ function BrandsPanel({ category }: { category: Category }) {
       return (data ?? []) as Brand[];
     },
     enabled: categoryBrandIds.length > 0,
+  });
+
+  // Mevcut TÜM markalar (bu kategoride olmayanları seçmek için)
+  const { data: allBrands } = useQuery({
+    queryKey: ['vehicle-brands-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vehicle_brands')
+        .select('id, name, logo_url, is_active, sort_order')
+        .order('sort_order');
+      if (error) throw error;
+      return (data ?? []) as Brand[];
+    },
+  });
+
+  // Bu kategoride OLMAYAN markalar
+  const availableBrands = (allBrands ?? []).filter((b) => !categoryBrandIds.includes(b.id));
+  const filteredAvailable = existingSearch
+    ? availableBrands.filter((b) => b.name.toLowerCase().includes(existingSearch.toLowerCase()))
+    : availableBrands;
+
+  // Mevcut markayı bu kategoriye ekle
+  const addExistingMut = useMutation({
+    mutationFn: async (brandId: string) => {
+      const { error } = await supabase.from('brand_categories').insert({ brand_id: brandId, category_id: category.id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brand-categories-all'] });
+      qc.invalidateQueries({ queryKey: ['vehicle-brands-in-category'] });
+      setShowExistingPicker(false);
+      setExistingSearch('');
+    },
   });
 
   const saveMut = useMutation({
@@ -413,11 +448,64 @@ function BrandsPanel({ category }: { category: Category }) {
         {saveMut.isError && <p className="text-sm text-red-600 mt-2">Hata: {(saveMut.error as any)?.message}</p>}
       </div>
 
+      {/* MEVCUT MARKALARDAN BU KATEGORİYE EKLE */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold flex items-center gap-2 text-sm">
+            📋 Mevcut Markalardan Bu Kategoriye Ekle
+          </h3>
+          <button
+            type="button"
+            onClick={() => setShowExistingPicker((v) => !v)}
+            className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded font-semibold"
+          >
+            {showExistingPicker ? 'Kapat' : 'Aç'}
+          </button>
+        </div>
+        <p className="text-xs text-slate-500">
+          Bu kategoride olmayan tüm markalar ({availableBrands.length} adet)
+        </p>
+        {showExistingPicker && (
+          <div className="mt-3 space-y-2">
+            <input
+              type="text"
+              value={existingSearch}
+              onChange={(e) => setExistingSearch(e.target.value)}
+              placeholder="Marka ara..."
+              className="w-full px-3 py-1.5 border border-slate-300 rounded text-sm"
+            />
+            {availableBrands.length === 0 ? (
+              <p className="text-sm text-emerald-600 py-2">✅ Tüm markalar zaten bu kategoride</p>
+            ) : filteredAvailable.length === 0 ? (
+              <p className="text-sm text-slate-500 py-2">Sonuç bulunamadı</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 max-h-60 overflow-y-auto">
+                {filteredAvailable.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => addExistingMut.mutate(b.id)}
+                    disabled={addExistingMut.isPending}
+                    className="text-left px-2 py-1.5 text-sm border border-slate-200 rounded hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition disabled:opacity-50"
+                  >
+                    + {b.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {addExistingMut.isError && (
+              <p className="text-xs text-red-600">Hata: {(addExistingMut.error as any)?.message}</p>
+            )}
+          </div>
+        )}
+      </div>
+
       {isLoading || brandCats.isLoading ? (
         <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
       ) : data?.length === 0 ? (
-        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg text-slate-500">
-          Bu kategoride marka yok. Yukarıdan yeni marka ekleyin.
+        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg">
+          <p className="text-slate-500 mb-2">Bu kategoride henüz marka yok</p>
+          <p className="text-xs text-slate-400">Yukarıdan yeni marka ekleyin veya mevcut markalardan bu kategoriye ekleyin.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
