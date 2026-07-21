@@ -892,7 +892,7 @@ export default function AuthorizationPage() {
                         .update({ must_change_password: true })
                         .eq('id', passwordTarget.id);
                       if (updErr) throw updErr;
-                      setPasswordMessage({ kind: 'success', text: 'Şifre güncellendi. Admin'den bir sonraki girişte yeni şifre ile girmesi gerekiyor (Supabase Admin API entegrasyonu sonraki adım).' });
+                      setPasswordMessage({ kind: 'success', text: "Şifre güncellendi. Admin'den bir sonraki girişte yeni şifre ile girmesi gerekiyor (Supabase Admin API entegrasyonu sonraki adım)." });
                       setNewPassword('');
                       qc.invalidateQueries({ queryKey: ['admin-users'] });
                     } catch (e: any) {
