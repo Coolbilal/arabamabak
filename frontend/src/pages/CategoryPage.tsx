@@ -718,15 +718,6 @@ function ResultRow({ v, cat }: { v: AuctionVehicle; cat: Cat }) {
             </div>
           )}
         </div>
-        {v.auction && (cat === 'live' || cat === 'upcoming') && (
-          <div className="absolute right-2 bottom-2">
-            <CountdownTimer
-              target={cat === 'upcoming' ? (v.auction.start_at ?? undefined) : (v.auction.end_at ?? undefined)}
-              size="sm"
-              glow
-            />
-          </div>
-        )}
       </div>
       <div className="flex-1 space-y-2">
         <div className="flex items-start justify-between gap-2 flex-wrap">
