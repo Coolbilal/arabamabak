@@ -7,8 +7,8 @@ interface Props {
   showMs?: boolean;
   className?: string;
   endedLabel?: string;
-  /** "hmsm" → saat:dakika:saniye:salise, "msm" → dakika:saniye:salise */
-  format?: 'hmsm' | 'msm';
+  /** "hmsm" → saat:dk:sn, "msm" → dk:sn, "auto" → süre > 1 saat ise saat:dk:sn, yoksa dk:sn */
+  format?: 'hmsm' | 'msm' | 'auto';
   /** ışık efekti aktif mi */
   glow?: boolean;
   size?: 'sm' | 'md' | 'lg';
@@ -38,21 +38,24 @@ export default function CountdownTimer({
 
   const sizeCls = size === 'sm' ? 'text-xs px-1.5 py-0.5' : size === 'lg' ? 'text-lg px-2.5 py-1.5' : 'text-sm px-2 py-1';
 
+  // auto: süre 1 saatten fazla ise saat:dk:sn, az ise dk:sn
+  const showHours = format === 'auto' ? (t.days * 24 + t.hours > 0) : format === 'hmsm';
+  const showMinutes = format !== 'msm' ? true : true; // hmsm, msm, auto hepsinde dakika var
+  const showLeadingMinute = format === 'msm' || (format === 'auto' && !showHours);
+
   return (
     <div className={cn('inline-flex items-center gap-1 font-mono font-bold tabular-nums', className)}>
-      {format === 'hmsm' && (
+      {showHours && (
         <>
           <Box v={pad(t.days * 24 + t.hours, 2)} label="saat" sizeCls={sizeCls} glow={glow} />
           <span className={cn(glow && 'animate-pulse-glow rounded text-red-500')}>:</span>
-          <Box v={pad(t.minutes, 2)} label="dk" sizeCls={sizeCls} glow={glow} />
-          <span className={cn(glow && 'animate-pulse-glow rounded text-red-500')}>:</span>
         </>
       )}
-      {format === 'msm' && (
-        <>
-          <Box v={pad(t.minutes, 2)} label="dk" sizeCls={sizeCls} glow={glow} />
-          <span className={cn(glow && 'animate-pulse-glow rounded text-red-500')}>:</span>
-        </>
+      {showMinutes && (
+        <Box v={pad(t.minutes, 2)} label="dk" sizeCls={sizeCls} glow={glow} />
+      )}
+      {showMinutes && (
+        <span className={cn(glow && 'animate-pulse-glow rounded text-red-500')}>:</span>
       )}
       <Box v={pad(t.seconds, 2)} label="sn" sizeCls={sizeCls} glow={glow} />
       {showMs && (

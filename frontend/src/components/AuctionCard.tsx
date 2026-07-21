@@ -96,7 +96,7 @@ export default function AuctionCard({ auction, className }: Props) {
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500">Kalan Süre</span>
-              <CountdownTimer target={a.end_at ?? undefined} glow={live} size="sm" />
+              <CountdownTimer target={a.end_at ?? undefined} glow={live} size="sm" format="auto" showMs />
             </div>
           </div>
         )}

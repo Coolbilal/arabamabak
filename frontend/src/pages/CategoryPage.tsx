@@ -665,6 +665,8 @@ function ResultCard({ v, cat }: { v: AuctionVehicle; cat: Cat }) {
               target={cat === 'upcoming' ? (v.auction.start_at ?? undefined) : (v.auction.end_at ?? undefined)}
               size="sm"
               glow
+              format="auto"
+              showMs
             />
           </div>
         )}
@@ -748,6 +750,8 @@ function ResultRow({ v, cat }: { v: AuctionVehicle; cat: Cat }) {
               target={cat === 'upcoming' ? (v.auction.start_at ?? undefined) : (v.auction.end_at ?? undefined)}
               size="sm"
               glow
+              format="auto"
+              showMs
             />
           </div>
         )}

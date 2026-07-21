@@ -676,12 +676,12 @@ function AuctionCard({ v, type }: { v: AuctionVehicle; type: 'live' | 'upcoming'
         {/* Sağ alt: countdown */}
         {v.auction && !isUpcoming && v.auction.live_ends_at && (
           <div className="absolute bottom-2 right-2 rounded-md bg-red-600/95 px-2.5 py-1 ring-2 ring-red-300 shadow-lg shadow-red-500/40 animate-pulse-glow">
-            <Countdown target={v.auction.live_ends_at} format="short" className="text-white font-extrabold" />
+            <Countdown target={v.auction.live_ends_at} format="auto" showCentiseconds className="text-white font-extrabold" />
           </div>
         )}
         {v.auction && isUpcoming && v.auction.start_at && (
           <div className="absolute bottom-2 right-2 rounded-md bg-slate-900/90 px-2 py-1">
-            <Countdown target={v.auction.start_at} format="full" className="text-white" />
+            <Countdown target={v.auction.start_at} format="auto" showCentiseconds className="text-white" />
           </div>
         )}
       </div>

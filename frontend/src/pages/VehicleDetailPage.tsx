@@ -791,14 +791,16 @@ function AuctionPanel({
               target={(auction as any).live_ends_at || auction.end_at}
               size="lg"
               glow
-              format="msm"
+              format="auto"
+              showMs
             />
           ) : isScheduled ? (
             <CountdownTimer
               target={auction.start_at ?? undefined}
               size="lg"
               glow={false}
-              format="hmsm"
+              format="auto"
+              showMs
             />
           ) : (
             <div className="text-2xl font-bold">⏱ Süre Doldu</div>

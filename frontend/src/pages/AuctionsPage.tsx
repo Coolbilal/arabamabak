@@ -241,13 +241,13 @@ export default function AuctionsPage() {
                   {a.status === 'scheduled' && a.start_at && (
                     <div className="pt-2 border-t border-amber-100 bg-amber-50 -mx-4 -mb-4 px-4 py-2 mt-2">
                       <div className="text-[10px] text-amber-700 uppercase font-semibold mb-0.5">Mezat Başlangıcına</div>
-                      <Countdown target={a.start_at} format="full" variant="default" />
+                      <Countdown target={a.start_at} format="auto" showCentiseconds variant="default" />
                     </div>
                   )}
                   {a.status === 'live' && a.live_ends_at && (
                     <div className="pt-2 border-t border-emerald-200 bg-emerald-50 -mx-4 -mb-4 px-4 py-2 mt-2">
                       <div className="text-[10px] text-emerald-700 uppercase font-semibold mb-0.5">Mezat Bitişine</div>
-                      <Countdown target={a.live_ends_at} format="short" variant="default" />
+                      <Countdown target={a.live_ends_at} format="auto" showCentiseconds variant="default" />
                     </div>
                   )}
                   {a.status === 'ended' && (
