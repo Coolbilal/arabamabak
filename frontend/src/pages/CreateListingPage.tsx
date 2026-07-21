@@ -129,6 +129,7 @@ export default function CreateListingPage() {
   // Yeni cascade wizard state
   const [cascade, setCascade] = useState<CascadeValue>({
     year: null, fuel: null, brand: null, model: null, engine: null, subModel: null,
+    trim: null, subTrim: null, enginePower: null,
   });
 
   // Yönlendirme için state + useEffect (hooks kuralı: tüm hooks'lar return'den önce)
