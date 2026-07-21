@@ -539,6 +539,9 @@ function ModelsPanel({ category }: { category: Category }) {
   const [name, setName] = useState('');
   const [brandId, setBrandId] = useState('');
   const [editing, setEditing] = useState<Model | null>(null);
+  const [showExistingPicker, setShowExistingPicker] = useState(false);
+  const [existingSearch, setExistingSearch] = useState('');
+  const [pickBrandId, setPickBrandId] = useState('');
 
   // Kategoriye ait markalar
   const categoryBrandIds = brandCats.data
@@ -601,6 +604,47 @@ function ModelsPanel({ category }: { category: Category }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicle-models-in-category'] }),
   });
 
+  // TÜM modeller (mevcut listeden seçmek için)
+  const { data: allModels } = useQuery({
+    queryKey: ['vehicle-models-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vehicle_models')
+        .select('id, name, brand_id, brand:vehicle_brands(name)')
+        .order('name');
+      if (error) throw error;
+      return (data ?? []) as { id: string; name: string; brand_id: string; brand: { name: string } | null }[];
+    },
+  });
+
+  // Kategoriye ait markaların modelleri zaten var (üstte var), availableModels bunun disindaki
+  const existingModelIds = (data ?? []).map((m) => m.id);
+  const availableModels = (allModels ?? []).filter((m) => !existingModelIds.includes(m.id));
+  const filteredAvailable = existingSearch
+    ? availableModels.filter((m) => m.name.toLowerCase().includes(existingSearch.toLowerCase()) || (m.brand?.name ?? '').toLowerCase().includes(existingSearch.toLowerCase()))
+    : availableModels;
+
+  // Mevcut modeli bu markanın altına ekle (modeli güncelle, brand_id degistir)
+  const addExistingMut = useMutation({
+    mutationFn: async ({ modelId, targetBrandId }: { modelId: string; targetBrandId: string }) => {
+      // Modeli sil, yeni marka altinda olustur (CASCADE temizlik)
+      const old = allModels?.find((m) => m.id === modelId);
+      if (!old) throw new Error('Model bulunamadı');
+      // INSERT yeni, eskiyi sil
+      const { error: insertErr } = await supabase.from('vehicle_models').insert({ name: old.name, brand_id: targetBrandId, is_active: true });
+      if (insertErr) throw insertErr;
+      const { error: delErr } = await supabase.from('vehicle_models').delete().eq('id', modelId);
+      if (delErr) throw delErr;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vehicle-models-in-category'] });
+      qc.invalidateQueries({ queryKey: ['vehicle-models-all'] });
+      setShowExistingPicker(false);
+      setExistingSearch('');
+      setPickBrandId('');
+    },
+  });
+
   return (
     <div>
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
@@ -633,11 +677,67 @@ function ModelsPanel({ category }: { category: Category }) {
         </form>
       </div>
 
+      {/* MEVCUT MODELLERİ BU KATEGORİYE EKLE */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold flex items-center gap-2 text-sm">📋 Mevcut Modellerden Bu Kategoriye Ekle</h3>
+          <button type="button" onClick={() => setShowExistingPicker((v) => !v)} className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded font-semibold">
+            {showExistingPicker ? 'Kapat' : 'Aç'}
+          </button>
+        </div>
+        <p className="text-xs text-slate-500">
+          Bu kategoride olmayan tüm modeller ({availableModels.length} adet) - farklı markalardan
+        </p>
+        {showExistingPicker && (
+          <div className="mt-3 space-y-2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select value={pickBrandId} onChange={(e) => setPickBrandId(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
+                <option value="">Tüm markalar</option>
+                {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              <input type="text" value={existingSearch} onChange={(e) => setExistingSearch(e.target.value)} placeholder="Model ara..." className="flex-1 px-3 py-1.5 border border-slate-300 rounded text-sm" />
+            </div>
+            {availableModels.length === 0 ? (
+              <p className="text-sm text-emerald-600 py-2">✅ Tüm modeller zaten bu kategoride</p>
+            ) : filteredAvailable.length === 0 ? (
+              <p className="text-sm text-slate-500 py-2">Sonuç bulunamadı</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-60 overflow-y-auto">
+                {filteredAvailable.filter((m) => !pickBrandId || m.brand_id === pickBrandId).map((m) => (
+                  <div key={m.id} className="flex items-center gap-1">
+                    <span className="text-xs text-slate-500 truncate flex-1">{m.brand?.name} {m.name}</span>
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          addExistingMut.mutate({ modelId: m.id, targetBrandId: e.target.value });
+                          e.target.value = '';
+                        }
+                      }}
+                      disabled={addExistingMut.isPending}
+                      className="text-xs border border-slate-300 rounded px-1 py-0.5"
+                      defaultValue=""
+                    >
+                      <option value="" disabled>Ekle →</option>
+                      {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+            {addExistingMut.isError && (
+              <p className="text-xs text-red-600">Hata: {(addExistingMut.error as any)?.message}</p>
+            )}
+            <p className="text-xs text-slate-400">💡 Modeli başka bir markaya taşımak için: marka seç → model eski yerinden silinip yeni markanın altına eklenir</p>
+          </div>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
       ) : data?.length === 0 ? (
-        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg text-slate-500">
-          Bu kategoride model yok. Önce "Markalar" tab'ından marka ekleyin.
+        <div className="text-center py-12 bg-white border border-slate-200 rounded-lg">
+          <p className="text-slate-500 mb-2">Bu kategoride henüz model yok</p>
+          <p className="text-xs text-slate-400">Önce "Markalar" tab'ından marka ekleyin.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
