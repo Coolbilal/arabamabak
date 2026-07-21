@@ -787,6 +787,8 @@ function TrimsPanel({ category }: { category: Category }) {
   const [name, setName] = useState('');
   const [modelId, setModelId] = useState('');
   const [editing, setEditing] = useState<Trim | null>(null);
+  const [filterBrand, setFilterBrand] = useState('');
+  const [filterModel, setFilterModel] = useState('');
 
   const categoryBrandIds = brandCats.data
     ?.filter((bc) => bc.category_id === category.id)
@@ -854,6 +856,27 @@ function TrimsPanel({ category }: { category: Category }) {
 
   return (
     <div>
+      {/* Marka + Model Filtreleri */}
+      <div className="mb-3 flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg">
+        <label className="text-sm font-semibold text-slate-700">Marka:</label>
+        <select value={filterBrand} onChange={(e) => { setFilterBrand(e.target.value); setFilterModel(''); }} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
+          <option value="">Tüm markalar</option>
+          {(() => {
+            const uniqueBrands = new Map<string, { id: string; name: string }>();
+            (models ?? []).forEach((m) => { if (m.brand) uniqueBrands.set(m.brand_id, { id: m.brand_id, name: m.brand.name }); });
+            return Array.from(uniqueBrands.values()).map((b) => <option key={b.id} value={b.id}>{b.name}</option>);
+          })()}
+        </select>
+        <label className="text-sm font-semibold text-slate-700 ml-2">Model:</label>
+        <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
+          <option value="">Tüm modeller</option>
+          {(models ?? []).filter((m) => !filterBrand || m.brand_id === filterBrand).map((m) => <option key={m.id} value={m.id}>{m.brand?.name} {m.name}</option>)}
+        </select>
+        <span className="text-sm text-slate-500 ml-auto">
+          {data?.filter((t) => !filterModel || t.model_id === filterModel).length ?? 0} / {data?.length ?? 0} paket
+        </span>
+      </div>
+
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
         <h3 className="font-semibold mb-3 flex items-center gap-2">
           {editing ? <><Pencil className="h-4 w-4" /> Paket Düzenle</> : <><Plus className="h-4 w-4" /> Yeni Paket Ekle</>}
@@ -892,7 +915,7 @@ function TrimsPanel({ category }: { category: Category }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {data?.map((t) => (
+          {data?.filter((t) => !filterModel || t.model_id === filterModel).map((t) => (
             <div key={t.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="text-xs text-slate-500">{t.label}</div>
@@ -921,6 +944,8 @@ function EnginePowersPanel({ category }: { category: Category }) {
   const [hp, setHp] = useState('');
   const [modelId, setModelId] = useState('');
   const [editing, setEditing] = useState<EnginePower | null>(null);
+  const [filterBrand, setFilterBrand] = useState('');
+  const [filterModel, setFilterModel] = useState('');
 
   const categoryBrandIds = brandCats.data
     ?.filter((bc) => bc.category_id === category.id)
@@ -986,6 +1011,27 @@ function EnginePowersPanel({ category }: { category: Category }) {
 
   return (
     <div>
+      {/* Marka + Model Filtreleri */}
+      <div className="mb-3 flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-lg">
+        <label className="text-sm font-semibold text-slate-700">Marka:</label>
+        <select value={filterBrand} onChange={(e) => { setFilterBrand(e.target.value); setFilterModel(''); }} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
+          <option value="">Tüm markalar</option>
+          {(() => {
+            const uniqueBrands = new Map<string, { id: string; name: string }>();
+            (models ?? []).forEach((m) => { if (m.brand) uniqueBrands.set(m.brand_id, { id: m.brand_id, name: m.brand.name }); });
+            return Array.from(uniqueBrands.values()).map((b) => <option key={b.id} value={b.id}>{b.name}</option>);
+          })()}
+        </select>
+        <label className="text-sm font-semibold text-slate-700 ml-2">Model:</label>
+        <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded text-sm">
+          <option value="">Tüm modeller</option>
+          {(models ?? []).filter((m) => !filterBrand || m.brand_id === filterBrand).map((m) => <option key={m.id} value={m.id}>{m.brand?.name} {m.name}</option>)}
+        </select>
+        <span className="text-sm text-slate-500 ml-auto">
+          {data?.filter((p) => !filterModel || p.model_id === filterModel).length ?? 0} / {data?.length ?? 0} motor
+        </span>
+      </div>
+
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
         <h3 className="font-semibold mb-3 flex items-center gap-2">
           {editing ? <><Pencil className="h-4 w-4" /> Motor HP Düzenle</> : <><Plus className="h-4 w-4" /> Yeni Motor HP Ekle</>}
@@ -1030,7 +1076,7 @@ function EnginePowersPanel({ category }: { category: Category }) {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {data?.map((p) => (
+          {data?.filter((p) => !filterModel || p.model_id === filterModel).map((p) => (
             <div key={p.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="text-xs text-slate-500 truncate">{p.label}</div>
