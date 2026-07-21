@@ -752,20 +752,17 @@ function EnginePowersLevel({ category, brand, model, trim, onBack }: { category:
 
       {showForm && (
         <form
-          onSubmit={(e) => { e.preventDefault(); const n = parseInt(hp); if (!n) return; addNewMut.mutate(n); }}
+          onSubmit={(e) => { e.preventDefault(); const v = hp.trim(); if (!v) return; const n = parseInt(v); addNewMut.mutate(isNaN(n) ? 0 : n); }}
           className="bg-white border border-slate-200 rounded-xl p-4 mb-4 flex gap-2"
         >
           <input
-            type="number"
+            type="text"
             value={hp}
             onChange={(e) => setHp(e.target.value)}
-            placeholder="HP (örn. 184)"
-            min="20"
-            max="2000"
+            placeholder="HP veya motor kodu (örn. 184, 2.0 TDI, 320d)"
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg"
             required
           />
-          <span className="text-sm text-slate-500 font-semibold self-center">HP</span>
           <button type="submit" disabled={addNewMut.isPending} className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50">
             {addNewMut.isPending ? 'Ekleniyor...' : 'Ekle'}
           </button>
@@ -778,16 +775,16 @@ function EnginePowersLevel({ category, brand, model, trim, onBack }: { category:
       ) : data?.length === 0 ? (
         <div className="text-center py-12 bg-white border border-slate-200 rounded-lg">
           <p className="text-slate-500 mb-2">Bu modelde henüz motor HP yok</p>
-          <p className="text-xs text-slate-400">Yukarıdan yeni motor HP ekleyin (örn. 110, 150, 184)</p>
+          <p className="text-xs text-slate-400">Yukarıdan yeni motor HP ekleyin (örn. 184, 2.0 TDI, 320d)</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {data?.map((p) => (
             <div key={p.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-lg">{p.hp} <span className="text-sm text-slate-500">HP</span></div>
+                <div className="font-bold text-lg">{p.hp} {p.hp >= 20 && p.hp <= 2000 ? <span className="text-sm text-slate-500">HP</span> : null}</div>
               </div>
-              <DeleteButton onConfirm={() => deleteMut.mutate(p.id)} message={`${p.hp} HP motorunu silmek istediğine emin misin?`} />
+              <DeleteButton onConfirm={() => deleteMut.mutate(p.id)} message={`"${p.hp}" motorunu silmek istediğine emin misin?`} />
             </div>
           ))}
         </div>
