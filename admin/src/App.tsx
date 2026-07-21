@@ -13,6 +13,7 @@ import SettingsPage from './pages/SettingsPage';
 import EidsSettingsPage from './pages/EidsSettingsPage';
 import InfoPagesPage from "./pages/InfoPagesPage";
 import InfoPageEditPage from "./pages/InfoPageEditPage";
+import CatalogPage from "./pages/CatalogPage";
 import EidsLogsPage from './pages/EidsLogsPage';
 import AuthorizationPage from './pages/AuthorizationPage';
 import DealershipsPage from './pages/DealershipsPage';
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="info-pages" element={<InfoPagesPage />} />
         <Route path="info-pages/new" element={<InfoPageEditPage />} />
         <Route path="info-pages/:id/edit" element={<InfoPageEditPage />} />
+        <Route path="catalog" element={<CatalogPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
