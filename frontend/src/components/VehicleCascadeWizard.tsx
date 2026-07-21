@@ -7,6 +7,9 @@ type Brand = { id: string; name: string; logo_url?: string | null };
 type Model = { id: string; name: string; brand_id: string };
 type Engine = { id: string; name: string; displacement_cc?: number | null; power_hp?: number | null; model_id: string };
 type SubModel = { id: string; name: string; model_id: string };
+type Trim = { id: string; name: string; model_id: string };
+type SubTrim = { id: string; name: string; trim_id: string };
+type EnginePower = { id: string; hp: string; model_id: string };
 
 const FUEL_TYPES = [
   { code: 'dizel', label: 'Dizel' },
@@ -26,6 +29,9 @@ export type CascadeValue = {
   model: Model | null;
   engine: Engine | null;
   subModel: SubModel | null;
+  trim: Trim | null;
+  subTrim: SubTrim | null;
+  enginePower: EnginePower | null;
 };
 
 type Props = {
@@ -38,10 +44,16 @@ export default function VehicleCascadeWizard({ value, onChange }: Props) {
   const [models, setModels] = useState<Model[]>([]);
   const [engines, setEngines] = useState<Engine[]>([]);
   const [subModels, setSubModels] = useState<SubModel[]>([]);
+  const [trims, setTrims] = useState<Trim[]>([]);
+  const [subTrims, setSubTrims] = useState<SubTrim[]>([]);
+  const [enginePowers, setEnginePowers] = useState<EnginePower[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
   const [loadingEngines, setLoadingEngines] = useState(false);
   const [loadingSubModels, setLoadingSubModels] = useState(false);
+  const [loadingTrims, setLoadingTrims] = useState(false);
+  const [loadingSubTrims, setLoadingSubTrims] = useState(false);
+  const [loadingEnginePowers, setLoadingEnginePowers] = useState(false);
 
   // 1) Markalar (her zaman yükle, brand gerekince)
   useEffect(() => {
@@ -111,19 +123,86 @@ export default function VehicleCascadeWizard({ value, onChange }: Props) {
       });
   }, [value.model]);
 
+  // 5) Paketler (model seçilince)
+  useEffect(() => {
+    if (!value.model) {
+      setTrims([]);
+      return;
+    }
+    setLoadingTrims(true);
+    supabase
+      .from('vehicle_trims')
+      .select('id, name, model_id')
+      .eq('model_id', value.model.id)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => {
+        setTrims((data ?? []) as Trim[]);
+        setLoadingTrims(false);
+      });
+  }, [value.model]);
+
+  // 6) Alt Paketler (paket seçilince)
+  useEffect(() => {
+    if (!value.trim) {
+      setSubTrims([]);
+      return;
+    }
+    setLoadingSubTrims(true);
+    supabase
+      .from('vehicle_sub_trims')
+      .select('id, name, trim_id')
+      .eq('trim_id', value.trim.id)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => {
+        setSubTrims((data ?? []) as SubTrim[]);
+        setLoadingSubTrims(false);
+      });
+  }, [value.trim]);
+
+  // 7) Motor HP'ler (model seçilince, alt pakete bağlı değil)
+  useEffect(() => {
+    if (!value.model) {
+      setEnginePowers([]);
+      return;
+    }
+    setLoadingEnginePowers(true);
+    supabase
+      .from('vehicle_engine_powers')
+      .select('id, hp, model_id')
+      .eq('model_id', value.model.id)
+      .eq('is_active', true)
+      .order('hp', { ascending: true })
+      .then(({ data }) => {
+        setEnginePowers((data ?? []) as EnginePower[]);
+        setLoadingEnginePowers(false);
+      });
+  }, [value.model]);
+
   function pick<K extends keyof CascadeValue>(key: K, val: CascadeValue[K]) {
     // Sıralı reset: sonraki adımları sıfırla
     const reset: Partial<CascadeValue> = {};
     if (key === 'year') {
       reset.fuel = null; reset.brand = null; reset.model = null; reset.engine = null; reset.subModel = null;
+      reset.trim = null; reset.subTrim = null; reset.enginePower = null;
     } else if (key === 'fuel') {
       reset.brand = null; reset.model = null; reset.engine = null; reset.subModel = null;
+      reset.trim = null; reset.subTrim = null; reset.enginePower = null;
     } else if (key === 'brand') {
       reset.model = null; reset.engine = null; reset.subModel = null;
+      reset.trim = null; reset.subTrim = null; reset.enginePower = null;
     } else if (key === 'model') {
       reset.engine = null; reset.subModel = null;
+      reset.trim = null; reset.subTrim = null; reset.enginePower = null;
     } else if (key === 'engine') {
       reset.subModel = null;
+    } else if (key === 'trim') {
+      reset.subTrim = null;
+    } else if (key === 'subTrim') {
+      // nothing
+    } else if (key === 'enginePower') {
+      // nothing
     }
     onChange({ ...value, [key]: val, ...reset });
   }
@@ -285,6 +364,79 @@ export default function VehicleCascadeWizard({ value, onChange }: Props) {
         </Section>
       )}
 
+      {/* 8) Paket (YENİ) - sadece bu model için paket varsa goster */}
+      {value.model && trims.length > 0 && (
+        <Section icon={<Tag className="h-4 w-4" />} title="Paket" active={!value.trim} done={!!value.trim}>
+          {value.trim ? (
+            <Pill onRemove={() => pick('trim', null)}>{value.trim.name}</Pill>
+          ) : loadingTrims ? (
+            <Spinner text="Paketler yükleniyor…" />
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {trims.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => pick('trim', t)}
+                  className="p-3 rounded-lg border border-slate-200 hover:border-red-500 hover:bg-red-50 transition text-sm font-medium"
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* 9) Alt Paket (YENİ) - sadece bu pakete ait alt paket varsa goster */}
+      {value.trim && (
+        <Section icon={<Layers className="h-4 w-4" />} title="Alt Paket (Motor Kodu)" active={!value.subTrim} done={!!value.subTrim}>
+          {value.subTrim ? (
+            <Pill onRemove={() => pick('subTrim', null)}>{value.subTrim.name}</Pill>
+          ) : loadingSubTrims ? (
+            <Spinner text="Alt paketler yükleniyor…" />
+          ) : subTrims.length === 0 ? (
+            <EmptyState text="Bu pakete alt paket tanımlanmamış (opsiyonel)." />
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {subTrims.map((st) => (
+                <button
+                  key={st.id}
+                  onClick={() => pick('subTrim', st)}
+                  className="p-3 rounded-lg border border-slate-200 hover:border-red-500 hover:bg-red-50 transition text-sm font-medium"
+                >
+                  {st.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* 10) Motor HP (YENİ) - sadece bu model için HP varsa goster */}
+      {value.model && enginePowers.length > 0 && (
+        <Section icon={<Cog className="h-4 w-4" />} title="Motor Gücü" active={!value.enginePower} done={!!value.enginePower}>
+          {value.enginePower ? (
+            <Pill onRemove={() => pick('enginePower', null)}>
+              {value.enginePower.hp} {/^\d+$/.test(value.enginePower.hp) ? 'HP' : ''}
+            </Pill>
+          ) : loadingEnginePowers ? (
+            <Spinner text="Motor HP'leri yükleniyor…" />
+          ) : (
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+              {enginePowers.map((ep) => (
+                <button
+                  key={ep.id}
+                  onClick={() => pick('enginePower', ep)}
+                  className="p-2 rounded-lg border border-slate-200 hover:border-red-500 hover:bg-red-50 transition text-sm font-semibold"
+                >
+                  {ep.hp} {/^\d+$/.test(ep.hp) ? 'HP' : ''}
+                </button>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
       {/* Sağdaki Araç Seçim Kartı */}
       {value.model && (
         <VehicleSummaryCard value={value} />
@@ -305,6 +457,9 @@ function Breadcrumb({ value, onClear }: { value: CascadeValue; onClear: (k: keyo
   if (value.model) items.push({ label: value.model.name, onClick: () => onClear('model') });
   if (value.engine) items.push({ label: value.engine.name, onClick: () => onClear('engine') });
   if (value.subModel) items.push({ label: value.subModel.name, onClick: () => onClear('subModel') });
+  if (value.trim) items.push({ label: value.trim.name, onClick: () => onClear('trim') });
+  if (value.subTrim) items.push({ label: value.subTrim.name, onClick: () => onClear('subTrim') });
+  if (value.enginePower) items.push({ label: `${value.enginePower.hp}${/^\d+$/.test(value.enginePower.hp) ? ' HP' : ''}`, onClick: () => onClear('enginePower') });
 
   if (items.length === 0) return null;
 
