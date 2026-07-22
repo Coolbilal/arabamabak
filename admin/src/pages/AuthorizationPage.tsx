@@ -396,11 +396,15 @@ export default function AuthorizationPage() {
       setGlobalError('Sadece süper admin yeni admin oluşturabilir');
       return;
     }
-    // 1) Supabase Auth signUp
+    // 1) Username'den tam email oluştur
+    const cleanUsername = values.username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    const fullEmail = `${cleanUsername}@arabamabak.com`;
+
+    // 2) Supabase Auth signUp
     // NOT: Eğer Supabase'de "Confirm email" AÇIKSA, signUp user oluşturmaz ve FK hatası verir.
     // Çözüm: Supabase Dashboard > Authentication > Providers > Email > Confirm email = OFF
     const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-      email: values.email.trim(),
+      email: fullEmail,
       password: values.password,
       options: { data: { full_name: values.full_name } },
     });
@@ -415,12 +419,12 @@ export default function AuthorizationPage() {
       );
       return;
     }
-    // 2) admin_users satırı
+    // 3) admin_users satırı
     const { error: insErr } = await supabase.from('admin_users').insert({
       user_id: newUserId,
-      username: values.username.trim(),
+      username: fullEmail,  // Tam email'i username olarak kaydet
       full_name: values.full_name.trim(),
-      email: values.email.trim(),
+      email: fullEmail,
       is_active: true,
       is_super_admin: false,
       created_by: admin.id,
@@ -797,12 +801,18 @@ export default function AuthorizationPage() {
                 {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
               </div>
               <div>
-                <label className="label">Kullanıcı Adı</label>
-                <div className="relative">
-                  <UserIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input className={cn('input pl-9', errors.username && 'border-red-400')} {...register('username')} />
+                <label className="label">Kullanıcı Adı <span className="text-slate-400 font-normal">(giriş için email)</span></label>
+                <div className="relative flex items-center">
+                  <UserIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+                  <input
+                    className={cn('input pl-9 pr-44', errors.username && 'border-red-400')}
+                    placeholder="operator1"
+                    {...register('username')}
+                  />
+                  <span className="absolute right-3 text-sm text-slate-500 font-mono pointer-events-none">@arabamabak.com</span>
                 </div>
                 {errors.username && <p className="mt-1 text-xs text-red-600">{errors.username.message}</p>}
+                <p className="mt-1 text-[10px] text-slate-400">Sadece kullanıcı adını yazın (örn. operator1), @arabamabak.com otomatik eklenir.</p>
               </div>
               <div>
                 <label className="label">Ad Soyad</label>
