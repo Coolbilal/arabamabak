@@ -368,6 +368,8 @@ export default function AuthorizationPage() {
       return;
     }
     // 1) Supabase Auth signUp
+    // NOT: Eğer Supabase'de "Confirm email" AÇIKSA, signUp user oluşturmaz ve FK hatası verir.
+    // Çözüm: Supabase Dashboard > Authentication > Providers > Email > Confirm email = OFF
     const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
       email: values.email.trim(),
       password: values.password,
@@ -379,7 +381,9 @@ export default function AuthorizationPage() {
     }
     const newUserId = signUpData.user?.id;
     if (!newUserId) {
-      setGlobalError('Kullanıcı oluşturulamadı (user id alınamadı)');
+      setGlobalError(
+        'Kullanıcı oluşturulamadı. Supabase Dashboard > Authentication > Providers > Email bölümünde "Confirm email" seçeneğini KAPATIN, sonra tekrar deneyin.'
+      );
       return;
     }
     // 2) admin_users satırı
