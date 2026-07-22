@@ -400,29 +400,66 @@ export default function AuthorizationPage() {
     const cleanUsername = values.username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
     const fullEmail = `${cleanUsername}@arabamabak.com`;
 
-    // 2) Supabase Auth signUp
-    // NOT: Eğer Supabase'de "Confirm email" AÇIKSA, signUp user oluşturmaz ve FK hatası verir.
-    // Çözüm: Supabase Dashboard > Authentication > Providers > Email > Confirm email = OFF
-    const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-      email: fullEmail,
-      password: values.password,
-      options: { data: { full_name: values.full_name } },
-    });
-    if (signUpErr) {
-      setGlobalError(signUpErr.message);
-      return;
+    // 2) Mevcut kullanıcı kontrolü (auth.users'ta var mı?)
+    // signUp öncesi mevcut user'ı bul, varsa user_id'sini kullan
+    let newUserId: string | undefined;
+    try {
+      const { data: listData, error: listErr } = await supabase.auth.admin.listUsers();
+      if (!listErr && listData?.users) {
+        const existing = listData.users.find((u: any) => u.email === fullEmail);
+        if (existing) {
+          newUserId = existing.id;
+        }
+      }
+    } catch (e) {
+      // admin API yoksa devam et
     }
-    const newUserId = signUpData.user?.id;
+
+    // 3) User yoksa signUp ile oluştur
     if (!newUserId) {
-      setGlobalError(
-        'Kullanıcı oluşturulamadı. Supabase Dashboard > Authentication > Providers > Email bölümünde "Confirm email" seçeneğini KAPATIN, sonra tekrar deneyin.'
-      );
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: fullEmail,
+        password: values.password,
+        options: { data: { full_name: values.full_name } },
+      });
+      if (signUpErr) {
+        // 'User already registered' hatası durumunda: mevcut user'ı RPC ile bul
+        if (signUpErr.message?.toLowerCase().includes('already registered') || 
+            signUpErr.message?.toLowerCase().includes('already exists')) {
+          setGlobalError(
+            `Bu email (${fullEmail}) Supabase auth.users'ta zaten var ama admin_users'da yok. ` +
+            'Çözüm: Supabase Dashboard > SQL Editor\'de şu sorguyu çalıştırın:\n\n' +
+            `SELECT id, email FROM auth.users WHERE email = '${fullEmail}';\n\n` +
+            'Sonra gelen id değerini bana söyleyin, admin_users\'a manuel ekleyelim.'
+          );
+        } else {
+          setGlobalError(signUpErr.message);
+        }
+        return;
+      }
+      newUserId = signUpData.user?.id;
+    }
+    
+    if (!newUserId) {
+      setGlobalError('Kullanıcı oluşturulamadı (user id alınamadı)');
       return;
     }
-    // 3) admin_users satırı
+
+    // 4) admin_users'ta zaten var mı kontrol et
+    const { data: existingAdmin } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('user_id', newUserId)
+      .maybeSingle();
+    if (existingAdmin) {
+      setGlobalError(`Bu email (${fullEmail}) için admin kaydı zaten var.`);
+      return;
+    }
+
+    // 5) admin_users satırı
     const { error: insErr } = await supabase.from('admin_users').insert({
       user_id: newUserId,
-      username: fullEmail,  // Tam email'i username olarak kaydet
+      username: fullEmail,
       full_name: values.full_name.trim(),
       email: fullEmail,
       is_active: true,
