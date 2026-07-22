@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         is_active: data.is_active,
         permissions: (data.admin_permissions || []).map((p: any) => ({
           area: p.area,
+          sub_area: p.sub_area,
           can_view: p.can_view,
           can_edit: p.can_edit,
           can_approve: p.can_approve,
