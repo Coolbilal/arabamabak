@@ -10,6 +10,7 @@ import VehicleDetailAdBanner from '../components/VehicleDetailAdBanner';
 import Tabs from '../components/Tabs';
 import VehiclePaintDiagram from '../components/VehiclePaintDiagram';
 import ShareButton from '../components/ShareButton';
+import SeatPanel from '../components/SeatPanel';
 import type {
   Auction,
   Bid,
@@ -460,6 +461,14 @@ export default function VehicleDetailPage() {
           </div>
 
           <VehicleDetailAdBanner />
+
+          {/* Masa Paneli - sadece açık arttırma ilanlarında */}
+          {v.listing_type !== 'free' && id && (
+            <SeatPanel
+              auctionId={id}
+              seatFee={500}
+            />
+          )}
 
           <div className="card p-4 text-xs text-slate-500 space-y-1">
             <div className="flex items-center gap-1.5">
