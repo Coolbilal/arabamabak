@@ -82,7 +82,8 @@ export default function SeatPanel({ auctionId, seatFee, auctionStatus, className
 
   // Durum logic
   const isWinner = highestBidder?.user_id === user?.id;
-  const isInSeat = !!mySeat && mySeat.status === 'holding';
+  // left_at set edilmişse veya status 'released' ise masada değil
+  const isInSeat = !!mySeat && mySeat.status === 'holding' && !mySeat.left_at;
 
   // "Masadan Ayrıl" aktif mi?
   // - Masada olmalı
