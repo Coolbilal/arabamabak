@@ -18,6 +18,7 @@ interface AdminUserRow {
   user_id: string;
   username: string;
   full_name: string | null;
+  email: string | null;
   is_active: boolean;
   is_super_admin: boolean;
   last_login_at: string | null;
@@ -317,7 +318,7 @@ export default function AuthorizationPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('admin_users')
-        .select('id, user_id, username, full_name, is_active, is_super_admin, last_login_at, created_at, custom_role, must_change_password')
+        .select('id, user_id, username, full_name, email, is_active, is_super_admin, last_login_at, created_at, custom_role, must_change_password')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as AdminUserRow[];
@@ -386,6 +387,7 @@ export default function AuthorizationPage() {
       user_id: newUserId,
       username: values.username.trim(),
       full_name: values.full_name.trim(),
+      email: values.email.trim(),
       is_active: true,
       is_super_admin: false,
       created_by: admin.id,
@@ -499,6 +501,36 @@ export default function AuthorizationPage() {
               <div className="text-xs text-slate-500">@{row.username}</div>
             </div>
           </div>
+        ),
+      },
+      {
+        key: 'email',
+        header: 'E-posta',
+        sortable: true,
+        render: (row) => (
+          <div className="flex items-center gap-1.5 text-xs">
+            <Mail className="h-3 w-3 text-slate-400" />
+            <a
+              href={`mailto:${row.email || ''}`}
+              className="text-slate-600 hover:text-sky-600 hover:underline"
+            >
+              {row.email || '—'}
+            </a>
+            {row.must_change_password && (
+              <span title="İlk girişte şifre değiştirmesi gerek" className="inline-block rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700">
+                Şifre Yenile
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'user_id',
+        header: 'User ID',
+        render: (row) => (
+          <code className="text-[10px] text-slate-400 font-mono" title={row.user_id}>
+            {row.user_id.slice(0, 8)}…
+          </code>
         ),
       },
       {
