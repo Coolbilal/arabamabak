@@ -83,14 +83,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hasPermission: (area, action) => {
       if (!admin) return false;
       if (admin.is_super_admin) return true;
-      const p = admin.permissions.find((x) => x.area === area);
-      if (!p) return false;
-      if (!action) return p.can_view;
+      // Önce area+sub_area=null olan kayda bak (ana alan yetkisi)
+      const main = admin.permissions.find((x) => x.area === area && (x as any).sub_area === null);
+      if (main) {
+        if (!action) return main.can_view;
+        return (
+          (action === 'view' && main.can_view) ||
+          (action === 'edit' && main.can_edit) ||
+          (action === 'approve' && main.can_approve) ||
+          (action === 'delete' && main.can_delete)
+        );
+      }
+      // Ana alan yetkisi yoksa: herhangi bir sub_area yetkisi var mı kontrol et
+      // (Örn. catalog:otomobil yetkisi varsa, catalog için de izin var say)
+      const anySub = admin.permissions.find((x) => x.area === area);
+      if (!anySub) return false;
+      if (!action) return anySub.can_view;
       return (
-        (action === 'view' && p.can_view) ||
-        (action === 'edit' && p.can_edit) ||
-        (action === 'approve' && p.can_approve) ||
-        (action === 'delete' && p.can_delete)
+        (action === 'view' && anySub.can_view) ||
+        (action === 'edit' && anySub.can_edit) ||
+        (action === 'approve' && anySub.can_approve) ||
+        (action === 'delete' && anySub.can_delete)
       );
     },
   };
