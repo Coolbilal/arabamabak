@@ -462,15 +462,6 @@ export default function VehicleDetailPage() {
 
           <VehicleDetailAdBanner />
 
-          {/* Masa Paneli - sadece açık arttırma ilanlarında */}
-          {v.listing_type !== 'free' && id && (
-            <SeatPanel
-              auctionId={id}
-              seatFee={500}
-              auctionStatus={auction?.status}
-            />
-          )}
-
           <div className="card p-4 text-xs text-slate-500 space-y-1">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-emerald-600" /> Güvenli alışveriş
@@ -1065,6 +1056,15 @@ function AuctionPanel({
         {/* Suppress unused listingPrice warning - kept for future reference */}
         <span className="hidden">{listingPrice}</span>
       </div>
+
+      {/* Masa Paneli - teklif alanı altında, açık arttırma ilanlarında */}
+      {auction && auction.id && v.listing_type !== 'free' && (
+        <SeatPanel
+          auctionId={auction.id}
+          seatFee={500}
+          auctionStatus={auction.status}
+        />
+      )}
     </div>
   );
 }
