@@ -720,7 +720,7 @@ function AuctionPanel({
       return data as any;
     },
   });
-  const isInSeat = !!mySeat && mySeat.status === 'holding';
+  const isInSeat = !!mySeat && mySeat.status === 'holding' && !mySeat.left_at;
 
   const placeBid = useMutation({
     mutationFn: async (amount: number) => {
