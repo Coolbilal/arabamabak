@@ -706,6 +706,22 @@ function AuctionPanel({
 
   const minNextBid = Number(auction.current_price) + Number(auction.bid_increment);
 
+  // Kullanıcının masaya oturup oturmadığını kontrol et
+  const { data: mySeat } = useQuery({
+    queryKey: ['my-seat-bid', auction.id, user?.id],
+    enabled: !!auction.id && !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('auction_seat_holds')
+        .select('*')
+        .eq('auction_id', auction.id)
+        .eq('user_id', user!.id)
+        .maybeSingle();
+      return data as any;
+    },
+  });
+  const isInSeat = !!mySeat && mySeat.status === 'holding';
+
   const placeBid = useMutation({
     mutationFn: async (amount: number) => {
       if (!user) throw new Error('Teklif vermek için giriş yapmalısınız');
@@ -849,6 +865,11 @@ function AuctionPanel({
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              // Masaya oturma kontrolü
+              if (!isInSeat) {
+                setError('Teklif vermek için önce masaya oturmanız gerekiyor.');
+                return;
+              }
               const v = parseFloat(bidAmount.replace(/\./g, '').replace(',', '.'));
               if (Number.isNaN(v) || v <= 0) {
                 setError('Geçerli bir tutar girin');
@@ -865,6 +886,13 @@ function AuctionPanel({
             }}
             className="space-y-2"
           >
+            {/* Masaya oturma uyarısı */}
+            {!isInSeat && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 flex items-center gap-2">
+                <Armchair className="h-3.5 w-3.5 shrink-0" />
+                <span>Teklif verebilmek için <b>masaya oturmanız</b> gerekiyor. Aşağıdaki koltuk panelinden oturabilirsiniz.</span>
+              </div>
+            )}
             <label className="text-xs font-semibold uppercase text-slate-500">
               Teklif Ver (en az {formatPrice(Number(bids?.[0]?.amount ?? auction.current_price) + Number(auction.bid_increment))})
             </label>
@@ -876,14 +904,15 @@ function AuctionPanel({
                 step={auction.bid_increment}
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
-                className="input flex-1"
+                className="input flex-1 disabled:bg-slate-100 disabled:cursor-not-allowed"
                 placeholder={String(Number(bids?.[0]?.amount ?? auction.current_price) + Number(auction.bid_increment))}
+                disabled={!isInSeat || placeBid.isPending}
                 required
               />
               <button
                 type="submit"
-                className="btn-primary"
-                disabled={placeBid.isPending}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!isInSeat || placeBid.isPending}
               >
                 {placeBid.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -900,7 +929,8 @@ function AuctionPanel({
                   key={amount}
                   type="button"
                   onClick={() => setBidAmount(String(Number(bids?.[0]?.amount ?? auction.current_price) + amount))}
-                  className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition"
+                  disabled={!isInSeat}
+                  className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   +{amount.toLocaleString('tr-TR')} TL
                 </button>
