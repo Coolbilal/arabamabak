@@ -80,6 +80,12 @@ export default function SeatPanel({ auctionId, seatFee, auctionStatus, className
   const isEnded = auctionStatus === 'ended' || auctionStatus === 'sold' || auctionStatus === 'sold_pending_confirmation' || auctionStatus === 'cancelled';
   const isScheduled = auctionStatus === 'scheduled';
 
+  // DEBUG: Console'a durum bilgisi yaz
+  if (typeof window !== 'undefined' && !(window as any).__seatPanelLogged) {
+    console.log('[SeatPanel] auctionId:', auctionId, 'auctionStatus:', auctionStatus, 'user:', !!user, 'mySeat:', mySeat, 'balance:', balance, 'isLive:', isLive, 'isInSeat:', isInSeat, 'isWinner:', isWinner);
+    (window as any).__seatPanelLogged = true;
+  }
+
   // Durum logic
   const isWinner = highestBidder?.user_id === user?.id;
   const isInSeat = !!mySeat && mySeat.status === 'holding';
