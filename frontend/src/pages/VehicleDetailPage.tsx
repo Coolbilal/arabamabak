@@ -273,26 +273,6 @@ export default function VehicleDetailPage() {
             </div>
             <h1 className="mt-1 text-2xl font-extrabold text-slate-900 flex items-center gap-2 flex-wrap">
               <span>{v.title}</span>
-              {id && (
-                <div className="inline-flex items-center gap-1.5 ml-auto">
-                  <FavoriteButton
-                    vehicleId={id}
-                    size="md"
-                    showCount
-                    onToggle={(isFav) => {
-                      if (isFav) {
-                        // Optional: toast
-                      }
-                    }}
-                  />
-                  <ShareButton
-                    url={`${window.location.origin}/ilan/${id}`}
-                    title={v.title}
-                    size="md"
-                    variant="icon"
-                  />
-                </div>
-              )}
             </h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
               {v.is_premium && <span className="badge bg-amber-500 text-white">PREMIUM</span>}
@@ -426,7 +406,7 @@ export default function VehicleDetailPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 pt-2">
+            <div className="grid grid-cols-3 gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -447,6 +427,14 @@ export default function VehicleDetailPage() {
                 />
                 {isFavorite.data ? 'Favoride' : 'Favori'}
               </button>
+              <div className="flex items-center justify-center">
+                <ShareButton
+                  url={`${window.location.origin}/ilan/${id}`}
+                  title={v.title}
+                  size="md"
+                  variant="button"
+                />
+              </div>
               {!isOwnListing && (
                 <button
                   type="button"
