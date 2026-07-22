@@ -1,8 +1,19 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Filter, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
+
+// Admin'in sub_area yetkilerine göre hangi kategorileri görebileceğini belirle
+// AREA_SUB_AREAS'daki sub_area key'leri (catalog için) kategori slug'larına eşlenir
+const CATALOG_SUB_AREA_TO_SLUG: Record<string, string> = {
+  otomobil: 'otomobil',
+  arazi_suv_pickup: 'arazi-suv-pickup',
+  minivan_panelvan: 'minivan-panelvan',
+  ticari: 'ticari',
+  motosiklet_utv_atv: 'motosiklet-utv-atv',
+};
 
 type Category = {
   id: string;
@@ -194,6 +205,7 @@ function AddToggle({ open, setOpen, label, icon }: { open: boolean; setOpen: (v:
 /* ==================== 1. SEVİYE: KATEGORİLER ==================== */
 function CategoriesLevel({ onSelect }: { onSelect: (c: Category) => void }) {
   const qc = useQueryClient();
+  const { admin, hasPermission } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -211,6 +223,27 @@ function CategoriesLevel({ onSelect }: { onSelect: (c: Category) => void }) {
       return (data ?? []) as Category[];
     },
   });
+
+  // Admin'in catalog sub_area yetkileri
+  const allowedSlugs = useMemo(() => {
+    if (!admin) return new Set<string>();
+    if (admin.is_super_admin) return null; // null = hepsi
+    const perms = (admin as any).permissions || [];
+    const subs = perms
+      .filter((p: any) => p.area === 'catalog' && p.sub_area)
+      .map((p: any) => CATALOG_SUB_AREA_TO_SLUG[p.sub_area] || p.sub_area);
+    // Eğer sadece ana catalog (sub_area=null) yetkisi varsa: tüm catalog sub_area'larını göster
+    const hasMainCatalog = perms.some((p: any) => p.area === 'catalog' && !p.sub_area);
+    if (hasMainCatalog) return null; // ana yetki = tüm alt kategoriler
+    return new Set(subs);
+  }, [admin]);
+
+  // Filtrelenmiş kategoriler
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+    if (allowedSlugs === null) return data; // super admin veya ana yetki
+    return data.filter((c) => allowedSlugs.has(c.slug));
+  }, [data, allowedSlugs]);
 
   const addMut = useMutation({
     mutationFn: async () => {
@@ -284,9 +317,13 @@ function CategoriesLevel({ onSelect }: { onSelect: (c: Category) => void }) {
 
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
+      ) : filteredData.length === 0 ? (
+        <div className="text-center py-12 text-slate-500">
+          Bu admin hesabı için yetkili kategori yok. Super admin'den yetki isteyin.
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data?.map((c) => (
+          {filteredData.map((c) => (
             <button
               key={c.id}
               type="button"
