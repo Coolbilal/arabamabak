@@ -9,7 +9,7 @@ import { cn } from '../lib/utils';
 // AREA_SUB_AREAS'daki sub_area key'leri (catalog için) kategori slug'larına eşlenir
 const CATALOG_SUB_AREA_TO_SLUG: Record<string, string> = {
   otomobil: 'otomobil',
-  arazi_suv_pickup: 'arazi-suv-pickup',
+  arazi_suv_pickup: 'arazi-suv-pikup',
   minivan_panelvan: 'minivan-panelvan',
   ticari: 'ticari',
   motosiklet_utv_atv: 'motosiklet-utv-atv',
