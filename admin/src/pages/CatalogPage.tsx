@@ -229,11 +229,14 @@ function CategoriesLevel({ onSelect }: { onSelect: (c: Category) => void }) {
     if (!admin) return new Set<string>();
     if (admin.is_super_admin) return null; // null = hepsi
     const perms = (admin as any).permissions || [];
+    console.log('[Catalog] admin perms:', perms);
     const subs = perms
       .filter((p: any) => p.area === 'catalog' && p.sub_area != null)
       .map((p: any) => CATALOG_SUB_AREA_TO_SLUG[p.sub_area] || p.sub_area);
+    console.log('[Catalog] sub_area slugs:', subs);
     // Eğer ana catalog (sub_area=null) yetkisi varsa: sub_area varsa onları göster, yoksa tümünü
     const hasMainCatalog = perms.some((p: any) => p.area === 'catalog' && !p.sub_area);
+    console.log('[Catalog] hasMainCatalog:', hasMainCatalog);
     if (hasMainCatalog) {
       // Hem parent hem sub_area varsa: sub_area'ları göster (sadece yetkili olanlar)
       if (subs.length > 0) return new Set(subs);
