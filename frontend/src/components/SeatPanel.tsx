@@ -92,7 +92,7 @@ export default function SeatPanel({ auctionId, seatFee, auctionStatus, className
 
   // "Masaya Otur" aktif mi?
   const canJoin = !isInSeat && isLive && balance >= fee;
-  const insufficientBalance = user && balance < fee;
+  const insufficientBalance: boolean = !!user && balance < fee;
 
   async function handleJoin() {
     if (!user) {
