@@ -1058,13 +1058,13 @@ function AuctionPanel({
       </div>
 
       {/* Masa Paneli - teklif alanı altında, açık arttırma ilanlarında */}
-      {auction && auction.id && v.listing_type !== 'free' && (
+      {auction && auction.id ? (
         <SeatPanel
           auctionId={auction.id}
           seatFee={500}
           auctionStatus={auction.status}
         />
-      )}
+      ) : null}
     </div>
   );
 }
