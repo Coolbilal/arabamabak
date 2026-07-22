@@ -467,6 +467,7 @@ export default function VehicleDetailPage() {
             <SeatPanel
               auctionId={id}
               seatFee={500}
+              auctionStatus={auction?.status}
             />
           )}
 

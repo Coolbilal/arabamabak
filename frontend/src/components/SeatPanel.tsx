@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Armchair, Wallet, LogIn, LogOut, Loader2, CheckCircle2, X } from 'lucide-react';
+import { Armchair, Wallet, LogIn, LogOut, Loader2, CheckCircle2, X, AlertTriangle, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { cn, formatPrice } from '../lib/utils';
@@ -17,17 +17,20 @@ import {
 interface SeatPanelProps {
   auctionId: string;
   seatFee: number;
+  auctionStatus?: 'scheduled' | 'live' | 'ended' | 'sold' | 'sold_pending_confirmation' | 'cancelled';
   className?: string;
 }
 
 /**
  * Canlı açık arttırmada koltuk paneli:
  * - Cüzdan bakiyesi
- * - Masaya otur / ayrıl
+ * - Yetersiz bakiye uyarısı (şık banner)
+ * - Masaya Otur / Ayrıl
  * - Son teklif veren ise ayrıl kapalı
  * - Koltuk listesi
+ * - Scheduled/ended ise pasif
  */
-export default function SeatPanel({ auctionId, seatFee, className }: SeatPanelProps) {
+export default function SeatPanel({ auctionId, seatFee, auctionStatus, className }: SeatPanelProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -39,7 +42,7 @@ export default function SeatPanel({ auctionId, seatFee, className }: SeatPanelPr
   const joinMut = useJoinSeat();
   const leaveMut = useLeaveSeat();
 
-  // site_settings'ten fee'yi al (verilen seatFee fallback)
+  // site_settings'ten fee'yi al
   const { data: settings } = useQuery({
     queryKey: ['site-settings-public'],
     queryFn: async () => {
@@ -57,17 +60,46 @@ export default function SeatPanel({ auctionId, seatFee, className }: SeatPanelPr
     return Number(settings?.auction_seat_hold_fee ?? settings?.seat_hold_fee ?? seatFee ?? 500);
   }, [settings, seatFee]);
 
+  // Kullanıcının teklif verip vermediğini kontrol et
+  const { data: hasMyBid = false } = useQuery({
+    queryKey: ['my-bid-exists', auctionId, user?.id],
+    enabled: !!auctionId && !!user,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('bids')
+        .select('id', { count: 'exact', head: true })
+        .eq('auction_id', auctionId)
+        .eq('bidder_id', user!.id);
+      if (error) throw error;
+      return (count ?? 0) > 0;
+    },
+  });
+
+  // Açık arttırma durumu
+  const isLive = !auctionStatus || auctionStatus === 'live';
+  const isEnded = auctionStatus === 'ended' || auctionStatus === 'sold' || auctionStatus === 'sold_pending_confirmation' || auctionStatus === 'cancelled';
+  const isScheduled = auctionStatus === 'scheduled';
+
+  // Durum logic
   const isWinner = highestBidder?.user_id === user?.id;
   const isInSeat = !!mySeat && mySeat.status === 'holding';
-  const canLeave = isInSeat && !isWinner;
-  const canJoin = !isInSeat && balance >= fee;
-  const insufficientBalance = !user ? false : balance < fee;
+
+  // "Masadan Ayrıl" aktif mi?
+  // - Masada olmalı
+  // - En yüksek teklif veren OLMAMALI (son teklif veren = en yüksek)
+  // - Açık arttırma live olmalı
+  const canLeave = isInSeat && !isWinner && isLive;
+
+  // "Masaya Otur" aktif mi?
+  const canJoin = !isInSeat && isLive && balance >= fee;
+  const insufficientBalance = user && balance < fee;
 
   async function handleJoin() {
     if (!user) {
       navigate(`/giris?next=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
+    if (insufficientBalance) return;
     try {
       await joinMut.mutateAsync({ auctionId, fee });
     } catch (e: any) {
@@ -81,12 +113,100 @@ export default function SeatPanel({ auctionId, seatFee, className }: SeatPanelPr
       alert('Son teklifi veren kullanıcı masadan ayrılamaz. Önce daha düşük bir teklif gelmesini bekleyin.');
       return;
     }
+    if (!isLive) return;
     if (!confirm('Masadan ayrılmak istediğinize emin misiniz? Bloke edilen tutar cüzdanınıza iade edilecek.')) return;
     try {
       await leaveMut.mutateAsync({ auctionId, seatId: mySeat.id });
     } catch (e: any) {
       alert(e?.message || 'Ayrılınamadı');
     }
+  }
+
+  // Ana buton içeriği (duruma göre)
+  function renderMainButton() {
+    if (!user) {
+      return (
+        <button
+          type="button"
+          onClick={() => navigate(`/giris?next=${encodeURIComponent(window.location.pathname)}`)}
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-700 transition"
+        >
+          <LogIn className="h-4 w-4" /> Giriş Yap
+        </button>
+      );
+    }
+
+    if (seatLoading) {
+      return (
+        <button disabled className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 text-slate-400">
+          <Loader2 className="h-4 w-4 animate-spin" /> Yükleniyor...
+        </button>
+      );
+    }
+
+    if (isScheduled) {
+      return (
+        <button disabled className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 cursor-not-allowed">
+          <AlertTriangle className="h-4 w-4" /> Henüz Başlamadı
+        </button>
+      );
+    }
+
+    if (isEnded) {
+      return (
+        <button disabled className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed">
+          <X className="h-4 w-4" /> Açık Arttırma Sona Erdi
+        </button>
+      );
+    }
+
+    if (isInSeat) {
+      return (
+        <button
+          type="button"
+          onClick={handleLeave}
+          disabled={!canLeave || leaveMut.isPending}
+          className={cn(
+            'w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition',
+            canLeave
+              ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+          )}
+          title={!canLeave ? (isWinner ? 'Son teklif veren ayrılamaz' : 'Yetersiz koşul') : 'Masadan ayrıl'}
+        >
+          {leaveMut.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : !canLeave ? (
+            <X className="h-4 w-4" />
+          ) : (
+            <LogOut className="h-4 w-4" />
+          )}
+          {!canLeave ? 'Son Teklif Veren (Ayrılamaz)' : 'Masadan Ayrıl'}
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={handleJoin}
+        disabled={!canJoin || joinMut.isPending || insufficientBalance}
+        className={cn(
+          'w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition',
+          canJoin
+            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+        )}
+        title={insufficientBalance ? `Yetersiz bakiye. ${fee} TL gerekli.` : 'Masaya otur'}
+      >
+        {joinMut.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Armchair className="h-4 w-4" />
+        )}
+        Masaya Otur
+      </button>
+    );
   }
 
   return (
@@ -102,8 +222,33 @@ export default function SeatPanel({ auctionId, seatFee, className }: SeatPanelPr
         )}
       </div>
 
+      {/* Şık yetersiz bakiye uyarısı */}
+      {insufficientBalance && isLive && (
+        <div className="rounded-lg bg-gradient-to-br from-red-50 to-amber-50 border-2 border-red-200 p-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-red-800">Yetersiz Bakiye</div>
+              <div className="text-[11px] text-red-700 mt-0.5">
+                Masaya oturmak için <b>{formatPrice(fee)} TL</b> gerekli.
+                Mevcut: <b>{formatPrice(balance)} TL</b>.
+                Eksik: <b>{formatPrice(fee - balance)} TL</b>
+              </div>
+            </div>
+          </div>
+          <Link
+            to="/profil/cuzdan"
+            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition"
+          >
+            <Plus className="h-3.5 w-3.5" /> Cüzdana Bakiye Yükle
+          </Link>
+        </div>
+      )}
+
       {/* Cüzdan bakiyesi */}
-      {user ? (
+      {user && (
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-500 flex items-center gap-1">
             <Wallet className="h-3.5 w-3.5" /> Cüzdan Bakiyesi
@@ -115,10 +260,6 @@ export default function SeatPanel({ auctionId, seatFee, className }: SeatPanelPr
             {formatPrice(balance)} TL
           </Link>
         </div>
-      ) : (
-        <div className="text-xs text-slate-500 bg-slate-50 p-2 rounded">
-          Masaya oturmak için <Link to="/giris" className="text-sky-600 font-semibold">giriş yapın</Link>
-        </div>
       )}
 
       {/* Bloke tutarı */}
@@ -128,60 +269,22 @@ export default function SeatPanel({ auctionId, seatFee, className }: SeatPanelPr
       </div>
 
       {/* Ana aksiyon butonu */}
-      {!user ? (
-        <button
-          type="button"
-          onClick={() => navigate(`/giris?next=${encodeURIComponent(window.location.pathname)}`)}
-          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-700 transition"
-        >
-          <LogIn className="h-4 w-4" /> Giriş Yap
-        </button>
-      ) : seatLoading ? (
-        <button disabled className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 text-slate-400">
-          <Loader2 className="h-4 w-4 animate-spin" /> Yükleniyor...
-        </button>
-      ) : isInSeat ? (
-        <button
-          type="button"
-          onClick={handleLeave}
-          disabled={!canLeave || leaveMut.isPending}
-          className={cn(
-            'w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition',
-            canLeave
-              ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-          )}
-          title={!canLeave ? 'Son teklif veren kullanıcı masadan ayrılamaz' : 'Masadan ayrıl'}
-        >
-          {leaveMut.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : !canLeave ? (
-            <X className="h-4 w-4" />
+      {renderMainButton()}
+
+      {/* Açık arttırma durumu bilgilendirme */}
+      {isInSeat && hasMyBid && isLive && (
+        <div className={cn(
+          'rounded-md p-2 text-[11px]',
+          isWinner
+            ? 'bg-amber-50 border border-amber-200 text-amber-800'
+            : 'bg-sky-50 border border-sky-200 text-sky-800'
+        )}>
+          {isWinner ? (
+            <>👑 Son teklifi verensin. Yeni teklif gelene kadar masadan ayrılamazsın.</>
           ) : (
-            <LogOut className="h-4 w-4" />
+            <>✓ Teklif verdin. Üstüne yeni teklif geldiği için masadan ayrılabilirsin.</>
           )}
-          {!canLeave ? 'Son Teklif Veren (Ayrılamaz)' : 'Masadan Ayrıl'}
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={handleJoin}
-          disabled={!canJoin || joinMut.isPending}
-          className={cn(
-            'w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition',
-            canJoin
-              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-          )}
-          title={!canJoin ? `Yetersiz bakiye. ${fee} TL gerekli.` : 'Masaya otur'}
-        >
-          {joinMut.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Armchair className="h-4 w-4" />
-          )}
-          {insufficientBalance ? `Yetersiz Bakiye (${formatPrice(fee)} TL)` : 'Masaya Otur'}
-        </button>
+        </div>
       )}
 
       {/* Masada olan kullanıcılar */}
