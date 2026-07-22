@@ -706,9 +706,9 @@ function AuctionPanel({
 
   const minNextBid = Number(auction.current_price) + Number(auction.bid_increment);
 
-  // Kullanıcının masaya oturup oturmadığını kontrol et
+  // Kullanıcının masaya oturup oturmadığını kontrol et (SeatPanel ile aynı query key)
   const { data: mySeat } = useQuery({
-    queryKey: ['my-seat-bid', auction.id, user?.id],
+    queryKey: ['my-seat', auction.id, user?.id],
     enabled: !!auction.id && !!user,
     queryFn: async () => {
       const { data } = await supabase
