@@ -9,6 +9,8 @@ import CountdownTimer from '../components/CountdownTimer';
 import VehicleDetailAdBanner from '../components/VehicleDetailAdBanner';
 import Tabs from '../components/Tabs';
 import VehiclePaintDiagram from '../components/VehiclePaintDiagram';
+import FavoriteButton from '../components/FavoriteButton';
+import ShareButton from '../components/ShareButton';
 import type {
   Auction,
   Bid,
@@ -269,7 +271,29 @@ export default function VehicleDetailPage() {
             <div className="text-sm text-slate-500">
               {v.brand?.name ?? 'Marka'} {v.model?.name ? `· ${v.model.name}` : ''} · {v.year}
             </div>
-            <h1 className="mt-1 text-2xl font-extrabold text-slate-900">{v.title}</h1>
+            <h1 className="mt-1 text-2xl font-extrabold text-slate-900 flex items-center gap-2 flex-wrap">
+              <span>{v.title}</span>
+              {id && (
+                <div className="inline-flex items-center gap-1.5 ml-auto">
+                  <FavoriteButton
+                    vehicleId={id}
+                    size="md"
+                    showCount
+                    onToggle={(isFav) => {
+                      if (isFav) {
+                        // Optional: toast
+                      }
+                    }}
+                  />
+                  <ShareButton
+                    url={`${window.location.origin}/ilan/${id}`}
+                    title={v.title}
+                    size="md"
+                    variant="icon"
+                  />
+                </div>
+              )}
+            </h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
               {v.is_premium && <span className="badge bg-amber-500 text-white">PREMIUM</span>}
               {v.listing_type !== 'free' && (
