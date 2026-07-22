@@ -164,8 +164,7 @@ const ALL_AREAS: { key: PermissionArea; label: string }[] = [
 ];
 
 const newAdminSchema = z.object({
-  email: z.string().email('Geçerli bir e-posta adresi girin'),
-  username: z.string().min(3, 'Kullanıcı adı en az 3 karakter olmalıdır').regex(/^[a-zA-Z0-9_.-]+$/, 'Sadece harf, rakam, _ . - kullanılabilir'),
+  email: z.string().email('Geçerli bir e-posta adresi girin (örn. beyza@arabamabak.com)'),
   full_name: z.string().min(2, 'Ad soyad en az 2 karakter olmalıdır'),
   password: z.string().min(6, 'Şifre en az 6 karakter olmalıdır'),
   custom_role: z.string().min(2, 'Rol/ünvan en az 2 karakter olmalıdır').optional().or(z.literal('')),
@@ -387,7 +386,7 @@ export default function AuthorizationPage() {
     formState: { errors, isSubmitting },
   } = useForm<NewAdminForm>({
     resolver: zodResolver(newAdminSchema),
-    defaultValues: { email: '', username: '', full_name: '', password: '', custom_role: '' },
+    defaultValues: { email: '', full_name: '', password: '', custom_role: '' },
   });
 
   const onCreateAdmin = handleSubmit(async (values) => {
@@ -397,9 +396,8 @@ export default function AuthorizationPage() {
       return;
     }
 
-    // 1) Username'den tam email oluştur
-    const cleanUsername = values.username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
-    const fullEmail = `${cleanUsername}@arabamabak.com`;
+    // 1) Email direkt kullanılıyor (validation zaten email formatını kontrol ediyor)
+    const fullEmail = values.email.trim().toLowerCase();
 
     // 2) Mevcut session'ı sakla (signUp sonrası oturum kaybolmasın)
     const { data: { session: savedSession } } = await supabase.auth.getSession();
@@ -483,7 +481,6 @@ export default function AuthorizationPage() {
           refresh_token: savedSession.refresh_token,
         });
       } catch (e) {
-        // Session restore başarısız olursa kullanıcıya bildir
         setGlobalError('Yeni admin oluşturuldu ANCAK oturumunuz değişti. Lütfen tekrar giriş yapın.');
         return;
       }
@@ -491,7 +488,7 @@ export default function AuthorizationPage() {
 
     qc.invalidateQueries({ queryKey: ['admin-users'] });
     setShowNewAdmin(false);
-    reset({ email: '', username: '', full_name: '', password: '', custom_role: '' });
+    reset({ email: '', full_name: '', password: '', custom_role: '' });
   });
 
   async function openPermissions(row: AdminUserRow) {
@@ -847,26 +844,18 @@ export default function AuthorizationPage() {
             </div>
             <form onSubmit={onCreateAdmin} className="p-6 space-y-4">
               <div>
-                <label className="label">E-posta</label>
+                <label className="label">Admin Giriş Emaili <span className="text-slate-400 font-normal">(giriş + kayıt)</span></label>
                 <div className="relative">
                   <Mail className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input type="email" className={cn('input pl-9', errors.email && 'border-red-400')} {...register('email')} />
+                  <input
+                    type="email"
+                    className={cn('input pl-9', errors.email && 'border-red-400')}
+                    placeholder="beyza@arabamabak.com"
+                    {...register('email')}
+                  />
                 </div>
                 {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
-              </div>
-              <div>
-                <label className="label">Kullanıcı Adı <span className="text-slate-400 font-normal">(giriş için email)</span></label>
-                <div className="relative flex items-center">
-                  <UserIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
-                  <input
-                    className={cn('input pl-9 pr-44', errors.username && 'border-red-400')}
-                    placeholder="operator1"
-                    {...register('username')}
-                  />
-                  <span className="absolute right-3 text-sm text-slate-500 font-mono pointer-events-none">@arabamabak.com</span>
-                </div>
-                {errors.username && <p className="mt-1 text-xs text-red-600">{errors.username.message}</p>}
-                <p className="mt-1 text-[10px] text-slate-400">Sadece kullanıcı adını yazın (örn. operator1), @arabamabak.com otomatik eklenir.</p>
+                <p className="mt-1 text-[10px] text-slate-400">Bu email admin panel girişi için kullanılacak (örn. beyza@arabamabak.com).</p>
               </div>
               <div>
                 <label className="label">Ad Soyad</label>
