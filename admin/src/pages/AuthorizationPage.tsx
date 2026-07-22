@@ -447,8 +447,8 @@ export default function AuthorizationPage() {
       return;
     }
 
-    // 4) admin_users satırı ekle
-    const { data: newAdmin, error: insErr } = await supabase.from('admin_users').insert({
+    // 4) admin_users satırı ekle (default yetki yok, super admin sonra atar)
+    const { error: insErr } = await supabase.from('admin_users').insert({
       user_id: newUserId,
       username: fullEmail,
       full_name: values.full_name.trim(),
@@ -458,26 +458,10 @@ export default function AuthorizationPage() {
       created_by: admin.id,
       custom_role: values.custom_role?.trim() || null,
       must_change_password: true,
-    })
-    .select()
-    .single();
+    });
     if (insErr) {
       setGlobalError(insErr.message);
       return;
-    }
-
-    // 5) Default yetkiler ekle (yeni admin temel sayfalara erişebilsin)
-    if (newAdmin) {
-      const defaultPerms = [
-        { admin_user_id: newAdmin.id, area: 'dashboard', sub_area: null, can_view: true, can_edit: false, can_approve: false, can_delete: false },
-        { admin_user_id: newAdmin.id, area: 'authorization', sub_area: null, can_view: true, can_edit: false, can_approve: false, can_delete: false },
-      ];
-      try {
-        await supabase.from('admin_permissions').insert(defaultPerms);
-      } catch (e) {
-        // Default yetkiler eklenemezse sessizce devam et
-        console.warn('Default yetkiler eklenemedi:', e);
-      }
     }
 
     // 5) Başarılı - super admin oturumu BOZULMADI (signIn oluşmadı)
