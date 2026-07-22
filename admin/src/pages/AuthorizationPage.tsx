@@ -472,45 +472,40 @@ export default function AuthorizationPage() {
       return;
     }
 
-    // 7) signUp sonrası eğer yeni session açıldıysa eski super admin session'ına geri dön
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    if (currentSession?.user?.id !== savedUserId) {
-      if (savedSession) {
-        try {
-          // Önce local storage'dan temizle
-          try {
-            const keys = Object.keys(localStorage);
-            for (const k of keys) {
-              if (k.startsWith('sb-') || k.includes('supabase')) {
-                localStorage.removeItem(k);
-              }
-            }
-          } catch (_) { /* local storage yoksa geç */ }
+    // 7) signUp sonrası session restore: en güvenilir yol
+    // Önce signOut (yeni admin'in session'ını kapat), sonra savedSession ile setSession
+    try {
+      await supabase.auth.signOut();
+    } catch (_) { /* signOut başarısız olabilir, devam et */ }
 
-          // Eski session'ı set et
-          const { error: setErr } = await supabase.auth.setSession({
-            access_token: savedSession.access_token,
-            refresh_token: savedSession.refresh_token,
-          });
-          if (setErr) {
-            // setSession başarısızsa: yeniden signIn yap
-            setGlobalError('Yeni admin oluşturuldu ANCAK oturumunuz değişti. Lütfen tekrar giriş yapın.');
-            await refresh();
-            return;
+    if (savedSession) {
+      try {
+        // Local storage'ı temizle
+        try {
+          const keys = Object.keys(localStorage);
+          for (const k of keys) {
+            if (k.startsWith('sb-') || k.includes('supabase')) {
+              localStorage.removeItem(k);
+            }
           }
-        } catch (e) {
-          setGlobalError('Yeni admin oluşturuldu ANCAK oturumunuz değişti. Lütfen tekrar giriş yapın.');
-          await refresh();
-          return;
-        }
-      } else {
-        setGlobalError('Yeni admin oluşturuldu. Lütfen tekrar giriş yapın.');
+        } catch (_) { /* local storage yoksa geç */ }
+
+        // Eski session'ı set et
+        await supabase.auth.setSession({
+          access_token: savedSession.access_token,
+          refresh_token: savedSession.refresh_token,
+        });
+        await refresh();
+      } catch (e) {
+        setGlobalError(
+          `Yeni admin (${fullEmail}) oluşturuldu. ANCAK super admin oturumu geri yüklenemedi. Lütfen tekrar giriş yapın.`
+        );
         return;
       }
+    } else {
+      setGlobalError('Yeni admin oluşturuldu. Lütfen tekrar giriş yapın.');
+      return;
     }
-
-    // 8) AuthContext'i yenile
-    await refresh();
 
     qc.invalidateQueries({ queryKey: ['admin-users'] });
     setShowNewAdmin(false);
