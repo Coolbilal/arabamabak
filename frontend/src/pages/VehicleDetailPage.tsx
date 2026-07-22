@@ -9,7 +9,6 @@ import CountdownTimer from '../components/CountdownTimer';
 import VehicleDetailAdBanner from '../components/VehicleDetailAdBanner';
 import Tabs from '../components/Tabs';
 import VehiclePaintDiagram from '../components/VehiclePaintDiagram';
-import FavoriteButton from '../components/FavoriteButton';
 import ShareButton from '../components/ShareButton';
 import type {
   Auction,
