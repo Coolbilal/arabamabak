@@ -203,7 +203,7 @@ export function useJoinSeat() {
 export function useLeaveSeat() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ auctionId, seatId }: { auctionId: string; seatId: string }) => {
+    mutationFn: async ({ seatId }: { auctionId: string; seatId: string }) => {
       const { data, error } = await supabase
         .from('auction_seat_holds')
         .update({
