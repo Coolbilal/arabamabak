@@ -80,12 +80,6 @@ export default function SeatPanel({ auctionId, seatFee, auctionStatus, className
   const isEnded = auctionStatus === 'ended' || auctionStatus === 'sold' || auctionStatus === 'sold_pending_confirmation' || auctionStatus === 'cancelled';
   const isScheduled = auctionStatus === 'scheduled';
 
-  // DEBUG: Console'a durum bilgisi yaz
-  if (typeof window !== 'undefined' && !(window as any).__seatPanelLogged) {
-    console.log('[SeatPanel] auctionId:', auctionId, 'auctionStatus:', auctionStatus, 'user:', !!user, 'mySeat:', mySeat, 'balance:', balance, 'isLive:', isLive, 'isInSeat:', isInSeat, 'isWinner:', isWinner);
-    (window as any).__seatPanelLogged = true;
-  }
-
   // Durum logic
   const isWinner = highestBidder?.user_id === user?.id;
   const isInSeat = !!mySeat && mySeat.status === 'holding';
@@ -99,6 +93,25 @@ export default function SeatPanel({ auctionId, seatFee, auctionStatus, className
   // "Masaya Otur" aktif mi?
   const canJoin = !isInSeat && isLive && balance >= fee;
   const insufficientBalance: boolean = !!user && balance < fee;
+
+  // DEBUG: Console'a durum bilgisi yaz (sadece ilk render)
+  if (typeof window !== 'undefined' && !(window as any).__seatPanelLogged) {
+    console.log('[SeatPanel]', {
+      auctionId,
+      auctionStatus,
+      hasUser: !!user,
+      mySeat: mySeat ? { id: mySeat.id, status: mySeat.status, seat: mySeat.seat_number } : null,
+      balance,
+      fee,
+      isLive,
+      isInSeat,
+      isWinner,
+      canLeave,
+      canJoin,
+      insufficientBalance,
+    });
+    (window as any).__seatPanelLogged = true;
+  }
 
   async function handleJoin() {
     if (!user) {
