@@ -8,6 +8,7 @@ import {
   AlertCircle, Save, RefreshCw, Check, History, KeyRound, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { useAuth } from '../contexts/AuthContext';
 import { cn, formatDate } from '../lib/utils';
 import DataTable, { type DataTableColumn } from '../components/DataTable';
@@ -399,113 +400,35 @@ export default function AuthorizationPage() {
     // 1) Email direkt kullanılıyor
     const fullEmail = values.email.trim().toLowerCase();
 
-    // 2) Önce mevcut auth user'ı kontrol et
+    // 2) supabaseAdmin (service role) ile user oluştur - signIn oluşturmaz!
     let newUserId: string | undefined;
     try {
-      const { data: { users }, error: listErr } = await supabase.auth.admin.listUsers();
+      // Önce mevcut user kontrolü
+      const { data: { users }, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
       if (!listErr && users) {
         const existing = users.find((u: any) => u.email?.toLowerCase() === fullEmail);
         if (existing) {
           newUserId = existing.id;
         }
       }
-    } catch (e) {
-      // admin API yoksa devam et
-    }
 
-    // 3) User yoksa signUp ile oluştur
-    if (!newUserId) {
-      // Session'ı sakla (signUp sonrası geri yüklemek için)
-      const { data: { session: savedSession } } = await supabase.auth.getSession();
-      const savedUserId = admin.id;
-
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email: fullEmail,
-        password: values.password,
-        options: { data: { full_name: values.full_name } },
-      });
-
-      if (signUpErr) {
-        setGlobalError(signUpErr.message);
-        return;
-      }
-      newUserId = signUpData.user?.id;
-
-      // 4) admin_users satırı hemen ekle (signUp session'ı devam etmeden)
-      if (newUserId) {
-        const { error: insErr } = await supabase.from('admin_users').insert({
-          user_id: newUserId,
-          username: fullEmail,
-          full_name: values.full_name.trim(),
+      // User yoksa service role ile oluştur (signIn oluşturmaz)
+      if (!newUserId) {
+        const { data: createdUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
           email: fullEmail,
-          is_active: true,
-          is_super_admin: false,
-          created_by: savedUserId,
-          custom_role: values.custom_role?.trim() || null,
-          must_change_password: true,
+          password: values.password,
+          email_confirm: true,  // email confirmation otomatik onaylı
+          user_metadata: { full_name: values.full_name },
         });
-        if (insErr) {
-          setGlobalError(insErr.message);
+        if (createErr) {
+          setGlobalError('User oluşturulamadı: ' + createErr.message);
           return;
         }
+        newUserId = createdUser.user?.id;
       }
-
-      // 5) signUp sonrası session değiştiyse, super admin'i geri yükle
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (currentSession?.user?.id !== savedUserId && savedSession) {
-        try {
-          // Yeni admin'in session'ını kapat
-          await supabase.auth.signOut();
-          // localStorage temizle
-          try {
-            const keys = Object.keys(localStorage);
-            for (const k of keys) {
-              if (k.startsWith('sb-') || k.includes('supabase')) {
-                localStorage.removeItem(k);
-              }
-            }
-          } catch (_) { /* */ }
-          // Eski session'ı set et
-          await supabase.auth.setSession({
-            access_token: savedSession.access_token,
-            refresh_token: savedSession.refresh_token,
-          });
-          await refresh();
-        } catch (e) {
-          // setSession başarısız: sayfayı yenile (super admin tekrar giriş yapar)
-          setGlobalError(`Yeni admin (${fullEmail}) oluşturuldu. Sayfa yenileniyor, lütfen tekrar giriş yapın.`);
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 2000);
-          return;
-        }
-      }
-    } else {
-      // Mevcut user varsa sadece admin_users'a ekle
-      const { data: existingAdmin } = await supabase
-        .from('admin_users')
-        .select('id')
-        .eq('user_id', newUserId)
-        .maybeSingle();
-      if (existingAdmin) {
-        setGlobalError(`Bu email (${fullEmail}) için admin kaydı zaten var.`);
-        return;
-      }
-      const { error: insErr } = await supabase.from('admin_users').insert({
-        user_id: newUserId,
-        username: fullEmail,
-        full_name: values.full_name.trim(),
-        email: fullEmail,
-        is_active: true,
-        is_super_admin: false,
-        created_by: admin.id,
-        custom_role: values.custom_role?.trim() || null,
-        must_change_password: true,
-      });
-      if (insErr) {
-        setGlobalError(insErr.message);
-        return;
-      }
+    } catch (e: any) {
+      setGlobalError('Service role işlemi başarısız: ' + (e?.message || String(e)));
+      return;
     }
 
     if (!newUserId) {
@@ -513,6 +436,35 @@ export default function AuthorizationPage() {
       return;
     }
 
+    // 3) admin_users'ta zaten var mı kontrol et
+    const { data: existingAdmin } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('user_id', newUserId)
+      .maybeSingle();
+    if (existingAdmin) {
+      setGlobalError(`Bu email (${fullEmail}) için admin kaydı zaten var.`);
+      return;
+    }
+
+    // 4) admin_users satırı ekle
+    const { error: insErr } = await supabase.from('admin_users').insert({
+      user_id: newUserId,
+      username: fullEmail,
+      full_name: values.full_name.trim(),
+      email: fullEmail,
+      is_active: true,
+      is_super_admin: false,
+      created_by: admin.id,
+      custom_role: values.custom_role?.trim() || null,
+      must_change_password: true,
+    });
+    if (insErr) {
+      setGlobalError(insErr.message);
+      return;
+    }
+
+    // 5) Başarılı - super admin oturumu BOZULMADI (signIn oluşmadı)
     qc.invalidateQueries({ queryKey: ['admin-users'] });
     setShowNewAdmin(false);
     reset({ email: '', full_name: '', password: '', custom_role: '' });
