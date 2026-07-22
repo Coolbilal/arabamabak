@@ -889,7 +889,7 @@ function AuctionPanel({
             {/* Masaya oturma uyarısı */}
             {!isInSeat && (
               <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 flex items-center gap-2">
-                <Armchair className="h-3.5 w-3.5 shrink-0" />
+                <UserCheck className="h-3.5 w-3.5 shrink-0" />
                 <span>Teklif verebilmek için <b>masaya oturmanız</b> gerekiyor. Aşağıdaki koltuk panelinden oturabilirsiniz.</span>
               </div>
             )}
