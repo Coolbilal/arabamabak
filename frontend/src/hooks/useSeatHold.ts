@@ -99,8 +99,21 @@ export function useWalletBalance() {
     queryKey: ['wallet-balance', user?.id],
     enabled: !!user,
     queryFn: async () => {
-      // Gerçek cüzdan bakiyesi: tüm completed tx'lar üzerinden delta hesapla
-      // balance_after NULL olan deposit'leri de hesaba kat
+      // Son completed tx'in balance_after'ını al
+      const { data: lastTx, error: lastErr } = await supabase
+        .from('transactions')
+        .select('balance_after')
+        .eq('user_id', user!.id)
+        .eq('status', 'completed')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastErr) throw lastErr;
+      if (lastTx?.balance_after != null) {
+        return Number(lastTx.balance_after);
+      }
+      // NULL ise delta hesapla (ilk kez deposit yapan user'lar için)
       const { data, error } = await supabase
         .from('transactions')
         .select('amount, type')
@@ -127,9 +140,7 @@ export function useWalletBalance() {
       return balance;
     },
   });
-}
-
-/**
+}/**
  * Masaya otur (cüzdandan bloke)
  * Kullanıcı seat_hold kaydı oluşturur veya var olanı döner
  */
