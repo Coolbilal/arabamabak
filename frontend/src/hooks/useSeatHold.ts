@@ -99,17 +99,32 @@ export function useWalletBalance() {
     queryKey: ['wallet-balance', user?.id],
     enabled: !!user,
     queryFn: async () => {
+      // Gerçek cüzdan bakiyesi: tüm completed tx'lar üzerinden delta hesapla
+      // balance_after NULL olan deposit'leri de hesaba kat
       const { data, error } = await supabase
         .from('transactions')
-        .select('balance_after')
+        .select('amount, type')
         .eq('user_id', user!.id)
         .eq('status', 'completed')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .is('deleted_at', null);
       if (error) throw error;
-      return Number(data?.balance_after ?? 0);
+      let balance = 0;
+      for (const tx of data ?? []) {
+        const amt = Number(tx.amount);
+        if (tx.type === 'deposit' || tx.type === 'auction_refund' || tx.type === 'refund') {
+          balance += amt;
+        } else if (
+          tx.type === 'auction_won' ||
+          tx.type === 'payment' ||
+          tx.type === 'premium_payment' ||
+          tx.type === 'expertise_payment' ||
+          tx.type === 'withdraw' ||
+          tx.type === 'auction_payment'
+        ) {
+          balance -= amt;
+        }
+      }
+      return balance;
     },
   });
 }
