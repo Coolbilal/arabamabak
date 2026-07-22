@@ -153,16 +153,18 @@ export function useJoinSeat() {
     mutationFn: async ({ auctionId, fee }: { auctionId: string; fee: number }) => {
       if (!user) throw new Error('Giriş yapmalısınız');
 
-      // Mevcut seat_hold var mı?
+      // Mevcut aktif seat_hold var mı? (status='holding' ve left_at NULL)
       const { data: existing } = await supabase
         .from('auction_seat_holds')
         .select('*')
         .eq('auction_id', auctionId)
         .eq('user_id', user.id)
+        .eq('status', 'holding')
+        .is('left_at', null)
         .maybeSingle();
 
       if (existing) {
-        // Zaten masada
+        // Zaten aktif masada
         return existing as SeatHold;
       }
 
