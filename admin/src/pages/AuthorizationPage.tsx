@@ -396,114 +396,49 @@ export default function AuthorizationPage() {
       return;
     }
 
-    // 1) Email direkt kullanılıyor (validation zaten email formatını kontrol ediyor)
+    // 1) Email direkt kullanılıyor
     const fullEmail = values.email.trim().toLowerCase();
 
-    // 2) Mevcut session'ı sakla (signUp sonrası oturum kaybolmasın)
-    const { data: { session: savedSession } } = await supabase.auth.getSession();
-    const savedUserId = admin.id;
-
-    // 3) Mevcut kullanıcı kontrolü (auth.users'ta var mı?)
-    let newUserId: string | undefined;
+    // 2) Edge Function: create-admin
+    // Bu yöntem signIn oluşturmaz, sadece user + admin_users satırı ekler
+    // Super admin oturumu kesinlikle etkilenmez
     try {
-      const { data: listData, error: listErr } = await supabase.auth.admin.listUsers();
-      if (!listErr && listData?.users) {
-        const existing = listData.users.find((u: any) => u.email === fullEmail);
-        if (existing) {
-          newUserId = existing.id;
-        }
+      const { data: { session: callerSession } } = await supabase.auth.getSession();
+      if (!callerSession) {
+        setGlobalError('Oturum bulunamadı, lütfen tekrar giriş yapın');
+        return;
       }
-    } catch (e) {
-      // admin API yoksa devam et
-    }
 
-    // 4) User yoksa signUp ile oluştur
-    if (!newUserId) {
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email: fullEmail,
-        password: values.password,
-        options: { data: { full_name: values.full_name } },
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-admin`;
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${callerSession.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          email: fullEmail,
+          password: values.password,
+          full_name: values.full_name.trim(),
+          custom_role: values.custom_role?.trim() || null,
+        }),
       });
-      if (signUpErr) {
-        if (signUpErr.message?.toLowerCase().includes('already registered') ||
-            signUpErr.message?.toLowerCase().includes('already exists')) {
-          setGlobalError(
-            `Bu email (${fullEmail}) Supabase auth.users'ta zaten var ama admin_users'da yok. ` +
-            'Çözüm: Supabase Dashboard > Authentication > Users bölümünden bu emaili bulun, üç nokta menüsünden "Delete user" yapın, sonra tekrar deneyin.'
-          );
-        } else {
-          setGlobalError(signUpErr.message);
-        }
+
+      const result = await res.json();
+
+      if (!res.ok || !result.success) {
+        setGlobalError(result.error || `HTTP ${res.status}`);
         return;
       }
-      newUserId = signUpData.user?.id;
-    }
 
-    if (!newUserId) {
-      setGlobalError('Kullanıcı oluşturulamadı (user id alınamadı)');
+      // 3) Başarılı: listeyi yenile, modal kapat
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      setShowNewAdmin(false);
+      reset({ email: '', full_name: '', password: '', custom_role: '' });
       return;
-    }
-
-    // 5) admin_users'ta zaten var mı kontrol et
-    const { data: existingAdmin } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', newUserId)
-      .maybeSingle();
-    if (existingAdmin) {
-      setGlobalError(`Bu email (${fullEmail}) için admin kaydı zaten var.`);
-      return;
-    }
-
-    // 6) admin_users satırı
-    const { error: insErr } = await supabase.from('admin_users').insert({
-      user_id: newUserId,
-      username: fullEmail,
-      full_name: values.full_name.trim(),
-      email: fullEmail,
-      is_active: true,
-      is_super_admin: false,
-      created_by: savedUserId,
-      custom_role: values.custom_role?.trim() || null,
-      must_change_password: true,
-    });
-    if (insErr) {
-      setGlobalError(insErr.message);
-      return;
-    }
-
-    // 7) signUp sonrası session restore: en güvenilir yol
-    // Önce signOut (yeni admin'in session'ını kapat), sonra savedSession ile setSession
-    try {
-      await supabase.auth.signOut();
-    } catch (_) { /* signOut başarısız olabilir, devam et */ }
-
-    if (savedSession) {
-      try {
-        // Local storage'ı temizle
-        try {
-          const keys = Object.keys(localStorage);
-          for (const k of keys) {
-            if (k.startsWith('sb-') || k.includes('supabase')) {
-              localStorage.removeItem(k);
-            }
-          }
-        } catch (_) { /* local storage yoksa geç */ }
-
-        // Eski session'ı set et
-        await supabase.auth.setSession({
-          access_token: savedSession.access_token,
-          refresh_token: savedSession.refresh_token,
-        });
-        await refresh();
-      } catch (e) {
-        setGlobalError(
-          `Yeni admin (${fullEmail}) oluşturuldu. ANCAK super admin oturumu geri yüklenemedi. Lütfen tekrar giriş yapın.`
-        );
-        return;
-      }
-    } else {
-      setGlobalError('Yeni admin oluşturuldu. Lütfen tekrar giriş yapın.');
+    } catch (e: any) {
+      setGlobalError('Edge Function hatası: ' + (e?.message || String(e)));
       return;
     }
 
