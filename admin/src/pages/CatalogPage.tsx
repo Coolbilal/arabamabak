@@ -230,11 +230,16 @@ function CategoriesLevel({ onSelect }: { onSelect: (c: Category) => void }) {
     if (admin.is_super_admin) return null; // null = hepsi
     const perms = (admin as any).permissions || [];
     const subs = perms
-      .filter((p: any) => p.area === 'catalog' && p.sub_area)
+      .filter((p: any) => p.area === 'catalog' && p.sub_area != null)
       .map((p: any) => CATALOG_SUB_AREA_TO_SLUG[p.sub_area] || p.sub_area);
-    // Eğer sadece ana catalog (sub_area=null) yetkisi varsa: tüm catalog sub_area'larını göster
+    // Eğer ana catalog (sub_area=null) yetkisi varsa: sub_area varsa onları göster, yoksa tümünü
     const hasMainCatalog = perms.some((p: any) => p.area === 'catalog' && !p.sub_area);
-    if (hasMainCatalog) return new Set(); // ana yetki = tüm alt kategoriler
+    if (hasMainCatalog) {
+      // Hem parent hem sub_area varsa: sub_area'ları göster (sadece yetkili olanlar)
+      if (subs.length > 0) return new Set(subs);
+      // Sadece parent varsa: tüm alt kategorileri göster
+      return null;
+    }
     return new Set(subs);
   }, [admin]);
 
