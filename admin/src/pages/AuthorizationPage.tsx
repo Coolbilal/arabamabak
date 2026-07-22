@@ -1062,10 +1062,175 @@ export default function AuthorizationPage() {
 }
 
 // ============================================
-// Yeni Yetkilendirme Popup (Tree-Based)
-// Sol: Sayfa listesi (accordion)
-// Sağ: Tıklanan sayfanın alt kategorileri + checkbox'lar
+// Sayfa Yönetimi Modal (admin_areas tablosu)
+// Yetkilendirme popup'ının üstünde "+ Sayfa Ekle" butonu
+// Super admin yeni sayfa (area) ekleyebilir
 // ============================================
+function AreaManagerModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ slug: '', label: '', icon: '', parent_slug: '', sort_order: 100 });
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const areasQuery = useQuery({
+    queryKey: ['admin-areas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('admin_areas')
+        .select('id, slug, label, icon, parent_slug, sort_order, is_active')
+        .order('sort_order');
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string; slug: string; label: string; icon: string | null;
+        parent_slug: string | null; sort_order: number; is_active: boolean;
+      }>;
+    },
+  });
+
+  const mainAreas = (areasQuery.data ?? []).filter((a) => !a.parent_slug);
+
+  async function addArea() {
+    setError(null);
+    if (!form.slug.trim() || !form.label.trim()) {
+      setError('slug ve label zorunlu');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error: insErr } = await supabase.from('admin_areas').insert({
+        slug: form.slug.trim().toLowerCase(),
+        label: form.label.trim(),
+        icon: form.icon.trim() || 'Folder',
+        parent_slug: form.parent_slug.trim() || null,
+        sort_order: form.sort_order,
+        is_active: true,
+      });
+      if (insErr) throw insErr;
+      qc.invalidateQueries({ queryKey: ['admin-areas'] });
+      setForm({ slug: '', label: '', icon: '', parent_slug: '', sort_order: 100 });
+    } catch (e: any) {
+      setError(e?.message || 'Eklenemedi');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteArea(id: string) {
+    if (!confirm('Bu sayfayı silmek istediğinize emin misiniz?')) return;
+    const { error } = await supabase.from('admin_areas').delete().eq('id', id);
+    if (error) {
+      alert('Silinemedi: ' + error.message);
+    } else {
+      qc.invalidateQueries({ queryKey: ['admin-areas'] });
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-3xl rounded-xl bg-white shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col">
+        <div className="p-5 border-b border-slate-200 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+            <Plus className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Sayfa Yönetimi</h2>
+            <p className="text-xs text-slate-500">Sidebar'a eklenecek yeni sayfa veya alt kategoriler.</p>
+          </div>
+          <button onClick={onClose} className="ml-auto p-1.5 rounded text-slate-400 hover:bg-slate-100">×</button>
+        </div>
+        <div className="p-5 overflow-y-auto flex-1 space-y-4">
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+            <input
+              className="input text-sm"
+              placeholder="slug (örn. reports)"
+              value={form.slug}
+              onChange={(e) => setForm({ ...form, slug: e.target.value })}
+            />
+            <input
+              className="input text-sm sm:col-span-2"
+              placeholder="Label (örn. Raporlar)"
+              value={form.label}
+              onChange={(e) => setForm({ ...form, label: e.target.value })}
+            />
+            <input
+              className="input text-sm"
+              placeholder="İkon (örn. BarChart)"
+              value={form.icon}
+              onChange={(e) => setForm({ ...form, icon: e.target.value })}
+            />
+            <select
+              className="input text-sm"
+              value={form.parent_slug}
+              onChange={(e) => setForm({ ...form, parent_slug: e.target.value })}
+            >
+              <option value="">Ana Sayfa</option>
+              {mainAreas.map((a) => (
+                <option key={a.id} value={a.slug}>{a.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              className="input text-sm w-24"
+              placeholder="Sıra"
+              value={form.sort_order}
+              onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 100 })}
+            />
+            <button
+              onClick={addArea}
+              disabled={saving}
+              className="btn-primary disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" /> {saving ? 'Ekleniyor…' : 'Ekle'}
+            </button>
+          </div>
+
+          <div className="border-t border-slate-200 pt-4">
+            <h3 className="text-sm font-semibold text-slate-700 mb-2">Mevcut Sayfalar</h3>
+            <div className="space-y-1 max-h-96 overflow-y-auto">
+              {areasQuery.isLoading ? (
+                <div className="text-center py-4 text-sm text-slate-500">Yükleniyor…</div>
+              ) : (areasQuery.data ?? []).length === 0 ? (
+                <div className="text-center py-4 text-sm text-slate-500">Henüz sayfa yok.</div>
+              ) : (
+                (areasQuery.data ?? []).map((a) => (
+                  <div key={a.id} className={cn(
+                    'flex items-center gap-2 p-2 rounded text-sm hover:bg-slate-50',
+                    !a.is_active && 'opacity-50'
+                  )}>
+                    <span className="font-mono text-xs text-slate-500 min-w-[140px]">
+                      {a.parent_slug ? `${a.parent_slug} > ${a.slug}` : a.slug}
+                    </span>
+                    <span className="flex-1 text-slate-700">{a.label}</span>
+                    <span className="text-xs text-slate-400">{a.icon || '—'}</span>
+                    <button
+                      onClick={() => deleteArea(a.id)}
+                      className="text-red-500 hover:text-red-700 text-xs"
+                    >
+                      Sil
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 p-4 bg-slate-50 border-t border-slate-200">
+          <button onClick={onClose} className="btn-secondary">Kapat</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 type SubPermKey = string; // area:sub_area örn. "catalog:otomobil"
 type PermMap = Record<SubPermKey, { view: boolean; edit: boolean; approve: boolean; del: boolean }>;
 
@@ -1255,6 +1420,7 @@ function PermissionTreePopup({
   const currentArea = openArea ? ALL_AREAS.find((a) => a.key === openArea) : null;
   const currentSubs = currentArea ? AREA_SUB_AREAS[currentArea.key] : null;
   const currentActs = currentArea ? (AREA_ACTIONS[currentArea.key] || { view: true, edit: true, approve: true, del: true }) : null;
+  const [showAreaManager, setShowAreaManager] = useState(false);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -1276,6 +1442,15 @@ function PermissionTreePopup({
               )}
             </p>
           </div>
+          {admin?.is_super_admin && (
+            <button
+              onClick={() => setShowAreaManager(true)}
+              className="btn-secondary text-xs ml-2"
+              title="Yeni sayfa veya alt kategori ekle"
+            >
+              <Plus className="h-3.5 w-3.5" /> Sayfa Yönetimi
+            </button>
+          )}
           <button onClick={onClose} className="ml-auto p-1.5 rounded text-slate-400 hover:bg-slate-100">×</button>
         </div>
 
@@ -1418,6 +1593,7 @@ function PermissionTreePopup({
           </button>
         </div>
       </div>
+      {showAreaManager && <AreaManagerModal onClose={() => setShowAreaManager(false)} />}
     </div>
   );
 }
