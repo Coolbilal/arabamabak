@@ -101,6 +101,8 @@ export default function SeatPanel({ auctionId, seatFee, auctionStatus, className
       auctionId,
       auctionStatus,
       hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email,
       mySeat: mySeat ? { id: mySeat.id, status: mySeat.status, seat: mySeat.seat_number } : null,
       balance,
       fee,
