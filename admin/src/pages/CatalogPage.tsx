@@ -234,7 +234,7 @@ function CategoriesLevel({ onSelect }: { onSelect: (c: Category) => void }) {
       .map((p: any) => CATALOG_SUB_AREA_TO_SLUG[p.sub_area] || p.sub_area);
     // Eğer sadece ana catalog (sub_area=null) yetkisi varsa: tüm catalog sub_area'larını göster
     const hasMainCatalog = perms.some((p: any) => p.area === 'catalog' && !p.sub_area);
-    if (hasMainCatalog) return null; // ana yetki = tüm alt kategoriler
+    if (hasMainCatalog) return new Set(); // ana yetki = tüm alt kategoriler
     return new Set(subs);
   }, [admin]);
 
