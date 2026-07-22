@@ -396,12 +396,16 @@ export default function AuthorizationPage() {
       setGlobalError('Sadece süper admin yeni admin oluşturabilir');
       return;
     }
+
     // 1) Username'den tam email oluştur
     const cleanUsername = values.username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
     const fullEmail = `${cleanUsername}@arabamabak.com`;
 
-    // 2) Mevcut kullanıcı kontrolü (auth.users'ta var mı?)
-    // signUp öncesi mevcut user'ı bul, varsa user_id'sini kullan
+    // 2) Mevcut session'ı sakla (signUp sonrası oturum kaybolmasın)
+    const { data: { session: savedSession } } = await supabase.auth.getSession();
+    const savedUserId = admin.id;
+
+    // 3) Mevcut kullanıcı kontrolü (auth.users'ta var mı?)
     let newUserId: string | undefined;
     try {
       const { data: listData, error: listErr } = await supabase.auth.admin.listUsers();
@@ -415,7 +419,7 @@ export default function AuthorizationPage() {
       // admin API yoksa devam et
     }
 
-    // 3) User yoksa signUp ile oluştur
+    // 4) User yoksa signUp ile oluştur
     if (!newUserId) {
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: fullEmail,
@@ -423,14 +427,11 @@ export default function AuthorizationPage() {
         options: { data: { full_name: values.full_name } },
       });
       if (signUpErr) {
-        // 'User already registered' hatası durumunda: mevcut user'ı RPC ile bul
-        if (signUpErr.message?.toLowerCase().includes('already registered') || 
+        if (signUpErr.message?.toLowerCase().includes('already registered') ||
             signUpErr.message?.toLowerCase().includes('already exists')) {
           setGlobalError(
             `Bu email (${fullEmail}) Supabase auth.users'ta zaten var ama admin_users'da yok. ` +
-            'Çözüm: Supabase Dashboard > SQL Editor\'de şu sorguyu çalıştırın:\n\n' +
-            `SELECT id, email FROM auth.users WHERE email = '${fullEmail}';\n\n` +
-            'Sonra gelen id değerini bana söyleyin, admin_users\'a manuel ekleyelim.'
+            'Çözüm: Supabase Dashboard > Authentication > Users bölümünden bu emaili bulun, üç nokta menüsünden "Delete user" yapın, sonra tekrar deneyin.'
           );
         } else {
           setGlobalError(signUpErr.message);
@@ -439,13 +440,13 @@ export default function AuthorizationPage() {
       }
       newUserId = signUpData.user?.id;
     }
-    
+
     if (!newUserId) {
       setGlobalError('Kullanıcı oluşturulamadı (user id alınamadı)');
       return;
     }
 
-    // 4) admin_users'ta zaten var mı kontrol et
+    // 5) admin_users'ta zaten var mı kontrol et
     const { data: existingAdmin } = await supabase
       .from('admin_users')
       .select('id')
@@ -456,7 +457,7 @@ export default function AuthorizationPage() {
       return;
     }
 
-    // 5) admin_users satırı
+    // 6) admin_users satırı
     const { error: insErr } = await supabase.from('admin_users').insert({
       user_id: newUserId,
       username: fullEmail,
@@ -464,7 +465,7 @@ export default function AuthorizationPage() {
       email: fullEmail,
       is_active: true,
       is_super_admin: false,
-      created_by: admin.id,
+      created_by: savedUserId,
       custom_role: values.custom_role?.trim() || null,
       must_change_password: true,
     });
@@ -472,6 +473,22 @@ export default function AuthorizationPage() {
       setGlobalError(insErr.message);
       return;
     }
+
+    // 7) signUp sonrası eğer yeni session açıldıysa eski super admin session'ına geri dön
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    if (currentSession?.user?.id !== savedUserId && savedSession) {
+      try {
+        await supabase.auth.setSession({
+          access_token: savedSession.access_token,
+          refresh_token: savedSession.refresh_token,
+        });
+      } catch (e) {
+        // Session restore başarısız olursa kullanıcıya bildir
+        setGlobalError('Yeni admin oluşturuldu ANCAK oturumunuz değişti. Lütfen tekrar giriş yapın.');
+        return;
+      }
+    }
+
     qc.invalidateQueries({ queryKey: ['admin-users'] });
     setShowNewAdmin(false);
     reset({ email: '', username: '', full_name: '', password: '', custom_role: '' });
