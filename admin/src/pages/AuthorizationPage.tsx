@@ -57,7 +57,23 @@ interface AdminPermissionRow {
 
 // Her alan için alt alan tanımları (yoksa boş)
 // sub_area: sayfa içindeki alt bölümler (örn. catalog > otomobil)
+// Sidebar'daki TÜM alt öğeler burada tanımlanır (popup'ta accordion olarak açılır)
 const AREA_SUB_AREAS: Partial<Record<PermissionArea, { key: string; label: string }[]>> = {
+  // Dashboard'da alt alan yok
+  auctions: [
+    { key: 'auction-applications', label: 'Açık Arttırma Başvuruları' },
+    { key: 'auctions-incoming', label: 'Açık Arttırmaya Çıkacaklar' },
+    { key: 'auctions-live', label: 'Devam Eden Açık Arttırmalar' },
+    { key: 'auctions-sold', label: 'Satılan Araçlar' },
+    { key: 'slots', label: 'Açık Arttırma Slotları' },
+  ],
+  free_listings: [
+    { key: 'free-listings', label: 'Ücretsiz İlanlar' },
+    { key: 'pending-listings', label: 'Onay Bekleyenler' },
+  ],
+  expertise: [
+    { key: 'expertise-requests', label: 'Ekspertiz Talepleri' },
+  ],
   catalog: [
     { key: 'otomobil', label: 'Otomobil' },
     { key: 'arazi_suv_pickup', label: 'Arazi-SUV-Pikup' },
@@ -65,29 +81,45 @@ const AREA_SUB_AREAS: Partial<Record<PermissionArea, { key: string; label: strin
     { key: 'ticari', label: 'Ticari Araçlar' },
     { key: 'motosiklet_utv_atv', label: 'Motosiklet-UTV-ATV' },
   ],
-  auctions: [
-    { key: 'live', label: 'Devam Eden' },
-    { key: 'upcoming', label: 'Yaklaşan' },
-    { key: 'ended', label: 'Tamamlanan' },
-    { key: 'sold', label: 'Satılan' },
-  ],
-  free_listings: [
-    { key: 'pending', label: 'Onay Bekleyenler' },
-    { key: 'approved', label: 'Onaylılar' },
-    { key: 'rejected', label: 'Reddedilenler' },
-  ],
-  expertise: [
-    { key: 'requests', label: 'Talepler' },
-    { key: 'experts', label: 'Ekspertiz Firmaları' },
-  ],
   users: [
     { key: 'individual', label: 'Bireysel' },
     { key: 'corporate', label: 'Kurumsal' },
   ],
+  corporate_applications: [
+    { key: 'corporate-applications', label: 'Kurumsal Başvurular' },
+  ],
+  valet_applications: [
+    { key: 'valet-applications', label: 'Vale Başvuruları' },
+    { key: 'expert-valets', label: 'Aktif Valeler' },
+  ],
+  franchise_applications: [
+    { key: 'franchise-applications', label: 'Bayi Başvuruları' },
+    { key: 'expertise-dealerships', label: 'Aktif Bayiler' },
+  ],
   transactions: [
-    { key: 'listings', label: 'İlan Ödemeleri' },
-    { key: 'premium', label: 'Premium' },
-    { key: 'commissions', label: 'Komisyonlar' },
+    { key: 'transactions', label: 'İşlem Geçmişi' },
+  ],
+  payments: [
+    { key: 'payments', label: 'Hakediş ve Ödemeler' },
+    { key: 'valet-payments', label: 'Vale Ödemeleri' },
+    { key: 'franchise-payments', label: 'Bayi Ödemeleri' },
+  ],
+  site_settings: [
+    { key: 'theme', label: 'Tema' },
+    { key: 'advertisements', label: 'Reklamlar' },
+    { key: 'logos', label: 'Logolar' },
+    { key: 'eids-settings', label: 'EİDS Yapılandırma' },
+    { key: 'eids-logs', label: 'EİDS Sorgu Logları' },
+    { key: 'payment-methods', label: 'Ödeme Yöntemleri' },
+  ],
+  info_pages: [
+    { key: 'info-pages', label: 'Bilgi Bankası Sayfaları' },
+  ],
+  authorization: [
+    { key: 'authorization', label: 'Yetkilendirme' },
+  ],
+  audit_logs: [
+    { key: 'audit-logs', label: 'İşlem Logları' },
   ],
 };
 
@@ -745,8 +777,8 @@ export default function AuthorizationPage() {
         </div>
       )}
 
-      {/* Yetkiler Modal */}
-      {permissionTarget && (
+      {/* Yetkiler Modal (eski - geriye uyumluluk) */}
+      {permissionTarget && false && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="relative w-full max-w-2xl rounded-xl bg-white shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-slate-200">
@@ -801,6 +833,9 @@ export default function AuthorizationPage() {
           </div>
         </div>
       )}
+
+      {/* YENİ: Tree-Based Yetkilendirme Popup */}
+      {permissionTarget && <PermissionTreePopup target={permissionTarget} onClose={() => setPermissionTarget(null)} />}
 
       <ConfirmDialog
         open={!!deleteTarget}
@@ -925,8 +960,414 @@ export default function AuthorizationPage() {
 }
 
 // ============================================
-// İşlem Logları Modal (her admin için)
+// Yeni Yetkilendirme Popup (Tree-Based)
+// Sol: Sayfa listesi (accordion)
+// Sağ: Tıklanan sayfanın alt kategorileri + checkbox'lar
 // ============================================
+type SubPermKey = string; // area:sub_area örn. "catalog:otomobil"
+type PermMap = Record<SubPermKey, { view: boolean; edit: boolean; approve: boolean; del: boolean }>;
+
+function PermissionTreePopup({
+  target,
+  onClose,
+}: {
+  target: AdminUserRow;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const { admin, refresh } = useAuth();
+  const [openArea, setOpenArea] = useState<PermissionArea | null>('dashboard');
+  const [permMap, setPermMap] = useState<PermMap>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  // Mevcut yetkileri yükle (sub_area dahil TÜMÜ)
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('admin_permissions')
+          .select('id, admin_user_id, area, sub_area, can_view, can_edit, can_approve, can_delete')
+          .eq('admin_user_id', target.id);
+        if (error) throw error;
+        if (!active) return;
+        const next: PermMap = {};
+        for (const r of data ?? []) {
+          const k = `${r.area}:${r.sub_area ?? ''}`;
+          next[k] = {
+            view: r.can_view,
+            edit: r.can_edit,
+            approve: r.can_approve,
+            del: r.can_delete,
+          };
+        }
+        setPermMap(next);
+      } catch (e: any) {
+        setError(e?.message || 'Yetkiler yüklenemedi');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [target.id]);
+
+  function getPerm(area: PermissionArea, subArea: string | null) {
+    const k = `${area}:${subArea ?? ''}`;
+    return permMap[k] ?? { view: false, edit: false, approve: false, del: false };
+  }
+
+  function setPerm(area: PermissionArea, subArea: string | null, field: 'view' | 'edit' | 'approve' | 'del', val: boolean) {
+    const k = `${area}:${subArea ?? ''}`;
+    setPermMap((prev) => ({
+      ...prev,
+      [k]: { ...(prev[k] ?? { view: false, edit: false, approve: false, del: false }), [field]: val },
+    }));
+  }
+
+  // Tüm checkbox'ları toggle et (mevcut sayfa)
+  function toggleAllForArea(area: PermissionArea, on: boolean) {
+    const subs = AREA_SUB_AREAS[area];
+    const acts = AREA_ACTIONS[area] || { view: true, edit: true, approve: true, del: true };
+    setPermMap((prev) => {
+      const next = { ...prev };
+      // Ana alan
+      next[`${area}:`] = {
+        view: acts.view ? on : false,
+        edit: acts.edit ? on : false,
+        approve: acts.approve ? on : false,
+        del: acts.del ? on : false,
+      };
+      // Alt alanlar
+      if (subs) {
+        for (const sub of subs) {
+          next[`${area}:${sub.key}`] = {
+            view: acts.view ? on : false,
+            edit: acts.edit ? on : false,
+            approve: acts.approve ? on : false,
+            del: acts.del ? on : false,
+          };
+        }
+      }
+      return next;
+    });
+  }
+
+  // Tüm checkbox'ları toggle et (TÜM alanlar)
+  function toggleGlobalAll(on: boolean) {
+    const next: PermMap = {};
+    for (const a of ALL_AREAS) {
+      const acts = AREA_ACTIONS[a.key] || { view: true, edit: true, approve: true, del: true };
+      next[`${a.key}:`] = {
+        view: acts.view ? on : false,
+        edit: acts.edit ? on : false,
+        approve: acts.approve ? on : false,
+        del: acts.del ? on : false,
+      };
+      const subs = AREA_SUB_AREAS[a.key];
+      if (subs) {
+        for (const sub of subs) {
+          next[`${a.key}:${sub.key}`] = {
+            view: acts.view ? on : false,
+            edit: acts.edit ? on : false,
+            approve: acts.approve ? on : false,
+            del: acts.del ? on : false,
+          };
+        }
+      }
+    }
+    setPermMap(next);
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      // Önce mevcut tüm yetkileri sil
+      const { error: delErr } = await supabase
+        .from('admin_permissions')
+        .delete()
+        .eq('admin_user_id', target.id);
+      if (delErr) throw delErr;
+
+      // Yeni yetkileri ekle
+      const rows: Array<any> = [];
+      for (const a of ALL_AREAS) {
+        const subs = AREA_SUB_AREAS[a.key];
+        // Ana alan
+        const main = permMap[`${a.key}:`] ?? { view: false, edit: false, approve: false, del: false };
+        // Sadece en az 1 yetkisi varsa ekle
+        if (main.view || main.edit || main.approve || main.del) {
+          rows.push({
+            admin_user_id: target.id,
+            area: a.key,
+            sub_area: null,
+            can_view: main.view,
+            can_edit: main.edit,
+            can_approve: main.approve,
+            can_delete: main.del,
+          });
+        }
+        // Alt alanlar
+        if (subs) {
+          for (const sub of subs) {
+            const s = permMap[`${a.key}:${sub.key}`] ?? { view: false, edit: false, approve: false, del: false };
+            if (s.view || s.edit || s.approve || s.del) {
+              rows.push({
+                admin_user_id: target.id,
+                area: a.key,
+                sub_area: sub.key,
+                can_view: s.view,
+                can_edit: s.edit,
+                can_approve: s.approve,
+                can_delete: s.del,
+              });
+            }
+          }
+        }
+      }
+      if (rows.length > 0) {
+        const { error: insErr } = await supabase.from('admin_permissions').insert(rows);
+        if (insErr) throw insErr;
+      }
+      if (target.id === admin?.id) await refresh();
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      onClose();
+    } catch (e: any) {
+      setError(e?.message || 'Yetkiler kaydedilemedi');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Sidebar öğelerine göre filtrele
+  const filteredAreas = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return ALL_AREAS;
+    return ALL_AREAS.filter((a) => a.label.toLowerCase().includes(q));
+  }, [search]);
+
+  const currentArea = openArea ? ALL_AREAS.find((a) => a.key === openArea) : null;
+  const currentSubs = currentArea ? AREA_SUB_AREAS[currentArea.key] : null;
+  const currentActs = currentArea ? (AREA_ACTIONS[currentArea.key] || { view: true, edit: true, approve: true, del: true }) : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-6xl rounded-xl bg-white shadow-2xl border border-slate-200 max-h-[92vh] flex flex-col">
+        {/* Header */}
+        <div className="p-5 border-b border-slate-200 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
+            <Shield className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">
+              Yetkilendirme — {target.full_name || target.username}
+            </h2>
+            <p className="text-xs text-slate-500">
+              {target.is_super_admin ? (
+                <span className="text-amber-600 font-semibold">Süper admin tüm yetkilere sahiptir.</span>
+              ) : (
+                'Soldan sayfa seçin, sağda alt kategorilere yetki atayın.'
+              )}
+            </p>
+          </div>
+          <button onClick={onClose} className="ml-auto p-1.5 rounded text-slate-400 hover:bg-slate-100">×</button>
+        </div>
+
+        {/* Body: sol + sağ */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Sol: Sayfa ağacı (tree) */}
+          <div className="w-72 border-r border-slate-200 flex flex-col bg-slate-50">
+            <div className="p-3 border-b border-slate-200">
+              <input
+                type="search"
+                placeholder="Sayfa ara…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input text-xs"
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {filteredAreas.map((a) => {
+                const subs = AREA_SUB_AREAS[a.key];
+                const isOpen = openArea === a.key;
+                const mainP = getPerm(a.key, null);
+                const hasAny = mainP.view || mainP.edit || mainP.approve || mainP.del;
+                return (
+                  <div key={a.key}>
+                    <button
+                      onClick={() => setOpenArea(isOpen ? null : a.key)}
+                      className={cn(
+                        'w-full flex items-center gap-2 px-3 py-2 text-left text-sm border-b border-slate-100 transition',
+                        isOpen ? 'bg-sky-50 text-sky-700 font-semibold' : 'hover:bg-white text-slate-700'
+                      )}
+                    >
+                      {subs && subs.length > 0 ? (
+                        isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                      ) : (
+                        <span className="w-3.5" />
+                      )}
+                      <span className="flex-1 truncate">{a.label}</span>
+                      {hasAny && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                      {subs && subs.length > 0 && (
+                        <span className="text-[10px] text-slate-400 shrink-0">{subs.length}</span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="p-3 border-t border-slate-200 space-y-1">
+              <button
+                onClick={() => toggleGlobalAll(true)}
+                disabled={loading}
+                className="w-full text-xs font-semibold text-emerald-600 hover:bg-emerald-50 py-1.5 rounded"
+              >
+                ✓ Tüm Sayfaları Aç
+              </button>
+              <button
+                onClick={() => toggleGlobalAll(false)}
+                disabled={loading}
+                className="w-full text-xs font-semibold text-red-600 hover:bg-red-50 py-1.5 rounded"
+              >
+                ✕ Tüm Sayfaları Kapat
+              </button>
+            </div>
+          </div>
+
+          {/* Sağ: Yetki matrisi */}
+          <div className="flex-1 overflow-y-auto p-5">
+            {loading ? (
+              <div className="text-center py-12 text-sm text-slate-500">Yükleniyor…</div>
+            ) : !currentArea ? (
+              <div className="text-center py-12 text-sm text-slate-500">
+                Soldan bir sayfa seçin.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">{currentArea.label}</h3>
+                    <p className="text-xs text-slate-500">
+                      {currentSubs ? `${currentSubs.length} alt kategori` : 'Bu sayfada alt kategori yok.'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleAllForArea(currentArea.key, true)}
+                      className="text-xs font-semibold text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded"
+                    >
+                      Tümünü Aç
+                    </button>
+                    <button
+                      onClick={() => toggleAllForArea(currentArea.key, false)}
+                      className="text-xs font-semibold text-red-600 hover:bg-red-50 px-2 py-1 rounded"
+                    >
+                      Tümünü Kapat
+                    </button>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <PermRow
+                  title={currentArea.label + ' (Ana Sayfa)'}
+                  subtitle="Bu alan için ana yetkiler"
+                  perm={getPerm(currentArea.key, null)}
+                  acts={currentActs!}
+                  disabled={saving || target.is_super_admin}
+                  onChange={(f, v) => setPerm(currentArea.key, null, f, v)}
+                />
+
+                {currentSubs && currentSubs.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider pt-2">Alt Kategoriler</div>
+                    {currentSubs.map((sub) => (
+                      <PermRow
+                        key={sub.key}
+                        title={sub.label}
+                        subtitle={sub.key}
+                        perm={getPerm(currentArea.key, sub.key)}
+                        acts={currentActs!}
+                        disabled={saving || target.is_super_admin}
+                        onChange={(f, v) => setPerm(currentArea.key, sub.key, f, v)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 p-4 bg-slate-50 border-t border-slate-200">
+          <button onClick={onClose} className="btn-secondary">Vazgeç</button>
+          <button onClick={save} disabled={saving || target.is_super_admin} className="btn-primary disabled:opacity-50">
+            <Save className="h-4 w-4" /> {saving ? 'Kaydediliyor…' : 'Yetkileri Kaydet'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Tek satır yetki (Ana sayfa veya alt kategori)
+function PermRow({
+  title, subtitle, perm, acts, disabled, onChange,
+}: {
+  title: string;
+  subtitle: string;
+  perm: { view: boolean; edit: boolean; approve: boolean; del: boolean };
+  acts: { view: boolean; edit: boolean; approve: boolean; del: boolean };
+  disabled?: boolean;
+  onChange: (field: 'view' | 'edit' | 'approve' | 'del', val: boolean) => void;
+}) {
+  const fields: { key: 'view' | 'edit' | 'approve' | 'del'; label: string }[] = [
+    { key: 'view', label: 'Görüntüle' },
+    { key: 'edit', label: 'Düzenle' },
+    { key: 'approve', label: 'Onayla' },
+    { key: 'del', label: 'Sil' },
+  ];
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3 flex items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-slate-800 truncate">{title}</div>
+        <div className="text-[10px] text-slate-400 font-mono truncate">{subtitle}</div>
+      </div>
+      <div className="flex items-center gap-3">
+        {fields.map((f) => {
+          const allowed = acts[f.key];
+          if (!allowed) {
+            return <span key={f.key} className="text-slate-300 text-[10px] w-16 text-center">—</span>;
+          }
+          return (
+            <label key={f.key} className="flex flex-col items-center gap-0.5 cursor-pointer w-16">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 disabled:opacity-50"
+                checked={perm[f.key]}
+                onChange={(e) => onChange(f.key, e.target.checked)}
+                disabled={disabled}
+              />
+              <span className="text-[10px] text-slate-500">{f.label}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
 function HistoryModal({ target, onClose }: { target: AdminUserRow; onClose: () => void }) {
   const [filterAction, setFilterAction] = useState<string>('');
   const logsQuery = useQuery({
