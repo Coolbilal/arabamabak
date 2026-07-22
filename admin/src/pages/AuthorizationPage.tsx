@@ -341,8 +341,37 @@ export default function AuthorizationPage() {
     mutationFn: async (row: AdminUserRow) => {
       if (!admin?.is_super_admin) throw new Error('Sadece süper admin silebilir');
       if (row.id === admin.id) throw new Error('Kendi hesabınızı silemezsiniz');
+
+      // 1) Bu admin'e atanmış expertise_requests'te assigned_admin_id'yi NULL yap
+      const tablesToUnassign = [
+        { table: 'expertise_requests', column: 'assigned_admin_id' },
+        { table: 'free_listings', column: 'reviewed_by' },
+        { table: 'auctions', column: 'approved_by' },
+        { table: 'admin_activity_logs', column: 'actor_id' },
+        { table: 'admin_permissions', column: 'admin_user_id' },
+      ];
+      for (const t of tablesToUnassign) {
+        try {
+          await supabase.from(t.table).update({ [t.column]: null }).eq(t.column, row.id);
+        } catch (e) {
+          // kolon yoksa devam et
+        }
+      }
+
+      // 2) admin_permissions'tan bu admin'in tüm yetkilerini sil
+      await supabase.from('admin_permissions').delete().eq('admin_user_id', row.id);
+
+      // 3) admin_users'tan sil
       const { error } = await supabase.from('admin_users').delete().eq('id', row.id);
       if (error) throw error;
+
+      // 4) auth.users'tan user'ı sil (confirm email açıksa burada hata alabilir)
+      try {
+        await supabase.auth.admin.deleteUser(row.user_id);
+      } catch (e) {
+        // admin API yoksa hata vermez, sadece log
+        console.warn('auth.users silinemedi (service role key gerekli olabilir):', e);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users'] });
