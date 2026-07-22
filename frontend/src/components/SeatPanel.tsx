@@ -129,14 +129,17 @@ export default function SeatPanel({ auctionId, seatFee, auctionStatus, className
   async function handleLeave() {
     if (!mySeat) return;
     if (isWinner) {
-      alert('Son teklifi veren kullanıcı masadan ayrılamaz. Önce daha düşük bir teklif gelmesini bekleyin.');
+      alert('Yeni son teklif gelene kadar masadan ayrılamazsınız.');
       return;
     }
     if (!isLive) return;
     if (!confirm('Masadan ayrılmak istediğinize emin misiniz? Bloke edilen tutar cüzdanınıza iade edilecek.')) return;
     try {
-      await leaveMut.mutateAsync({ auctionId, seatId: mySeat.id });
+      console.log('[SeatPanel] handleLeave: leaving seat', mySeat.id);
+      const result = await leaveMut.mutateAsync({ auctionId, seatId: mySeat.id });
+      console.log('[SeatPanel] leave result:', result);
     } catch (e: any) {
+      console.error('[SeatPanel] leave error:', e);
       alert(e?.message || 'Ayrılınamadı');
     }
   }
