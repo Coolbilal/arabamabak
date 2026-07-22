@@ -35,8 +35,8 @@ export default function SeatPanel({ auctionId, seatFee, auctionStatus, className
   const { user } = useAuth();
 
   const { data: mySeat, isLoading: seatLoading } = useMySeat(auctionId);
+  const { data: balance = 0, isLoading: balanceLoading } = useWalletBalance();
   const { data: highestBidder } = useHighestBidder(auctionId);
-  const { data: balance = 0 } = useWalletBalance();
   const { data: seats = [] } = useAuctionSeats(auctionId);
 
   const joinMut = useJoinSeat();
@@ -236,6 +236,11 @@ export default function SeatPanel({ auctionId, seatFee, auctionStatus, className
 
   return (
     <div className={cn('rounded-xl border border-slate-200 bg-white p-4 space-y-3', className)}>
+      {balanceLoading && !balance && (
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cüzdan bakiyesi yükleniyor…
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
           <Armchair className="h-4 w-4" /> Açık Arttırma Masası

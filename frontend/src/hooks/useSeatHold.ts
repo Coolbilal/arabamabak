@@ -98,6 +98,8 @@ export function useWalletBalance() {
   return useQuery({
     queryKey: ['wallet-balance', user?.id],
     enabled: !!user,
+    staleTime: 0, // Her mount'ta fresh data
+    gcTime: 1000 * 60 * 5, // 5 dakika cache'le
     queryFn: async () => {
       // Son completed tx'in balance_after'ını al
       const { data: lastTx, error: lastErr } = await supabase
