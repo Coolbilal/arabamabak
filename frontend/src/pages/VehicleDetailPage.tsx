@@ -174,6 +174,10 @@ export default function VehicleDetailPage() {
           queryClient.invalidateQueries({ queryKey: ['bids', auctionId] });
           // Vehicle (auction.current_price) aktif olarak yeniden çek
           queryClient.invalidateQueries({ queryKey: qcKey, refetchType: 'active' });
+          // Highest-bidder'ı yenile (canLeave mantığı için KRİTİK)
+          queryClient.invalidateQueries({ queryKey: ['highest-bidder', auctionId] });
+          // my-seat'i de yenile (güvenlik)
+          queryClient.invalidateQueries({ queryKey: ['my-seat', auctionId] });
         },
       )
       .subscribe();

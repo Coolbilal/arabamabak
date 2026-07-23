@@ -50,6 +50,7 @@ export function useHighestBidder(auctionId: string | undefined) {
   return useQuery({
     queryKey: ['highest-bidder', auctionId],
     enabled: !!auctionId,
+    refetchInterval: 3000, // 3 saniyede bir yenile (realtime yedek)
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bids')
