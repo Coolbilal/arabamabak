@@ -222,6 +222,7 @@ export function useJoinSeat() {
       qc.invalidateQueries({ queryKey: ['my-seat', vars.auctionId] });
       qc.invalidateQueries({ queryKey: ['auction-seats', vars.auctionId] });
       qc.invalidateQueries({ queryKey: ['wallet-balance'] });
+      qc.invalidateQueries({ queryKey: ['highest-bidder', vars.auctionId] });
     },
   });
 }

@@ -743,6 +743,8 @@ function AuctionPanel({
       setBidAmount('');
       queryClient.invalidateQueries({ queryKey: ['bids', auction.id] });
       queryClient.invalidateQueries({ queryKey: ['vehicle', auction.vehicle_id] });
+      queryClient.invalidateQueries({ queryKey: ['highest-bidder', auction.id] });
+      queryClient.invalidateQueries({ queryKey: ['my-seat', auction.id] });
       setTimeout(() => setSuccess(null), 4000);
     },
     onError: (e: Error) => setError(e.message),
