@@ -566,7 +566,7 @@ export default function AuthorizationPage() {
         render: (row) => (
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">
-              {(row.full_name || row.username).slice(0, 1).toUpperCase()}
+              {(row.full_name || row.username || '?').slice(0, 1).toUpperCase()}
             </div>
             <div>
               <div className="font-medium text-slate-800">{row.full_name || '—'}</div>
@@ -601,7 +601,7 @@ export default function AuthorizationPage() {
         header: 'User ID',
         render: (row) => (
           <code className="text-[10px] text-slate-400 font-mono" title={row.user_id}>
-            {row.user_id.slice(0, 8)}…
+            {row.user_id ? row.user_id.slice(0, 8) + '…' : '—'}
           </code>
         ),
       },
