@@ -239,7 +239,9 @@ export function useLeaveSeat() {
       const { data, error } = await supabase
         .from('auction_seat_holds')
         .update({
+          status: 'released',
           left_at: new Date().toISOString(),
+          released_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', seatId)
