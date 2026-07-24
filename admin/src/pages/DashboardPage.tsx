@@ -526,73 +526,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Transactions */}
-      <div className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-slate-900">Son 10 İşlem</h3>
-            <p className="text-xs text-slate-500">Tüm kullanıcıların son finansal hareketleri</p>
-          </div>
-        </div>
-        {recentTx.isLoading ? (
-          <div className="p-10 text-center text-slate-400 text-sm">
-            <Loader2 className="inline h-5 w-5 animate-spin mr-2" /> Yükleniyor…
-          </div>
-        ) : recentTx.isError ? (
-          <div className="p-6 flex items-center gap-2 text-sm text-red-600">
-            <AlertCircle className="h-4 w-4" /> İşlemler yüklenemedi.
-          </div>
-        ) : (recentTx.data ?? []).length === 0 ? (
-          <div className="p-10 text-center text-slate-400 text-sm">Henüz işlem yok.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                <tr>
-                  <th className="text-left px-5 py-3 font-medium">Tarih</th>
-                  <th className="text-left px-5 py-3 font-medium">Kullanıcı</th>
-                  <th className="text-left px-5 py-3 font-medium">Tip</th>
-                  <th className="text-right px-5 py-3 font-medium">Tutar</th>
-                  <th className="text-left px-5 py-3 font-medium">Durum</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {(recentTx.data ?? []).map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 text-slate-600 whitespace-nowrap">
-                      {formatDate(tx.created_at)}
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="font-medium text-slate-800">
-                        {tx.user?.full_name || '—'}
-                      </div>
-                      <div className="text-xs text-slate-400">{tx.user?.email}</div>
-                    </td>
-                    <td className="px-5 py-3 text-slate-700">
-                      {TX_TYPE_LABELS[tx.type] || tx.type}
-                    </td>
-                    <td className="px-5 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
-                      {formatPrice(tx.amount)}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className={cn(
-                        'inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold',
-                        TX_STATUS_CLASS[tx.status] || 'bg-slate-200 text-slate-700',
-                      )}>
-                        {TX_STATUS_LABELS[tx.status] || tx.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {isLoadingAny && !recentTx.data && (
-        <div className="text-xs text-slate-400 text-right">Veriler yükleniyor…</div>
-      )}
+      {/* Son 10 İşlem tablosu kaldırıldı - İşlem Geçmişi için sidebar kullanılıyor */}
     </div>
   );
 }
