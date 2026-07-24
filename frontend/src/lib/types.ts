@@ -192,8 +192,10 @@ export type TxStatus = 'cancelled' | 'completed' | 'failed' | 'pending';
 // tx_type
 export type TxType =
   | 'auction_payment'
+  | 'corporate_listing_fee'
   | 'deposit'
   | 'expertise_payment'
+  | 'excess_listing_fee'
   | 'payment'
   | 'premium_payment'
   | 'refund'

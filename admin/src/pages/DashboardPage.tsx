@@ -63,6 +63,8 @@ const TX_TYPE_LABELS: Record<TxType, string> = {
   auction_payment: 'Açık Arttırma Ödemesi',
   premium_payment: 'Premium Ödemesi',
   expertise_payment: 'Ekspertiz Ödemesi',
+  corporate_listing_fee: 'Kurumsal İlan Geliri',
+  excess_listing_fee: 'Kota Aşımı Geliri',
 };
 
 const TX_STATUS_LABELS: Record<TxStatus, string> = {
@@ -170,8 +172,18 @@ export default function DashboardPage() {
   const txCompleted = useQuery({
     queryKey: ['dash', 'tx-completed'],
     queryFn: async () => {
+      // Ciro = platform gelirleri (kullanıcı cüzdan hareketleri hariç)
       const { data, error } = await supabase
-        .from('transactions').select('amount').eq('status', 'completed');
+        .from('transactions')
+        .select('amount')
+        .eq('status', 'completed')
+        .in('type', [
+          'premium_payment',         // İlan verme ücreti
+          'auction_payment',         // Açık arttırma modül ücreti
+          'expertise_payment',       // Ekspertiz talep ücreti
+          'corporate_listing_fee',   // Kurumsal/galeri ücretsiz ilan geliri
+          'excess_listing_fee',      // Bireysel kota aşımı geliri
+        ]);
       if (error) throw error;
       return (data ?? []).reduce((s, r: any) => s + Number(r.amount || 0), 0);
     },
