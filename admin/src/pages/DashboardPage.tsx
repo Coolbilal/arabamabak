@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Users, Car, Gavel, BadgePlus, Banknote, Store,
   TrendingUp, TrendingDown, RefreshCw, Loader2, AlertCircle,
-  ShieldCheck, Wallet, ChevronDown, ChevronUp, Star,
+  ShieldCheck, Wallet,
 } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -274,69 +274,19 @@ export default function DashboardPage() {
     },
   });
 
-  // ---- Son işlemler — 4 ayrı tip (premium / expertise / auction / free listing) ----
-  const premiumTx = useQuery({
-    queryKey: ['dash', 'tx-premium'],
+  // ---- Son 10 işlem ----
+  const recentTx = useQuery({
+    queryKey: ['dash', 'recent-tx'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
         .select('id,user_id,type,amount,status,description,created_at, completed_at, profiles:user_id(full_name,email)')
-        .eq('status', 'completed')
-        .eq('type', 'premium_payment')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10);
       if (error) throw error;
       return (data ?? []) as unknown as TxWithUser[];
     },
   });
-
-  const expertiseTx = useQuery({
-    queryKey: ['dash', 'tx-expertise'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('id,user_id,type,amount,status,description,created_at, completed_at, profiles:user_id(full_name,email)')
-        .eq('status', 'completed')
-        .eq('type', 'expertise_payment')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return (data ?? []) as unknown as TxWithUser[];
-    },
-  });
-
-  const auctionTx = useQuery({
-    queryKey: ['dash', 'tx-auction'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('id,user_id,type,amount,status,description,created_at, completed_at, profiles:user_id(full_name,email)')
-        .eq('status', 'completed')
-        .eq('type', 'auction_payment')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return (data ?? []) as unknown as TxWithUser[];
-    },
-  });
-
-  const freeListingTx = useQuery({
-    queryKey: ['dash', 'tx-free-listing'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('id,user_id,type,amount,status,description,created_at, completed_at, profiles:user_id(full_name,email)')
-        .eq('status', 'completed')
-        .in('type', ['corporate_listing_fee', 'excess_listing_fee'])
-        .order('created_at', { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return (data ?? []) as unknown as TxWithUser[];
-    },
-  });
-
-  // Accordion state — hangi bölüm açık (sadece 1 aynı anda)
-  const [openSection, setOpenSection] = useState<'premium' | 'expertise' | 'auction' | 'free' | null>(null);
 
   // Yüzde trend hesaplama
   function pct(curr: number, prev: number): number | null {
@@ -371,8 +321,7 @@ export default function DashboardPage() {
 
   const isLoadingAny =
     profilesCount.isLoading || vehiclesActive.isLoading || auctionsLive.isLoading ||
-    vehiclesToday.isLoading || txCompleted.isLoading || dealershipsActive.isLoading ||
-    premiumTx.isLoading || expertiseTx.isLoading || auctionTx.isLoading || freeListingTx.isLoading;
+    vehiclesToday.isLoading || txCompleted.isLoading || dealershipsActive.isLoading;
 
   function refreshAll() {
     profilesCount.refetch();
@@ -385,10 +334,7 @@ export default function DashboardPage() {
     trendBids.refetch();
     last7Vehicles.refetch();
     last7Bids.refetch();
-    premiumTx.refetch();
-    expertiseTx.refetch();
-    auctionTx.refetch();
-    freeListingTx.refetch();
+    recentTx.refetch();
   }
 
   return (
@@ -580,207 +526,73 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* İşlem Kayıtları - 4 Accordion Bölümü */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-bold text-slate-900">İşlem Kayıtları</h2>
-        <p className="text-xs text-slate-500 -mt-2">Platform gelirleri — başlığa tıklayarak ilgili işlemleri görüntüleyin</p>
-
-        {/* 1) Premium İlan İşlem Kayıtları */}
-        <div className="card overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setOpenSection(openSection === 'premium' ? null : 'premium')}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700">
-                <Star className="h-5 w-5" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-slate-900 text-sm">Premium İlan İşlem Kayıtları</div>
-                <div className="text-xs text-slate-500">
-                  {premiumTx.isLoading ? 'Yükleniyor…' : `${(premiumTx.data ?? []).length} işlem`}
-                </div>
-              </div>
-            </div>
-            {openSection === 'premium' ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
-          </button>
-          {openSection === 'premium' && (
-            <TxTable
-              data={premiumTx.data ?? []}
-              loading={premiumTx.isLoading}
-              isError={premiumTx.isError}
-            />
-          )}
+      {/* Recent Transactions */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">Son 10 İşlem</h3>
+            <p className="text-xs text-slate-500">Tüm kullanıcıların son finansal hareketleri</p>
+          </div>
         </div>
-
-        {/* 2) Ekspertiz Ödemesi İşlem Kayıtları */}
-        <div className="card overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setOpenSection(openSection === 'expertise' ? null : 'expertise')}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-sky-100 flex items-center justify-center text-sky-700">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-slate-900 text-sm">Ekspertiz Ödemesi İşlem Kayıtları</div>
-                <div className="text-xs text-slate-500">
-                  {expertiseTx.isLoading ? 'Yükleniyor…' : `${(expertiseTx.data ?? []).length} işlem`}
-                </div>
-              </div>
-            </div>
-            {openSection === 'expertise' ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
-          </button>
-          {openSection === 'expertise' && (
-            <TxTable
-              data={expertiseTx.data ?? []}
-              loading={expertiseTx.isLoading}
-              isError={expertiseTx.isError}
-            />
-          )}
-        </div>
-
-        {/* 3) Açık Arttırma Modül Ücreti İşlem Kayıtları */}
-        <div className="card overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setOpenSection(openSection === 'auction' ? null : 'auction')}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-rose-100 flex items-center justify-center text-rose-700">
-                <Gavel className="h-5 w-5" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-slate-900 text-sm">Açık Arttırma Modül Ücreti İşlem Kayıtları</div>
-                <div className="text-xs text-slate-500">
-                  {auctionTx.isLoading ? 'Yükleniyor…' : `${(auctionTx.data ?? []).length} işlem`}
-                </div>
-              </div>
-            </div>
-            {openSection === 'auction' ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
-          </button>
-          {openSection === 'auction' && (
-            <TxTable
-              data={auctionTx.data ?? []}
-              loading={auctionTx.isLoading}
-              isError={auctionTx.isError}
-            />
-          )}
-        </div>
-
-        {/* 4) Ücretsiz İlan İşlem Kayıtları */}
-        <div className="card overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setOpenSection(openSection === 'free' ? null : 'free')}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700">
-                <BadgePlus className="h-5 w-5" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-slate-900 text-sm">Ücretsiz İlan İşlem Kayıtları</div>
-                <div className="text-xs text-slate-500">
-                  {freeListingTx.isLoading ? 'Yükleniyor…' : `${(freeListingTx.data ?? []).length} işlem`}
-                </div>
-              </div>
-            </div>
-            {openSection === 'free' ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
-          </button>
-          {openSection === 'free' && (
-            <TxTable
-              data={freeListingTx.data ?? []}
-              loading={freeListingTx.isLoading}
-              isError={freeListingTx.isError}
-            />
-          )}
-        </div>
+        {recentTx.isLoading ? (
+          <div className="p-10 text-center text-slate-400 text-sm">
+            <Loader2 className="inline h-5 w-5 animate-spin mr-2" /> Yükleniyor…
+          </div>
+        ) : recentTx.isError ? (
+          <div className="p-6 flex items-center gap-2 text-sm text-red-600">
+            <AlertCircle className="h-4 w-4" /> İşlemler yüklenemedi.
+          </div>
+        ) : (recentTx.data ?? []).length === 0 ? (
+          <div className="p-10 text-center text-slate-400 text-sm">Henüz işlem yok.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="text-left px-5 py-3 font-medium">Tarih</th>
+                  <th className="text-left px-5 py-3 font-medium">Kullanıcı</th>
+                  <th className="text-left px-5 py-3 font-medium">Tip</th>
+                  <th className="text-right px-5 py-3 font-medium">Tutar</th>
+                  <th className="text-left px-5 py-3 font-medium">Durum</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(recentTx.data ?? []).map((tx) => (
+                  <tr key={tx.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-3 text-slate-600 whitespace-nowrap">
+                      {formatDate(tx.created_at)}
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="font-medium text-slate-800">
+                        {tx.user?.full_name || '—'}
+                      </div>
+                      <div className="text-xs text-slate-400">{tx.user?.email}</div>
+                    </td>
+                    <td className="px-5 py-3 text-slate-700">
+                      {TX_TYPE_LABELS[tx.type] || tx.type}
+                    </td>
+                    <td className="px-5 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
+                      {formatPrice(tx.amount)}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className={cn(
+                        'inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold',
+                        TX_STATUS_CLASS[tx.status] || 'bg-slate-200 text-slate-700',
+                      )}>
+                        {TX_STATUS_LABELS[tx.status] || tx.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {isLoadingAny && openSection === null && (
+      {isLoadingAny && !recentTx.data && (
         <div className="text-xs text-slate-400 text-right">Veriler yükleniyor…</div>
       )}
-    </div>
-  );
-}
-
-/* ---------------- TxTable (4 accordion'da kullanılır) ---------------- */
-
-function TxTable({
-  data,
-  loading,
-  isError,
-}: {
-  data: TxWithUser[];
-  loading: boolean;
-  isError: boolean;
-}) {
-  if (loading) {
-    return (
-      <div className="p-10 text-center text-slate-400 text-sm">
-        <Loader2 className="inline h-5 w-5 animate-spin mr-2" /> Yükleniyor…
-      </div>
-    );
-  }
-  if (isError) {
-    return (
-      <div className="p-6 flex items-center gap-2 text-sm text-red-600">
-        <AlertCircle className="h-4 w-4" /> İşlemler yüklenemedi.
-      </div>
-    );
-  }
-  if (data.length === 0) {
-    return (
-      <div className="p-10 text-center text-slate-400 text-sm">Henüz işlem yok.</div>
-    );
-  }
-  return (
-    <div className="overflow-x-auto border-t border-slate-200">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-          <tr>
-            <th className="text-left px-5 py-3 font-medium">Tarih</th>
-            <th className="text-left px-5 py-3 font-medium">Kullanıcı</th>
-            <th className="text-left px-5 py-3 font-medium">Tip</th>
-            <th className="text-right px-5 py-3 font-medium">Tutar</th>
-            <th className="text-left px-5 py-3 font-medium">Durum</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {data.map((tx) => (
-            <tr key={tx.id} className="hover:bg-slate-50">
-              <td className="px-5 py-3 text-slate-600 whitespace-nowrap">
-                {formatDate(tx.created_at)}
-              </td>
-              <td className="px-5 py-3">
-                <div className="font-medium text-slate-800">
-                  {tx.user?.full_name || '—'}
-                </div>
-                <div className="text-xs text-slate-400">{tx.user?.email}</div>
-              </td>
-              <td className="px-5 py-3 text-slate-700">
-                {TX_TYPE_LABELS[tx.type] || tx.type}
-              </td>
-              <td className="px-5 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
-                {formatPrice(tx.amount)}
-              </td>
-              <td className="px-5 py-3">
-                <span className={cn(
-                  'inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold',
-                  TX_STATUS_CLASS[tx.status] || 'bg-slate-200 text-slate-700',
-                )}>
-                  {TX_STATUS_LABELS[tx.status] || tx.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
