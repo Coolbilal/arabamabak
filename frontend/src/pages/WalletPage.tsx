@@ -22,6 +22,8 @@ const TX_LABELS: Record<TxType, string> = {
   auction_payment: 'Açık Arttırma Ödemesi',
   premium_payment: 'Premium Ödeme',
   expertise_payment: 'Ekspertiz Ödemesi',
+  corporate_listing_fee: 'Kurumsal İlan Geliri',
+  excess_listing_fee: 'Kota Aşımı Geliri',
 };
 
 const STATUS_LABELS: Record<TxStatus, string> = {
