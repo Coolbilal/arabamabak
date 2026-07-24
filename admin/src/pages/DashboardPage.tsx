@@ -429,9 +429,12 @@ export default function DashboardPage() {
           loading={txByTypeToday.isLoading}
         />
         <StatCard
-          label="Banka Havale Yükleme (Bugün)"
-          value={formatPrice((txByTypeToday.data?.deposit ?? 0))}
-          icon={<Wallet className="h-5 w-5" />}
+          label="Ücretsiz İlan Gelirleri (Bugün)"
+          value={formatPrice(
+            (txByTypeToday.data?.corporate_listing_fee ?? 0) +
+            (txByTypeToday.data?.excess_listing_fee ?? 0)
+          )}
+          icon={<BadgePlus className="h-5 w-5" />}
           iconClass="bg-amber-500"
           loading={txByTypeToday.isLoading}
         />
