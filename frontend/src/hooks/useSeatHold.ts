@@ -102,45 +102,15 @@ export function useWalletBalance() {
     staleTime: 0, // Her mount'ta fresh data
     gcTime: 1000 * 60 * 5, // 5 dakika cache'le
     queryFn: async () => {
-      // Son completed tx'in balance_after'ını al
-      const { data: lastTx, error: lastErr } = await supabase
-        .from('transactions')
-        .select('balance_after')
-        .eq('user_id', user!.id)
-        .eq('status', 'completed')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (lastErr) throw lastErr;
-      if (lastTx?.balance_after != null) {
-        return Number(lastTx.balance_after);
-      }
-      // NULL ise delta hesapla (ilk kez deposit yapan user'lar için)
+      // profile.wallet_balance her zaman gerçek cüzdandaki para (kaynak: DB)
+      // transactions.balance_after sadece audit, yanlış olabilir
       const { data, error } = await supabase
-        .from('transactions')
-        .select('amount, type')
-        .eq('user_id', user!.id)
-        .eq('status', 'completed')
-        .is('deleted_at', null);
+        .from('profiles')
+        .select('wallet_balance')
+        .eq('id', user!.id)
+        .maybeSingle();
       if (error) throw error;
-      let balance = 0;
-      for (const tx of data ?? []) {
-        const amt = Number(tx.amount);
-        if (tx.type === 'deposit' || tx.type === 'auction_refund' || tx.type === 'refund') {
-          balance += amt;
-        } else if (
-          tx.type === 'auction_won' ||
-          tx.type === 'payment' ||
-          tx.type === 'premium_payment' ||
-          tx.type === 'expertise_payment' ||
-          tx.type === 'withdraw' ||
-          tx.type === 'auction_payment'
-        ) {
-          balance -= amt;
-        }
-      }
-      return balance;
+      return Number(data?.wallet_balance ?? 0);
     },
   });
 }/**
