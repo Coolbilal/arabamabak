@@ -510,14 +510,16 @@ export default function TransactionsPage() {
                   {TYPE_LABELS[receiptTarget.type]} · {formatPrice(receiptTarget.amount)} · {formatDate(receiptTarget.created_at)}
                 </p>
               </div>
-              <a
-                href={receiptTarget.receipt_url ?? '#'}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-secondary text-xs"
-              >
-                <ExternalLink className="h-3.5 w-3.5" /> Yeni sekme
-              </a>
+              {receiptTarget.receipt_url && (
+                <a
+                  href={receiptTarget.receipt_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-secondary text-xs"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Yeni sekme
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => downloadReceiptPdf(receiptTarget)}
@@ -530,24 +532,36 @@ export default function TransactionsPage() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="flex-1 bg-slate-100">
-              {receiptTarget.receipt_url && isPdf(receiptTarget.receipt_url) ? (
-                <iframe
-                  src={receiptTarget.receipt_url}
-                  className="w-full h-full"
-                  title="Dekont"
-                />
-              ) : receiptTarget.receipt_url ? (
-                <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-                  <img
-                    src={receiptTarget.receipt_url}
-                    alt="Dekont"
-                    className="max-w-full max-h-full rounded shadow"
-                  />
-                </div>
-              ) : (
-                <div className="h-full flex items-center justify-center text-slate-500 text-sm">
-                  Bu işlem için dekont yüklenmemiş.
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+              {/* Transaction bilgileri tablosu (her zaman) */}
+              <div className="card overflow-hidden mb-4">
+                <table className="w-full text-sm">
+                  <tbody className="divide-y divide-slate-100">
+                    <tr><td className="px-4 py-2.5 text-slate-500 w-40">İşlem No</td><td className="px-4 py-2.5 font-mono text-xs text-slate-700">{receiptTarget.id}</td></tr>
+                    <tr><td className="px-4 py-2.5 text-slate-500">Tarih</td><td className="px-4 py-2.5 text-slate-800">{formatDate(receiptTarget.created_at)}</td></tr>
+                    <tr><td className="px-4 py-2.5 text-slate-500">Kullanıcı</td><td className="px-4 py-2.5 text-slate-800 font-medium">{receiptTarget.user?.full_name || '—'}</td></tr>
+                    <tr><td className="px-4 py-2.5 text-slate-500">E-posta</td><td className="px-4 py-2.5 text-slate-700">{receiptTarget.user?.email || '—'}</td></tr>
+                    <tr><td className="px-4 py-2.5 text-slate-500">İşlem Tipi</td><td className="px-4 py-2.5 text-slate-800">{TYPE_LABELS[receiptTarget.type] || receiptTarget.type}</td></tr>
+                    <tr><td className="px-4 py-2.5 text-slate-500">Tutar</td><td className="px-4 py-2.5 font-bold text-emerald-700 text-base">{formatPrice(Number(receiptTarget.amount))}</td></tr>
+                    <tr><td className="px-4 py-2.5 text-slate-500">Durum</td><td className="px-4 py-2.5"><span className={cn('inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold', STATUS_BADGE[receiptTarget.status])}>{STATUS_LABELS[receiptTarget.status] || receiptTarget.status}</span></td></tr>
+                    {receiptTarget.payment_method && <tr><td className="px-4 py-2.5 text-slate-500">Ödeme Yöntemi</td><td className="px-4 py-2.5 text-slate-700">{receiptTarget.payment_method}</td></tr>}
+                    {receiptTarget.reference_id && <tr><td className="px-4 py-2.5 text-slate-500">Referans</td><td className="px-4 py-2.5 font-mono text-xs text-slate-700">{receiptTarget.reference_id}</td></tr>}
+                    {receiptTarget.description && <tr><td className="px-4 py-2.5 text-slate-500">Açıklama</td><td className="px-4 py-2.5 text-slate-700">{receiptTarget.description}</td></tr>}
+                    {receiptTarget.completed_at && <tr><td className="px-4 py-2.5 text-slate-500">Tamamlanma</td><td className="px-4 py-2.5 text-slate-800">{formatDate(receiptTarget.completed_at)}</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* receipt_url varsa iframe/img (mevcut davranış korunur) */}
+              {receiptTarget.receipt_url && (
+                <div className="card overflow-hidden">
+                  {isPdf(receiptTarget.receipt_url) ? (
+                    <iframe src={receiptTarget.receipt_url} className="w-full h-96" title="Dekont" />
+                  ) : (
+                    <div className="p-4 flex flex-col items-center">
+                      <img src={receiptTarget.receipt_url} alt="Dekont" className="max-w-full max-h-96 rounded shadow" />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
