@@ -60,6 +60,7 @@ interface TxWithUser extends Transaction {
 
 const TX_TYPE_LABELS: Record<TxType, string> = {
   deposit: 'Yatırma', withdraw: 'Çekme', payment: 'Ödeme', refund: 'İade',
+  auction_won: 'Açık Arttırma Modül Ücreti',
   auction_payment: 'Açık Arttırma Ödemesi',
   premium_payment: 'Premium Ödemesi',
   expertise_payment: 'Ekspertiz Ödemesi',
@@ -179,7 +180,8 @@ export default function DashboardPage() {
         .eq('status', 'completed')
         .in('type', [
           'premium_payment',         // İlan verme ücreti
-          'auction_payment',         // Açık arttırma modül ücreti
+          'auction_payment',         // Açık arttırma ödemesi
+          'auction_won',             // Açık arttırma modül ücreti (kazanan)
           'expertise_payment',       // Ekspertiz talep ücreti
           'corporate_listing_fee',   // Kurumsal/galeri ücretsiz ilan geliri
           'excess_listing_fee',      // Bireysel kota aşımı geliri
@@ -416,7 +418,7 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Açık Arttırma Modül Ücreti (Bugün)"
-          value={formatPrice(txByTypeToday.data?.auction_payment ?? 0)}
+          value={formatPrice(txByTypeToday.data?.auction_won ?? 0)}
           icon={<Gavel className="h-5 w-5" />}
           iconClass="bg-rose-500"
           loading={txByTypeToday.isLoading}
