@@ -9,7 +9,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { cn, formatDate, formatPrice } from '../lib/utils';
 import DataTable, { type DataTableColumn } from '../components/DataTable';
 import type { TxStatus, TxType } from '../lib/types';
-import { jsPDF } from 'jspdf';
 
 interface TransactionRow {
   id: string;
@@ -171,52 +170,61 @@ export default function TransactionsPage() {
     return { count: list.length, total, completed, pending };
   }, [filtered]);
 
-  // PDF dekont oluştur (receipt_url olmasa bile)
+  // PDF dekont oluştur (tarayıcı print-to-PDF, ek dependency yok)
   function downloadReceiptPdf(row: TransactionRow) {
-    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-    doc.setFont('helvetica');
-    const W = doc.internal.pageSize.getWidth();
-
-    // Üst kırmızı banner
-    doc.setFillColor(220, 38, 38);
-    doc.rect(0, 0, W, 70, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.text('arabamabak - Dekont', 40, 42);
-
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(11);
-    let y = 110;
-    const line = (k: string, v: string) => {
-      doc.setFont('helvetica', 'bold');
-      doc.text(k + ':', 40, y);
-      doc.setFont('helvetica', 'normal');
-      doc.text(String(v), 200, y);
-      y += 22;
-    };
-
-    line('Islem No', row.id);
-    line('Tarih', formatDate(row.created_at));
-    line('Kullanici', row.user?.full_name || row.user?.email || '-');
-    line('E-posta', row.user?.email || '-');
-    line('Islem Tipi', TYPE_LABELS[row.type] || String(row.type));
-    line('Tutar', formatPrice(Number(row.amount)));
-    line('Durum', STATUS_LABELS[row.status] || String(row.status));
-    if (row.payment_method) line('Odeme Yontemi', row.payment_method);
-    if (row.reference_id) line('Referans', row.reference_id);
-    if (row.description) line('Aciklama', row.description);
-    if (row.completed_at) line('Tamamlanma', formatDate(row.completed_at));
-
-    y += 30;
-    doc.setDrawColor(226, 232, 240);
-    doc.line(40, y, W - 40, y);
-    y += 24;
-    doc.setFontSize(9);
-    doc.setTextColor(100, 116, 139);
-    doc.text('Bu belge arabamabak tarafindan otomatik uretilmistir.', 40, y);
-    doc.text(`Olusturma: ${new Date().toLocaleString('tr-TR')}`, 40, y + 14);
-
-    doc.save(`dekont-${row.id.slice(0, 8)}.pdf`);
+    const w = window.open('', '_blank', 'width=800,height=900');
+    if (!w) {
+      alert('Pop-up engellendi. Lütfen pop-up izni verin.');
+      return;
+    }
+    const html = `<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>arabamabak - Dekont</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; margin: 0; color: #0f172a; }
+  .banner { background: #dc2626; color: white; padding: 24px 40px; }
+  .banner h1 { margin: 0; font-size: 22px; }
+  .body { padding: 32px 40px; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 8px 0; font-size: 13px; }
+  td.k { color: #64748b; font-weight: 600; width: 180px; }
+  td.v { color: #0f172a; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+  .foot { font-size: 11px; color: #64748b; }
+  @media print {
+    .no-print { display: none; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style></head>
+<body>
+  <div class="banner"><h1>arabamabak — Dekont</h1></div>
+  <div class="body">
+    <table>
+      <tr><td class="k">İşlem No</td><td class="v">${row.id}</td></tr>
+      <tr><td class="k">Tarih</td><td class="v">${formatDate(row.created_at)}</td></tr>
+      <tr><td class="k">Kullanıcı</td><td class="v">${row.user?.full_name || row.user?.email || '-'}</td></tr>
+      <tr><td class="k">E-posta</td><td class="v">${row.user?.email || '-'}</td></tr>
+      <tr><td class="k">İşlem Tipi</td><td class="v">${TYPE_LABELS[row.type] || row.type}</td></tr>
+      <tr><td class="k">Tutar</td><td class="v">${formatPrice(Number(row.amount))}</td></tr>
+      <tr><td class="k">Durum</td><td class="v">${STATUS_LABELS[row.status] || row.status}</td></tr>
+      ${row.payment_method ? `<tr><td class="k">Ödeme Yöntemi</td><td class="v">${row.payment_method}</td></tr>` : ''}
+      ${row.reference_id ? `<tr><td class="k">Referans</td><td class="v">${row.reference_id}</td></tr>` : ''}
+      ${row.description ? `<tr><td class="k">Açıklama</td><td class="v">${row.description}</td></tr>` : ''}
+      ${row.completed_at ? `<tr><td class="k">Tamamlanma</td><td class="v">${formatDate(row.completed_at)}</td></tr>` : ''}
+    </table>
+    <hr/>
+    <p class="foot">Bu belge arabamabak tarafından otomatik üretilmiştir.</p>
+    <p class="foot">Oluşturma: ${new Date().toLocaleString('tr-TR')}</p>
+    <div class="no-print" style="margin-top:24px;text-align:center;">
+      <button onclick="window.print()" style="background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:6px;font-weight:600;cursor:pointer;">
+        Yazdır / PDF Olarak Kaydet
+      </button>
+    </div>
+  </div>
+  <script>setTimeout(() => window.print(), 400);</script>
+</body></html>`;
+    w.document.write(html);
+    w.document.close();
   }
 
   const columns: DataTableColumn<TransactionRow>[] = useMemo(
