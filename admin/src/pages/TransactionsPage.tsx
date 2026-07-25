@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, FileText, ExternalLink, User as UserIcon,
-  AlertCircle, RefreshCw, X, Check,
+  AlertCircle, RefreshCw, X, Check, Download,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { cn, formatDate, formatPrice } from '../lib/utils';
 import DataTable, { type DataTableColumn } from '../components/DataTable';
 import type { TxStatus, TxType } from '../lib/types';
+import { jsPDF } from 'jspdf';
 
 interface TransactionRow {
   id: string;
@@ -35,6 +36,8 @@ const TYPE_LABELS: Record<TxType, string> = {
   auction_payment: 'Açık Arttırma Ödemesi',
   premium_payment: 'Premium Ödeme',
   expertise_payment: 'Ekspertiz Ödemesi',
+  corporate_listing_fee: 'Kurumsal İlan Geliri',
+  excess_listing_fee: 'Kota Aşımı Geliri',
 };
 
 const STATUS_LABELS: Record<TxStatus, string> = {
@@ -51,7 +54,16 @@ const STATUS_BADGE: Record<TxStatus, string> = {
   cancelled: 'bg-slate-100 text-slate-600',
 };
 
-const ALL_TYPES: TxType[] = ['deposit', 'withdraw', 'payment', 'refund', 'auction_payment', 'premium_payment', 'expertise_payment'];
+// Ciro gelir tipleri (TransactionsPage sadece bunları gösterir)
+// deposit / withdraw / refund / payment → ciro dışı, başka yerde yönetilir
+const ALL_TYPES: TxType[] = [
+  'premium_payment',
+  'auction_payment',
+  'expertise_payment',
+  'corporate_listing_fee',
+  'excess_listing_fee',
+];
+const PLATFORM_REVENUE_TYPES = new Set<TxType>(ALL_TYPES);
 const ALL_STATUSES: TxStatus[] = ['pending', 'completed', 'failed', 'cancelled'];
 
 function isPdf(url: string | null | undefined): boolean {
@@ -150,12 +162,62 @@ export default function TransactionsPage() {
   const summary = useMemo(() => {
     const list = filtered;
     const total = list.reduce((acc, r) => acc + Number(r.amount), 0);
+    // Ciro ile ayni formül: sadece 5 gelir tipi × completed
     const completed = list
       .filter((r) => r.status === 'completed')
+      .filter((r) => PLATFORM_REVENUE_TYPES.has(r.type))
       .reduce((acc, r) => acc + Number(r.amount), 0);
     const pending = list.filter((r) => r.status === 'pending').length;
     return { count: list.length, total, completed, pending };
   }, [filtered]);
+
+  // PDF dekont oluştur (receipt_url olmasa bile)
+  function downloadReceiptPdf(row: TransactionRow) {
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    doc.setFont('helvetica');
+    const W = doc.internal.pageSize.getWidth();
+
+    // Üst kırmızı banner
+    doc.setFillColor(220, 38, 38);
+    doc.rect(0, 0, W, 70, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.text('arabamabak - Dekont', 40, 42);
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(11);
+    let y = 110;
+    const line = (k: string, v: string) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(k + ':', 40, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(String(v), 200, y);
+      y += 22;
+    };
+
+    line('Islem No', row.id);
+    line('Tarih', formatDate(row.created_at));
+    line('Kullanici', row.user?.full_name || row.user?.email || '-');
+    line('E-posta', row.user?.email || '-');
+    line('Islem Tipi', TYPE_LABELS[row.type] || String(row.type));
+    line('Tutar', formatPrice(Number(row.amount)));
+    line('Durum', STATUS_LABELS[row.status] || String(row.status));
+    if (row.payment_method) line('Odeme Yontemi', row.payment_method);
+    if (row.reference_id) line('Referans', row.reference_id);
+    if (row.description) line('Aciklama', row.description);
+    if (row.completed_at) line('Tamamlanma', formatDate(row.completed_at));
+
+    y += 30;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(40, y, W - 40, y);
+    y += 24;
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Bu belge arabamabak tarafindan otomatik uretilmistir.', 40, y);
+    doc.text(`Olusturma: ${new Date().toLocaleString('tr-TR')}`, 40, y + 14);
+
+    doc.save(`dekont-${row.id.slice(0, 8)}.pdf`);
+  }
 
   const columns: DataTableColumn<TransactionRow>[] = useMemo(
     () => [
@@ -239,15 +301,9 @@ export default function TransactionsPage() {
         render: (row) => (
           <button
             type="button"
-            disabled={!row.receipt_url}
-            onClick={() => row.receipt_url && setReceiptTarget(row)}
-            className={cn(
-              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition',
-              row.receipt_url
-                ? 'bg-sky-50 text-sky-700 hover:bg-sky-100'
-                : 'bg-slate-100 text-slate-400 cursor-not-allowed',
-            )}
-            title={row.receipt_url ? 'Dekontu görüntüle' : 'Dekont yok'}
+            onClick={() => setReceiptTarget(row)}
+            className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100 transition"
+            title="Dekontu görüntüle / PDF oluştur"
           >
             <FileText className="h-3.5 w-3.5" /> PDF
           </button>
@@ -454,6 +510,14 @@ export default function TransactionsPage() {
               >
                 <ExternalLink className="h-3.5 w-3.5" /> Yeni sekme
               </a>
+              <button
+                type="button"
+                onClick={() => downloadReceiptPdf(receiptTarget)}
+                className="btn-primary text-xs"
+                title="PDF oluştur ve indir"
+              >
+                <Download className="h-3.5 w-3.5" /> PDF İndir
+              </button>
               <button onClick={() => setReceiptTarget(null)} className="p-1.5 rounded text-slate-400 hover:bg-slate-100">
                 <X className="h-4 w-4" />
               </button>
