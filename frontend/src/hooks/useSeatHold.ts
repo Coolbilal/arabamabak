@@ -109,8 +109,17 @@ export function useWalletBalance() {
         .select('wallet_balance')
         .eq('id', user!.id)
         .maybeSingle();
+      const balance = Number(data?.wallet_balance ?? 0);
+      // DEBUG: tespit amaçlı, hatayı bulunca kaldırılacak
+      console.log('[useWalletBalance DEBUG]', {
+        userId: user?.id,
+        userEmail: user?.email,
+        supabaseData: data,
+        supabaseError: error?.message || null,
+        returnedBalance: balance,
+      });
       if (error) throw error;
-      return Number(data?.wallet_balance ?? 0);
+      return balance;
     },
   });
 }/**
