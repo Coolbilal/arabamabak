@@ -148,17 +148,13 @@ export function useJoinSeat() {
         return existing as SeatHold;
       }
 
-      // Cüzdan bakiyesi kontrol
-      const { data: lastTx } = await supabase
-        .from('transactions')
-        .select('balance_after')
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
+      // Cüzdan bakiyesi kontrol (profile.wallet_balance - gerçek kaynak)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('wallet_balance')
+        .eq('id', user.id)
         .maybeSingle();
-      const balance = Number(lastTx?.balance_after ?? 0);
+      const balance = Number(profile?.wallet_balance ?? 0);
       if (balance < fee) {
         throw new Error(`Yetersiz bakiye. ${fee} TL gerekli, bakiyeniz: ${balance} TL`);
       }
